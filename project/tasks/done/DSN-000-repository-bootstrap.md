@@ -46,5 +46,5 @@ Not applicable.
 
 ## Handoff
 
-- **Next action:** Claim DSN-001 and create the Core MVP implementation plan after approving the technology stack and implementation architecture.
+- **Next action:** Move DSN-001 to `ready`, claim it through the shared-`main` protocol, and use it to propose the technology stack and implementation architecture for approval.
 - **Unresolved issues:** None recorded.

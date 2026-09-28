@@ -24,10 +24,14 @@ One externally observable or independently verifiable result.
 
 - [ ] Observable acceptance condition with an exact command or review method
 
+A task may move to `done` only after every applicable acceptance check is marked complete, the change is integrated, and post-integration verification is recorded below.
+
 ## Verification evidence
 
 - **Commits:** None
+- **Integration commit:** Not integrated
 - **Commands and results:** None
+- **Post-integration verification:** Not run
 - **Changed paths:** None
 - **Limitations or skipped checks:** None
 

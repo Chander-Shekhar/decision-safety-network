@@ -16,14 +16,15 @@ Allowed side transitions:
 
 1. Ensure the outcome is bounded, acceptance is derived from the PRD or an accepted decision, and dependencies are explicit.
 2. Move prepared work from `backlog` to `ready`.
-3. Before editing, the sole owner moves it to `in-progress` with `git mv` and records owner, start time, branch/worktree, and owned paths.
-4. Never claim overlapping paths. Shared files require the integrator to serialize work.
+3. Claiming a `ready` task is a serialized integration action: the integrator moves it to `in-progress` with `git mv` on shared `main` and commits the claim with the sole owner, start time, intended branch/worktree, and owned paths.
+4. Only after the claim commit is on shared `main` may the owner create the task branch and isolated worktree from that commit and begin editing. Confirm the task is no longer in `ready` before starting work.
+5. Never claim overlapping paths. Shared files require the integrator to serialize work.
 
 ## Implement and hand off
 
-Use `task/DSN-NNN-short-title`, make atomic commits prefixed with the task ID, and keep work inside declared paths. Before handoff, record changed paths, commits, commands/results, limitations, unresolved risks, and next action.
+Use `task/DSN-NNN-short-title` in an isolated worktree, make atomic commits prefixed with the task ID, and keep work inside declared paths. Before handoff, record changed paths, commits, commands/results, limitations, unresolved risks, and next action.
 
-Move to `review` only when implementation and declared checks are complete. The integrator independently reviews, runs relevant checks, merges, records integration evidence, and then moves the task to `done`.
+Move to `review` only when implementation and declared checks are complete. The integrator independently reviews the change and confirms that all acceptance checks pass. After integrating it into `main`, the integrator records the integration commit and post-integration verification evidence; only then may the task move to `done`.
 
 ## Blocked and deferred
 
@@ -37,4 +38,4 @@ No stretch task may move to `ready` or `in-progress` until every Core MVP Cup-re
 
 ## GitHub migration
 
-If a GitHub remote and authenticated access for all agents are established, migrate active tasks once to GitHub Issues and one Project. Archive local task records, update `AGENTS.md`, and never operate both trackers concurrently.
+If a GitHub remote and authenticated access for all agents are established, migrate active tasks once to GitHub Issues and one Project. Archive local task records, update both `AGENTS.md` and `project/WORKFLOW.md` to name the new canonical tracker, and never operate both trackers concurrently.

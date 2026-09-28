@@ -23,6 +23,7 @@ Produce an owned, dependency-aware implementation plan and task decomposition fo
 ## Acceptance checks
 
 - [ ] Every Core MVP capability and Cup-ready gate maps to an implementation task.
+- [ ] The technology stack and implementation architecture are proposed, reviewed, approved, and captured in accepted decision records before dependent implementation tasks move to `ready`.
 - [ ] Every task declares exact file/module ownership and avoids overlapping concurrent paths.
 - [ ] Component interfaces, event/state contracts, and dependency order are explicit.
 - [ ] Every task includes executable verification commands and expected outcomes.
@@ -33,15 +34,17 @@ Produce an owned, dependency-aware implementation plan and task decomposition fo
 ## Verification evidence
 
 - **Commits:** None
+- **Integration commit:** Not integrated
 - **Commands and results:** None
+- **Post-integration verification:** Not run
 - **Changed paths:** None
 - **Limitations or skipped checks:** None
 
 ## Blocker or deferral
 
-Not applicable. Technology-stack and architecture choices must be approved before this task moves to `ready`.
+Not applicable. This task is responsible for proposing the technology stack and implementation architecture and obtaining approval for them. Their approval gates adoption of the plan and release of dependent implementation tasks, not this task's move to `ready`.
 
 ## Handoff
 
-- **Next action:** Move to `ready` after the technology stack and architecture are approved, then claim it in an isolated branch/worktree.
-- **Unresolved issues:** Technology stack and implementation architecture are not selected yet.
+- **Next action:** Move this task to `ready`, claim it through the shared-`main` protocol, then propose the technology stack and implementation architecture for approval.
+- **Unresolved issues:** Technology stack and implementation architecture are intentionally unresolved inputs to this task.
