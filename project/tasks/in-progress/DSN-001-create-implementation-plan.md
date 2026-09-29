@@ -33,9 +33,9 @@ Produce an owned, dependency-aware implementation plan and task decomposition fo
 
 ## Verification evidence
 
-- **Commits:** `872ea2e DSN-001: draft Core MVP technical architecture` and `6313910 DSN-001: require ally acceptance before disclosure` (local task branch); `f239c84 DSN-001: claim architecture and planning task` (local main)
+- **Commits:** `872ea2e DSN-001: draft Core MVP technical architecture`, `6313910 DSN-001: require ally acceptance before disclosure`, `5182272 DSN-001: separate ally preparation from case sharing`, and this handoff's enclosing commit (local task branch); `f239c84 DSN-001: claim architecture and planning task` (local main)
 - **Integration commit:** Not integrated
-- **Commands and results:** `pandoc -f gfm -t html -o /dev/null` parsed the written spec; placeholder scan found no `TBD`/`TODO`/generic implementation steps; `git diff --cached --check` passed before both spec commits; locked PRD SHA-256 remained `548bdc6c81b908ff58daf654c0a6daaa29de1f4df0a1274f32128d4c6a7c712c`. Independent read-only review found and prompted fixes for pending transfer behavior, no-source-retention recovery, ally acceptance, recovery acknowledgements, and authorization/deletion details.
+- **Commands and results:** `pandoc -f gfm -t html -o /dev/null` parsed the written spec; placeholder scan found no `TBD`/`TODO`/generic implementation steps; `git diff --cached --check` passed before the spec commits; locked PRD SHA-256 remained `548bdc6c81b908ff58daf654c0a6daaa29de1f4df0a1274f32128d4c6a7c712c`. Independent read-only review found and prompted fixes for pending transfer behavior, no-source-retention recovery, pre-session ally acceptance, recovery acknowledgements, and authorization/deletion details.
 - **Post-integration verification:** Not run
 - **Changed paths:** `.gitignore`, this task record, and `docs/superpowers/specs/2026-09-30-core-mvp-technical-architecture-design.md`.
 - **Limitations or skipped checks:** The written spec awaits founder review; no implementation plan, accepted decision record, product code, or cloud resource was created. No remote push was made after the founder's instruction to keep work local.
