@@ -6,7 +6,7 @@ Verified against the organizer's public pages on 30 September 2026. The [locked 
 
 | Deliverable | Published requirement |
 | --- | --- |
-| Prototype | Working end-to-end URL deployed on Google Cloud through Cloud Run, Firebase, or another eligible Google Cloud service. |
+| Prototype | Working end-to-end URL deployed on Google Cloud through Cloud Run or Firebase. |
 | Source | Public GitHub repository containing the prototype source code. |
 | Demo | Public YouTube, Vimeo, or Google Drive link to a video strictly under three minutes. |
 | Presentation | Deck explaining the solution, architecture, feasibility, and business case; the challenge page requests a PDF export. |
@@ -16,6 +16,7 @@ Use Google AI models or the listed Google agentic tools. Submit code, documentat
 ## Dates and ambiguities
 
 - The prototype deadline is **18 October 2026**. The public pages do not state a cutoff time or timezone; the internal plan targets 17 October.
+- The challenge page specifically names Cloud Run or Firebase for deployment; the FAQ uses broader “Cloud Run/GCP/Firebase” wording. Plan for Cloud Run or Firebase unless the organizer confirms another target.
 - The linked Terms say roster additions and replacements close **4 October 2026** and state that the Terms prevail over conflicting promotional material. The homepage and FAQ say team formation closes 11 October. Use 4 October until the organizer confirms otherwise.
 - The challenge page's category-specification list conflicts with its six displayed themes. Select the BFSI theme if the submission form offers it, and resolve any form mismatch with the organizer.
 - The FAQ and Terms require the video to be strictly **under** three minutes, despite looser wording elsewhere on the challenge page.
