@@ -33,12 +33,12 @@ Produce an owned, dependency-aware implementation plan and task decomposition fo
 
 ## Verification evidence
 
-- **Commits:** None
+- **Commits:** `872ea2e DSN-001: draft Core MVP technical architecture` and `6313910 DSN-001: require ally acceptance before disclosure` (local task branch); `f239c84 DSN-001: claim architecture and planning task` (local main)
 - **Integration commit:** Not integrated
-- **Commands and results:** None
+- **Commands and results:** `pandoc -f gfm -t html -o /dev/null` parsed the written spec; placeholder scan found no `TBD`/`TODO`/generic implementation steps; `git diff --cached --check` passed before both spec commits; locked PRD SHA-256 remained `548bdc6c81b908ff58daf654c0a6daaa29de1f4df0a1274f32128d4c6a7c712c`. Independent read-only review found and prompted fixes for pending transfer behavior, no-source-retention recovery, ally acceptance, recovery acknowledgements, and authorization/deletion details.
 - **Post-integration verification:** Not run
-- **Changed paths:** None
-- **Limitations or skipped checks:** None
+- **Changed paths:** `.gitignore`, this task record, and `docs/superpowers/specs/2026-09-30-core-mvp-technical-architecture-design.md`.
+- **Limitations or skipped checks:** The written spec awaits founder review; no implementation plan, accepted decision record, product code, or cloud resource was created. No remote push was made after the founder's instruction to keep work local.
 
 ## Blocker or deferral
 
@@ -46,5 +46,5 @@ Not applicable. The founder approved the all-TypeScript Google Cloud stack on 30
 
 ## Handoff
 
-- **Next action:** Write and self-review the architecture specification in the isolated task worktree, then request founder review before planning implementation.
-- **Unresolved issues:** Exact component contracts and implementation tasks are to be resolved by the written spec and plan; no product code is authorized yet.
+- **Next action:** Ask the founder to review the committed written spec. Only after that approval, write the detailed implementation plan and accepted decision record; obtain separate consent before any remote push.
+- **Unresolved issues:** Founder review of the server-only Firestore boundary, three retention choices (including the disclosed 24-hour confirmed-facts default), and non-settling simulated submit behavior. Exact implementation tasks await the plan; no product code is authorized yet.
