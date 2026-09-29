@@ -4,7 +4,7 @@
 - **Priority:** P0
 - **Owner:** Primary agent (serialized integrator)
 - **Branch/worktree:** `task/DSN-002-public-github-submission-setup` / `isolated temporary worktree (local path omitted)`
-- **Owned paths:** `AGENTS.md`, `README.md`, `SUBMISSION_PLAN.txt`, `docs/submission-requirements.md`, repository scaffold design/plan files, and this task record
+- **Owned paths:** `AGENTS.md`, `README.md`, `SUBMISSION_PLAN.txt`, `docs/submission-requirements.md`, repository scaffold design/plan files, `project/tasks/done/DSN-000-repository-bootstrap.md`, and this task record
 - **Dependencies:** DSN-000
 - **PRD references:** Competition fit, Cup scope and proof boundary, Cup acceptance criteria
 - **Decision references:** None

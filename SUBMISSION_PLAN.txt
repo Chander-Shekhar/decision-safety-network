@@ -2,10 +2,11 @@ AI BUILDER CUP — HIGH-LEVEL SUBMISSION PLAN
 
 28–30 September: Finalize architecture, UX flows, ownership, and build plan.
 1–7 October: Build the complete Core MVP vertical slice.
+By 4 October: Officially form the two-person team and finalize its name and logo.
 8–10 October: Integrate all surfaces and complete the end-to-end Safety Case.
 11–12 October: Test against acceptance, security, accessibility, and failure criteria.
 13–14 October: Fix defects, polish UX, and stabilize deployment.
 15 October: Attempt stretch features only if the Core MVP is fully accepted.
-16 October: Record the three-minute demo and finalize the presentation.
+16 October: Record the under-three-minute demo and finalize the presentation.
 17 October: Run final submission QA and submit early.
 18 October: Contingency only.

@@ -52,5 +52,6 @@ Before writing, read this file and the assigned task. Every product-facing task 
 
 - Use synthetic demo data only.
 - Persistently label simulated bank, authority, reporting, and payment behavior as simulated.
+- This is a public GitHub project. Use a personal GitHub identity or no-reply commit address; never publish a workplace email, credentials, or private local path.
 - Never commit secrets, personal data, local credentials, generated build output, or environment files.
 - Keep changes inside the assigned task and leave a complete handoff before stopping.

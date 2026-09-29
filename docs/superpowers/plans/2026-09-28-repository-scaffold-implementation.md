@@ -21,7 +21,7 @@
 - Do not create a remote or install dependencies.
 - Core MVP work precedes stretch work unless the founder explicitly changes the gate.
 - Use one owner and one isolated branch/worktree per active writing task.
-- Preserve the existing root commit `50606a1` and all unrelated filesystem content.
+- Preserve the existing root commit `bb07438` and all unrelated filesystem content. This ID reflects the pre-publication author-email rewrite.
 
 ## Review Focus
 
@@ -397,7 +397,7 @@ Create `project/tasks/in-progress/DSN-000-repository-bootstrap.md` containing:
 - **Owner:** Primary agent
 - **Branch/worktree:** main / repository root
 - **Owned paths:** `AGENTS.md`, `README.md`, `SUBMISSION_PLAN.txt`, `.gitignore`, `.editorconfig`, `.github/`, `project/`, and repository scaffold design/plan files
-- **Dependencies:** Product baseline commit `50606a1`
+- **Dependencies:** Product baseline commit `bb07438`
 - **PRD references:** Repository support only; product scope unchanged
 - **Decision references:** `docs/superpowers/specs/2026-09-28-repository-operating-system-design.md`
 - **Started:** 2026-09-28

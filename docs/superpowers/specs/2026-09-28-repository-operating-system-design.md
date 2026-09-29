@@ -2,7 +2,7 @@
 
 **Status:** Implemented
 **Date:** 28 September 2026  
-**Applies to:** `this repository`  
+**Applies to:** this repository
 **Product baseline:** `Decision_Safety_Network_PRD_Draft.md`, Draft 0.2
 
 ## Purpose
