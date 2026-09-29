@@ -2,14 +2,14 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed
+- **Owner:** Primary agent (serialized integrator)
+- **Branch/worktree:** `task/DSN-001-core-implementation-plan` / `.worktrees/dsn-001-core-implementation-plan`
+- **Owned paths:** `.gitignore`, `docs/superpowers/specs/2026-09-30-core-mvp-technical-architecture-design.md`, `project/decisions/0001-google-cloud-typescript-architecture.md`, `docs/superpowers/plans/2026-09-30-core-mvp-implementation-plan.md`, and this task record; exact downstream task records will be declared before writing them
 - **Dependencies:** DSN-000
 - **PRD references:** Core MVP feature set, causal acceptance matrix, canonical Cup state transitions, AI design and technical architecture, Cup acceptance criteria, and Cup-ready definition
 - **Decision references:** None
-- **Started:** Not started
-- **Last updated:** 2026-09-28
+- **Started:** 2026-09-30
+- **Last updated:** 2026-09-30
 
 ## Outcome
 
@@ -42,9 +42,9 @@ Produce an owned, dependency-aware implementation plan and task decomposition fo
 
 ## Blocker or deferral
 
-Not applicable. This task is responsible for proposing the technology stack and implementation architecture and obtaining approval for them. Their approval gates adoption of the plan and release of dependent implementation tasks, not this task's move to `ready`.
+Not applicable. The founder approved the all-TypeScript Google Cloud stack on 30 September. The written architecture specification still requires founder review before the detailed implementation plan is written; accepted decision records gate dependent tasks moving to `ready`.
 
 ## Handoff
 
-- **Next action:** Move this task to `ready`, claim it through the shared-`main` protocol, then propose the technology stack and implementation architecture for approval.
-- **Unresolved issues:** Technology stack and implementation architecture are intentionally unresolved inputs to this task.
+- **Next action:** Write and self-review the architecture specification in the isolated task worktree, then request founder review before planning implementation.
+- **Unresolved issues:** Exact component contracts and implementation tasks are to be resolved by the written spec and plan; no product code is authorized yet.
