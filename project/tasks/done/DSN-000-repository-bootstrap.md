@@ -5,7 +5,7 @@
 - **Owner:** Primary agent
 - **Branch/worktree:** main / repository root
 - **Owned paths:** `AGENTS.md`, `README.md`, `SUBMISSION_PLAN.txt`, `.gitignore`, `.editorconfig`, `.github/`, `project/`, and repository scaffold design/plan files
-- **Dependencies:** Product baseline commit `bb07438`
+- **Dependencies:** Product baseline commit `207fb0b`
 - **PRD references:** Repository support only; product scope unchanged
 - **Decision references:** `docs/superpowers/specs/2026-09-28-repository-operating-system-design.md`
 - **Started:** 2026-09-28
@@ -35,7 +35,7 @@ A local Git repository with one authoritative multi-agent workflow, task lifecyc
 
 ## Verification evidence
 
-- **Commits:** `a598ada DSN-000: add repository operating rules`; `8ae4729 DSN-000: add repository task lifecycle`; `c5f95a3 DSN-000: add decision and review controls`; the enclosing verification commit closes this record. These IDs reflect the pre-publication identity rewrite.
+- **Commits:** `a124edf DSN-000: add repository operating rules`; `305384b DSN-000: add repository task lifecycle`; `6a90940 DSN-000: add decision and review controls`; the enclosing verification commit closes this record. These are the sanitized public-history IDs.
 - **Commands and results:** `PASS: repository structural audit`; PRD SHA-256 `548bdc6c81b908ff58daf654c0a6daaa29de1f4df0a1274f32128d4c6a7c712c`; Pandoc validation and `git diff --check` passed before closure.
 - **Changed paths:** `AGENTS.md`, `README.md`, `SUBMISSION_PLAN.txt`, `.gitignore`, `.editorconfig`, `.github/pull_request_template.md`, `project/WORKFLOW.md`, `project/tasks/`, `project/decisions/`, and the repository scaffold design/plan files.
 - **Limitations or skipped checks:** None.
