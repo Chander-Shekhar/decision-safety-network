@@ -2,13 +2,13 @@
 
 - **Scope:** submission
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed
+- **Owner:** Primary agent (serialized integrator)
+- **Branch/worktree:** `task/DSN-002-public-github-submission-setup` / `isolated temporary worktree (local path omitted)`
+- **Owned paths:** `AGENTS.md`, `README.md`, `SUBMISSION_PLAN.txt`, `docs/submission-requirements.md`, repository scaffold design/plan files, and this task record
 - **Dependencies:** DSN-000
 - **PRD references:** Competition fit, Cup scope and proof boundary, Cup acceptance criteria
 - **Decision references:** None
-- **Started:** Not started
+- **Started:** 2026-09-30
 - **Last updated:** 2026-09-30
 
 ## Outcome
@@ -43,5 +43,5 @@ Not applicable.
 
 ## Handoff
 
-- **Next action:** Claim the task and complete publication under the repository workflow.
+- **Next action:** Publish the source with personal GitHub commit identity and verify the public view.
 - **Unresolved issues:** None. The founder confirmed the personal `Chander-Shekhar` GitHub account and requested no office commit identity.
