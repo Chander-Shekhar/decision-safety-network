@@ -1,6 +1,6 @@
 # Core MVP Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Execute this plan task-by-task with an isolated implementer, independent reviewer, scoped fixes, and integrator-owned merge. Use the agent mechanism available in your environment; the checked steps below are work-package instructions, not a second status ledger.
 
 **Goal:** Deliver the locked PRD's complete, deployed AI Builder Cup Safety Case: controlled live conversation, source-grounded Gemini reasoning, a non-settling simulated transfer and human intervention, independent verification/ally review, and same-case recovery/export.
 
@@ -9,6 +9,19 @@
 **Tech Stack:** Node.js 22, npm workspaces, strict TypeScript, React/Vite, Fastify, Zod, Firebase Authentication/Admin SDK, Cloud Firestore, `@google/genai` on Google Cloud, Vitest, Firebase Emulator Suite, Playwright, Firebase Hosting, Cloud Run, and an authenticated Cloud Scheduler cleanup trigger. Pin exact dependency versions and commit the lockfile in Task 1; do not invent version-specific APIs from memory. Check the [Google Gen AI SDK](https://googleapis.github.io/js-genai/release_docs/index.html) and [Firebase Hosting/Cloud Run rewrite](https://firebase.google.com/docs/hosting/cloud-run) docs during implementation.
 
 **Spec:** [Approved technical architecture](../specs/2026-09-30-core-mvp-technical-architecture-design.md); [accepted decision 0001](../../../project/decisions/0001-google-cloud-typescript-architecture.md); [locked PRD](../../../Decision_Safety_Network_PRD_Draft.md), Part I.
+
+**UI guidance:** The founder approved the [Core MVP wireframe guide](../../design/wireframes/README.md) and its linked frames on 3 October 2026. Every frontend implementer and reviewer must read the guide and the frames mapped below. Use them for information hierarchy, interaction sequence, safety copy, responsive behavior, and accessibility—not as production markup or a fixed brand/pixel specification. The locked PRD and accepted decisions take precedence if an illustration differs.
+
+| Frontend work package | Relevant wireframes |
+| --- | --- |
+| Task 2 · Safety Plan | [01 · Prepared Safety Plan](../../design/wireframes/01-plan.svg) |
+| Task 3 · controlled session; Task 4 · Decision Map | [02 · Quiet live case](../../design/wireframes/02-live-case.svg) |
+| Task 6 · payment simulator | [02 · Quiet live case](../../design/wireframes/02-live-case.svg), [03 · decisive action](../../design/wireframes/03-decision-states.svg) |
+| Task 7 · action console | [03 · decisive action](../../design/wireframes/03-decision-states.svg), [03b · human choice](../../design/wireframes/03b-human-choice.svg), [05 · resolution](../../design/wireframes/05-resolution-control.svg) |
+| Task 8 · independent verification | [04 · verification and ally](../../design/wireframes/04-verify-ally.svg), [05 · resolution](../../design/wireframes/05-resolution-control.svg) |
+| Task 9 · ally sharing and response | [03b · human choice](../../design/wireframes/03b-human-choice.svg), [04 · verification and ally](../../design/wireframes/04-verify-ally.svg) |
+| Task 10 · recovery; Task 11 · evidence | [06 · recovery and evidence](../../design/wireframes/06-recovery-evidence.svg) |
+| Task 12 · integration | [Entire wireframe gallery](../../design/wireframes/index.html) and guide, including narrow-screen states |
 
 ## Global Constraints
 
@@ -49,7 +62,7 @@ These are planned paths, not existing code. Each numbered task has sole writing 
 | `packages/contracts/src/payment.ts`, `apps/api/src/payment.ts`, `apps/api/src/payment-routes.ts`, `apps/api/test/payment.test.ts`, `apps/web/src/PaymentPanel.tsx`, `apps/web/src/PaymentPanel.test.tsx` | Server-owned new-payee simulator, relation, non-settling submit; Task 6 |
 | `apps/api/src/decision-routes.ts`, `apps/api/test/decision.test.ts`, `apps/web/src/ActionConsole.tsx`, `apps/web/src/ActionConsole.test.tsx` | Explicit user actions, ≤3 reasons, pre-OTP language, prevention resolution; Task 7 |
 | `apps/api/src/demo-bank-registry.ts`, `apps/api/src/verification.ts`, `apps/api/src/verification-routes.ts`, `apps/api/test/verification.test.ts`, `apps/web/src/VerifyPanel.tsx`, `apps/web/src/VerifyPanel.test.tsx` | Fictional versioned route and completed simulated verification; Task 8 |
-| `packages/contracts/src/ally.ts`, `apps/api/src/ally.ts`, `apps/api/src/ally-routes.ts`, `apps/api/test/ally.test.ts`, `apps/web/src/AllyScreen.tsx`, `apps/web/src/AllyScreen.test.tsx` | Case grant, minimum packet, revocation, ally response; Task 9 |
+| `packages/contracts/src/ally.ts`, `apps/api/src/ally.ts`, `apps/api/src/ally-routes.ts`, `apps/api/test/ally.test.ts`, `apps/web/src/AllySharePreview.tsx`, `apps/web/src/AllySharePreview.test.tsx`, `apps/web/src/AllyScreen.tsx`, `apps/web/src/AllyScreen.test.tsx` | Owner-side frozen-packet preview and case grant; minimum ally packet, revocation, response; Task 9 |
 | `packages/contracts/src/recovery.ts`, `apps/api/src/recovery.ts`, `apps/api/src/recovery-routes.ts`, `apps/api/test/recovery.test.ts`, `apps/web/src/RecoveryScreen.tsx`, `apps/web/src/RecoveryScreen.test.tsx` | Same-case already-paid conversion and first-hour actions; Task 10 |
 | `packages/contracts/src/evidence.ts`, `apps/api/src/retention.ts`, `apps/api/src/retention-routes.ts`, `apps/api/src/export.ts`, `apps/api/src/evidence-routes.ts`, `apps/api/test/evidence.test.ts`, `apps/api/test/retention.test.ts`, `apps/web/src/EvidenceScreen.tsx`, `apps/web/src/EvidenceScreen.test.tsx` | Evidence promotion, correction timeline, ZIP brief/manifest/NCRP preview, expiry/deletion; Task 11 |
 | `apps/api/src/server.ts`, `apps/api/test/fake-gemini.ts`, `apps/web/src/App.tsx`, `apps/web/src/main.tsx`, `apps/web/index.html`, `apps/web/src/api-client.ts`, `apps/web/e2e/journey.spec.ts`, `Dockerfile`, `scripts/smoke.sh`, `docs/demo-runbook.md`; serialized modify: `firebase.json` | Full UI/API wiring, local deterministic Gemini test double, deployed live-Gemini journey, deployment and demo runbook; Task 12 |
@@ -139,6 +152,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 **Files:** Create `packages/contracts/src/plan.ts`, `apps/api/src/{plan,ally-pairing,plan-routes}.ts`, `apps/api/test/plan.test.ts`, `apps/web/src/{PlanScreen,PlanScreen.test}.tsx`.
 
+**UI guide:** Read the approved wireframe guide and [frame 01](../../design/wireframes/01-plan.svg) before implementing or reviewing this screen.
+
 **Interfaces:** Consumes `requireUser`, Firestore, `CaseEnvelope`. Produces `Plan { ownerUid, version, thresholdMinor, bankId: 'demo-bank', processingConsent, retentionMode: 'delete-on-close' | 'facts-24h' | 'selected-7d', allySharingConsent, exportConsent, nominatedAllyUid? }`, `createPlan(input): Plan`, `AllyInvitation { ownerUid, allyUid, acceptedAt?: string, revokedAt?: string }`, and `hasAcceptedRelationship(db, ownerUid, allyUid): Promise<boolean>`.
 
 **Acceptance to hand off:**
@@ -177,6 +192,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 **Files:** Create `packages/contracts/src/session.ts`, `apps/api/src/{session,session-routes}.ts`, `apps/api/test/session.test.ts`, `apps/web/src/{SessionScreen,SessionScreen.test}.tsx`.
 
+**UI guide:** Read the approved wireframe guide and [frame 02](../../design/wireframes/02-live-case.svg) before implementing or reviewing this screen.
+
 **Interfaces:** Consumes active plan and owner case. Produces `TranscriptSegment { id, caseId, order, speaker, text, expiresAt }`, `appendSegment(db, uid, segment, onSegment): Promise<{acceptedOrder:number; caseVersion:number}>`, `revokeProcessing(db, uid, caseId): Promise<void>`, and internal `endSession(db, uid, caseId): Promise<void>`. Accepted segments invoke `onSegment(caseId, version)` only after a successful versioned commit; Task 4 supplies the live Gemini adapter. `endSession` stops intake and purges raw segments but has **no public route** in this task. Task 11 owns the sole HTTP close command and calls this function only after evidence promotion/retention preparation.
 
 **Acceptance to hand off:**
@@ -214,6 +231,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 ## Task 4 (DSN-006): Live Gemini facts, provenance, and correction
 
 **Files:** Create `packages/contracts/src/facts.ts`, `apps/api/src/{gemini,fact-validator,fact-routes}.ts`, `apps/api/test/facts.test.ts`, `apps/web/src/{DecisionMap,DecisionMap.test}.tsx`.
+
+**UI guide:** Read the approved wireframe guide and [frame 02](../../design/wireframes/02-live-case.svg) before implementing or reviewing the Decision Map.
 
 **Interfaces:** Consumes ordered segments and the current case version. Produces `CandidateFact { field, value, sourceSegmentIds, uncertainty }`, `Fact { field, value, origin, sourceSegmentIds, modelVersion?, uncertainty, supersededBy? }`, `FactsProjection extends CaseEnvelope { confirmed: Record<string, Fact>; facts: Record<string, Fact> }`, `CandidateRelation { segmentIds, draftEventId, draftVersion, inputCaseVersion, directedAction, matches }`, `GeminiPort { extract(segments): Promise<CandidateFact[]>; relate({segments, draftEventId, draftVersion, inputCaseVersion, amountMinor, beneficiaryId}): Promise<CandidateRelation> }`, `validateFacts(candidates, knownSegmentIds, supersededFields): Fact[]`, `correctFact(db, uid, caseId, field, value, expectedVersion): Promise<void>`, and `confirmFact(db, uid, caseId, field, expectedVersion): Promise<void>`. Task 6 imports this relation contract without editing Task 4 files.
 
@@ -310,6 +329,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 **Files:** Create `packages/contracts/src/payment.ts`, `apps/api/src/{payment,payment-routes}.ts`, `apps/api/test/payment.test.ts`, `apps/web/src/{PaymentPanel,PaymentPanel.test}.tsx`.
 
+**UI guide:** Read the approved wireframe guide and [frames 02](../../design/wireframes/02-live-case.svg) and [03](../../design/wireframes/03-decision-states.svg) before implementing or reviewing the payment surface.
+
 **Interfaces:** Consumes Task 4's `GeminiPort.relate({segments, draftEventId, draftVersion, inputCaseVersion, amountMinor, beneficiaryId})` and `CandidateRelation`, plus `validateFacts`, `assessCase`, and `commitCaseCommand`. Produces `PaymentDraft { id, beneficiaryId, amountMinor, newPayee, version }`, `PaymentState = 'draft' | 'pending' | 'paused' | 'cancelled' | 'continued'`, `PaymentProjection extends CaseEnvelope { paymentDraft: PaymentDraft; paymentState: PaymentState; segmentIds: string[] }`, `saveDraft`, `submitIntent`, `recheckRelation`, and `applyValidatedRelation`. `submitIntent` returns the updated `PaymentProjection` after reading the command receipt. Every edit creates a new immutable draft event ID and increments draft version. Browser sends amount/beneficiary but never `newPayee` or a policy result.
 
 **Acceptance to hand off:**
@@ -354,6 +375,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 **Files:** Create `apps/api/src/decision-routes.ts`, `apps/api/test/decision.test.ts`, `apps/web/src/{ActionConsole,ActionConsole.test}.tsx`.
 
+**UI guide:** Read the approved wireframe guide and [frames 03](../../design/wireframes/03-decision-states.svg), [03b](../../design/wireframes/03b-human-choice.svg), and [05](../../design/wireframes/05-resolution-control.svg) before implementing or reviewing the action states.
+
 **Interfaces:** Consumes pending payment, `assessCase`, `transition`, and `commitCaseCommand`. Produces `act(db, uid, caseId, action): Promise<PaymentProjection>`, idempotent `POST /api/v1/cases/:id/actions/{pause,cancel,verify,continue}`, and a user-facing `ActionConsole` with at most three grounded reasons and direct actions. Task 8 completes a Verify request; Task 9 owns the owner-side ally packet preview and a distinct Share command. Ask My Ally opens that preview; it never creates a case grant as a side effect. Until Task 9 exists, the console's Ask My Ally action is not represented as completed or silently dropped.
 
 **Acceptance to hand off:**
@@ -396,6 +419,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 ## Task 8 (DSN-010): Completed Demo Bank verification
 
 **Files:** Create `apps/api/src/{demo-bank-registry,verification,verification-routes}.ts`, `apps/api/test/verification.test.ts`, `apps/web/src/{VerifyPanel,VerifyPanel.test}.tsx`.
+
+**UI guide:** Read the approved wireframe guide and [frames 04](../../design/wireframes/04-verify-ally.svg) and [05](../../design/wireframes/05-resolution-control.svg) before implementing or reviewing verification.
 
 **Interfaces:** Consumes a case in Check/Pause/Verify and the accepted plan's `bankId`. Produces `VerificationResult { bankId, registryVersion, method, checkedAt, outboundFraudCall, protectedTransferRequested, simulated:true }`, `VerificationProjection extends CaseEnvelope { verification: VerificationResult; paymentState: PaymentState }`, `verifyWithDemoBank(db, caseId, uid): Promise<VerificationResult>`, `VerifyPanel({registry,result})`, `POST /api/v1/cases/:id/verify`, and `GET /api/v1/registry/demo-bank` for a source-dated fictional route. Caller text never supplies the route or response.
 
@@ -444,6 +469,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 **Files:** Create `packages/contracts/src/ally.ts`, `apps/api/src/{ally,ally-routes}.ts`, `apps/api/test/ally.test.ts`, `apps/web/src/{AllySharePreview,AllySharePreview.test,AllyScreen,AllyScreen.test}.tsx`.
 
+**UI guide:** Read the approved wireframe guide and [frames 03b](../../design/wireframes/03b-human-choice.svg) and [04](../../design/wireframes/04-verify-ally.svg) before implementing or reviewing owner-side preview and ally view.
+
 **Interfaces:** Depends on Task 11's selected-evidence read API. Consumes `hasAcceptedRelationship`, active ally-sharing consent, selected evidence IDs, and pending case. Produces owner-only `previewAllyPacket` without a grant, `AllyGrant { caseId, allyUid, selectedEvidenceIds, packetSnapshot, packetHash, expiresAt, revokedAt? }`, explicit `createGrant` after Share, `revokeGrant`, `readAllyPacket`, and `respondAsAlly`. `AllyPacket` has only `claim`, `proposedAction`, `amountMinor`, `verificationGap`, and `selectedEvidence` plus case/expiry identifiers. The preview shows the exact packet content, including selected excerpts, and binds the later Share command to the previewed case version and packet hash; stale content requires a fresh preview. The grant freezes that allowlisted packet; later case edits cannot silently change what the ally sees.
 
 **Acceptance to hand off:**
@@ -485,6 +512,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 ## Task 10 (DSN-012): Instant same-case already-paid recovery
 
 **Files:** Create `packages/contracts/src/recovery.ts`, `apps/api/src/{recovery,recovery-routes}.ts`, `apps/api/test/recovery.test.ts`, `apps/web/src/{RecoveryScreen,RecoveryScreen.test}.tsx`.
+
+**UI guide:** Read the approved wireframe guide and [frame 06](../../design/wireframes/06-recovery-evidence.svg) before implementing or reviewing same-case recovery.
 
 **Interfaces:** Depends on Task 11's retention/source-expiry behavior. Consumes the existing case, Task 6's latest simulated `PaymentDraft` if retained, and user-confirmed facts; produces `RecoveryProjection extends CaseEnvelope { confirmed: Record<string, Fact>; paymentDraft?: PaymentDraft }`, `enterRecovery(db, uid, caseId, command): Promise<RecoveryState>`, `confirmPaidDetails(db, uid, caseId, command)`, `PaidPayment { paidPayee, paidAmountMinor, transactionTime?, paymentRail?, referenceId?, origin:'user-reported' }`, `RecoveryState { caseId, known, proposedPayment, paidPayment, missing, bankAction, helpline1930Action, acknowledgement }`, and command routes for paid-detail confirmation and simulated action status. `proposedPayment` is a labeled prefill with `source: 'simulated-draft' | 'caller-request'` and a server-generated fingerprint of the exact source/values shown; prefer a retained simulated draft, otherwise use available user-confirmed caller-requested payee/amount with that different label. If neither is complete, no one-tap match is offered. `paidPayment` is absent until the user reports that the same details were paid or enters different paid details. The separate reported-payment fact lives in `confirmed.paidPayment` so the 24-hour confirmed-facts retention mode can preserve it without preserving a raw transcript or draft as proof. No Gemini call is required to enter recovery or expose immediate actions. A curated real 1930/cybercrime.gov.in route has source URL and review date; only the local acknowledgement/status is simulated.
 
@@ -536,6 +565,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 **Files:** Create `packages/contracts/src/evidence.ts`, `apps/api/src/{retention,retention-routes,export,evidence-routes}.ts`, `apps/api/test/{evidence,retention}.test.ts`, `apps/web/src/{EvidenceScreen,EvidenceScreen.test}.tsx`.
 
+**UI guide:** Read the approved wireframe guide and [frame 06](../../design/wireframes/06-recovery-evidence.svg) before implementing or reviewing evidence and export.
+
 **Interfaces:** Consumes case events, selected segments, confirmed facts, export consent, user corrections, and Task 3's internal `endSession`. Produces `promoteEvidence`, `readSelectedEvidence(db, caseId, ids)`, `closeSessionWithRetention`, `deleteCaseContent`, `sweepExpiredCases(db, now)`, `buildExportZip`, `EvidenceScreen({timeline,exportAllowed,retentionMode,onExport})`, and a timeline with explicit origin/provenance. `evidence-routes.ts` owns the sole `POST /api/v1/cases/:id/session/close` route, which calls `closeSessionWithRetention`; no route calls `endSession` directly. The ZIP contains `brief.html`, `provenance.json`, and `ncrp-preview.html`; output is a reviewable preview, never a submitted report. Task 12 runs the authenticated sweep from Cloud Scheduler on the same API service.
 
 **Acceptance to hand off:**
@@ -585,6 +616,8 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 ## Task 12 (DSN-014): Integrate the clean-session product and deployment path
 
 **Files:** Create `apps/api/src/server.ts`, `apps/api/test/fake-gemini.ts`, `apps/web/src/{App,main}.tsx`, `apps/web/index.html`, `apps/web/src/api-client.ts`, `apps/web/e2e/journey.spec.ts`, `Dockerfile`, `scripts/smoke.sh`, `docs/demo-runbook.md`. Modify `firebase.json` only after the integrator gives Task 12 serialized ownership of that shared file in its DSN record.
+
+**UI guide:** Read the approved [wireframe guide](../../design/wireframes/README.md) and [entire gallery](../../design/wireframes/index.html) before integrating and reviewing the responsive journey. Test the PRD's keyboard, screen-reader, and 200% scaling checks on the working UI; the SVGs do not prove them.
 
 **Interfaces:** Consumes all feature route installers, React screens, and Firebase Auth. Produces a single-origin `/api/v1/**` web/API deployment, health check, fresh-account setup, attack and legitimate scenario journeys, and a repeatable three-minute demo path. `api-client.ts` attaches Firebase ID tokens and idempotency keys; all case reads come from the API, not Firestore. `apps/api/test/fake-gemini.ts` implements Task 4's `GeminiPort` solely for emulator-backed E2E; production configuration rejects that test double and uses live Google Cloud Gemini.
 
@@ -765,4 +798,4 @@ Each file has a concrete test purpose and expected state trace; the two annotato
 | Cup-ready clean deployed demo | 12, 13 | Clean-session smoke and three-minute no-DB-edit rehearsal |
 | Corpus, latency, concurrency, accessibility, cost | 13 | Raw per-run records and measured report |
 
-Do not start stretch work when the vertical slice merely looks convincing. First complete all thirteen reviews and the PRD's Cup-ready gates. After the founder reviews this plan, create bounded DSN-003 through DSN-015 task records with the exact owned paths above; serialize root/config/schema changes; claim tasks through `project/WORKFLOW.md`. The code and tests remain the source of truth for implementation state, while task records track ownership, decisions, verification, and deferral.
+Do not start stretch work when the vertical slice merely looks convincing. First complete all thirteen reviews and the PRD's Cup-ready gates. The founder approved this plan on 3 October 2026, conditioned on explicit approved-wireframe references, which are now included. After this plan is integrated into `main`, create bounded DSN-003 through DSN-015 task records with the exact owned paths above; serialize root/config/schema changes; claim tasks through `project/WORKFLOW.md`. The code and tests remain the source of truth for implementation state, while task records track ownership, decisions, verification, and deferral.
