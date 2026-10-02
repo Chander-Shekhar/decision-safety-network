@@ -2,13 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed
+- **Owner:** Primary agent (serialized design owner)
+- **Branch/worktree:** `task/DSN-016-core-ui-wireframes` / `.worktrees/dsn-016-core-ui-wireframes`
+- **Owned paths:** `docs/design/wireframes/` and this task record only
 - **Dependencies:** DSN-000; locked PRD Part I
 - **PRD references:** Core MVP C1–C12; causal acceptance matrix; end-to-end demo; Cup trust, safety, privacy, and accessibility gates
 - **Decision references:** None; wireframes must not supersede the locked PRD or accepted implementation decisions
-- **Started:** Not started
+- **Started:** 2026-10-02 IST
 - **Last updated:** 2026-10-02 IST
 
 ## Outcome
@@ -45,5 +45,5 @@ Not applicable.
 
 ## Handoff
 
-- **Next action:** Claim on shared local `main`, then create an isolated task worktree and draft wireframes for founder review.
+- **Next action:** Create the isolated task worktree and draft wireframes for founder review.
 - **Unresolved issues:** Founder review of the resulting visual direction; final identity/branding intentionally open.
