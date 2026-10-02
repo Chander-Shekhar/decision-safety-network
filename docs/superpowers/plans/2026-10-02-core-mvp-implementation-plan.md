@@ -63,7 +63,7 @@ Task 1 defines `Phase = 'Observe' | 'Check' | 'Pause' | 'Verify' | 'Recover' | '
 
 ## Completion contract for every implementation agent
 
-Each numbered item below is a planned work package, not yet a claimed task. Before coding, the integrator creates its DSN task record with the exact owned paths and dependencies, then claims it under `project/WORKFLOW.md`. A worker may hand a task to review only when **all** of its task-specific acceptance checks below are demonstrated, its red/green tests and listed verification commands have run without skips, `npm run typecheck` and relevant regression suites pass, changes stay within owned paths, and the task record contains commands/results, limitations, and local commit IDs. A reviewer verifies the behavior and failure cases independently. The task becomes `done` only after integration into local `main` and post-integration checks; a passing isolated branch is not `done`. If Task 12 lacks founder cloud authorization, or Task 13 lacks deployment, a second human reviewer, or measured results, record finished local checks and move the task to `blocked` with the exact external owner/action; do not mark it `review`, `done`, or Cup-ready. No remote push is authorized by this plan.
+Each numbered item below is a planned work package, not yet a claimed task. Before coding, the integrator creates its DSN task record with the exact owned paths and dependencies, then claims it under `project/WORKFLOW.md`. A worker may hand a task to review only when **all** of its task-specific acceptance checks below are demonstrated, its red/green tests and listed verification commands have run without skips, `npm run typecheck` and relevant regression suites pass, changes stay within owned paths, and the task record contains commands/results, limitations, and local commit IDs. A reviewer verifies the behavior and failure cases independently. The task becomes `done` only after integration into local `main` and post-integration checks; a passing isolated branch is not `done`. If Task 12 lacks founder cloud authorization, or Task 13 lacks deployment, a second human reviewer, or measured results, record finished local checks and move the task to `blocked` with the exact external owner/action; do not mark it `review`, `done`, or Cup-ready. This plan does not itself authorize future remote pushes; the founder separately authorized publication of the current documentation on 3 October 2026.
 
 ## Task 1 (DSN-003): Authenticated case/event foundation
 
@@ -354,16 +354,19 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 **Files:** Create `apps/api/src/decision-routes.ts`, `apps/api/test/decision.test.ts`, `apps/web/src/{ActionConsole,ActionConsole.test}.tsx`.
 
-**Interfaces:** Consumes pending payment, `assessCase`, `transition`, and `commitCaseCommand`. Produces `act(db, uid, caseId, action): Promise<PaymentProjection>`, idempotent `POST /api/v1/cases/:id/actions/{pause,cancel,verify,continue}`, and a user-facing `ActionConsole` with at most three grounded reasons and direct actions. Task 8 completes a Verify request; Task 9 owns `POST /api/v1/cases/:id/actions/ask-ally` and its actual case grant. Until then, the console's Ask My Ally action is not represented as completed or silently dropped.
+**Interfaces:** Consumes pending payment, `assessCase`, `transition`, and `commitCaseCommand`. Produces `act(db, uid, caseId, action): Promise<PaymentProjection>`, idempotent `POST /api/v1/cases/:id/actions/{pause,cancel,verify,continue}`, and a user-facing `ActionConsole` with at most three grounded reasons and direct actions. Task 8 completes a Verify request; Task 9 owns the owner-side ally packet preview and a distinct Share command. Ask My Ally opens that preview; it never creates a case grant as a side effect. Until Task 9 exists, the console's Ask My Ally action is not represented as completed or silently dropped.
 
 **Acceptance to hand off:**
-- [ ] Pause/Cancel/Verify and acknowledged Continue create inspectable, idempotent simulated state changes; Continue without acknowledgment is denied and manual actions remain available during Gemini failure.
+- [ ] Pause/Cancel/Verify and acknowledged Continue create inspectable, idempotent simulated state changes; the consequence acknowledgment starts unchecked with Confirm Continue disabled, Continue without acknowledgment is denied, and manual actions remain available during Gemini failure. A non-joined Check uses ordinary confirmation rather than an enhanced-risk acknowledgment.
 - [ ] The console shows at most three source-grounded reasons, large keyboard-operable actions, persistent **Simulated** labeling, and pre-OTP copy without a claim that a real transfer was held. API and component tests pass.
 
-- [ ] **Step 1: Write red action and copy tests.** Assert Pause/Cancel change the simulator state, Continue requires an explicit consequence acknowledgment, no submit settles by itself, action replay is idempotent, and copy says “Before you enter an OTP” with persistent **Simulated** badge:
+- [ ] **Step 1: Write red action and copy tests.** Assert Pause/Cancel change the simulator state, Continue requires an explicit consequence acknowledgment that is initially unchecked and keeps Confirm Continue disabled, non-joined Check uses ordinary confirmation, no submit settles by itself, action replay is idempotent, and copy says “Before you enter an OTP” with persistent **Simulated** badge:
 
   ```ts
   await expect(act(db,'u','c',{kind:'continue', acknowledged:false, key:crypto.randomUUID()})).rejects.toThrow('ACK_REQUIRED');
+  render(<ActionConsole caseState={joinedCase} />);
+  expect(screen.getByRole('checkbox',{name:/understand.*unverified/i})).not.toBeChecked();
+  expect(screen.getByRole('button',{name:/confirm continue/i})).toBeDisabled();
   expect((await act(db,'u','c',{kind:'verify', key:crypto.randomUUID()})).phase).toBe('Verify');
   expect((await act(db,'u','c',{kind:'cancel', key:crypto.randomUUID()})).paymentState).toBe('cancelled');
   expect((await readCase<PaymentProjection>(db,'u','c')).phase).toBe('Resolve');
@@ -373,7 +376,7 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
   ```
 
 - [ ] **Step 2: Run red.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- decision.test.ts' && npm run test:web -- ActionConsole.test.tsx`; expected: missing actions/components.
-- [ ] **Step 3: Implement versioned deterministic commands and calm UI.** Route actions through the case command transaction; `continue` requires `acknowledged === true`, `pause` preserves pending intent for verification, `cancel` records the simulated cancellation, and `ask-ally` cannot expose data until Task 9 grants access. Display at most three source-linked reasons and large keyboard-operable buttons. Do not allow a model response to issue one of these commands:
+- [ ] **Step 3: Implement versioned deterministic commands and calm UI.** Route actions through the case command transaction; every `continue` is an explicit human confirmation (`acknowledged === true`), while the enhanced or degraded consequence flow additionally requires the separate, initially unselected acknowledgment checkbox. A non-joined case uses ordinary confirmation copy. `pause` preserves pending intent for verification, `cancel` records the simulated cancellation, and `ask-ally` only opens Task 9's owner preview without granting access. Display at most three source-linked reasons and large keyboard-operable buttons. Do not allow a model response to issue one of these commands:
 
   ```ts
   if (action.kind === 'continue' && action.acknowledged !== true) throw Error('ACK_REQUIRED');
@@ -439,80 +442,94 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 ## Task 9 (DSN-011): Case-scoped Safety Ally review and revocation
 
-**Files:** Create `packages/contracts/src/ally.ts`, `apps/api/src/{ally,ally-routes}.ts`, `apps/api/test/ally.test.ts`, `apps/web/src/{AllyScreen,AllyScreen.test}.tsx`.
+**Files:** Create `packages/contracts/src/ally.ts`, `apps/api/src/{ally,ally-routes}.ts`, `apps/api/test/ally.test.ts`, `apps/web/src/{AllySharePreview,AllySharePreview.test,AllyScreen,AllyScreen.test}.tsx`.
 
-**Interfaces:** Depends on Task 11's selected-evidence read API. Consumes `hasAcceptedRelationship`, active ally-sharing consent, selected evidence IDs, and pending case. Produces `AllyGrant { caseId, allyUid, selectedEvidenceIds, expiresAt, revokedAt? }`, `createGrant`, `revokeGrant`, `readAllyPacket`, and `respondAsAlly`. `AllyPacket` has only `claim`, `proposedAction`, `amountMinor`, `verificationGap`, and `selectedEvidence` plus case/expiry identifiers.
+**Interfaces:** Depends on Task 11's selected-evidence read API. Consumes `hasAcceptedRelationship`, active ally-sharing consent, selected evidence IDs, and pending case. Produces owner-only `previewAllyPacket` without a grant, `AllyGrant { caseId, allyUid, selectedEvidenceIds, packetSnapshot, packetHash, expiresAt, revokedAt? }`, explicit `createGrant` after Share, `revokeGrant`, `readAllyPacket`, and `respondAsAlly`. `AllyPacket` has only `claim`, `proposedAction`, `amountMinor`, `verificationGap`, and `selectedEvidence` plus case/expiry identifiers. The preview shows the exact packet content, including selected excerpts, and binds the later Share command to the previewed case version and packet hash; stale content requires a fresh preview. The grant freezes that allowlisted packet; later case edits cannot silently change what the ally sees.
 
 **Acceptance to hand off:**
-- [ ] Only an accepted, unrevoked nominated ally with active owner sharing consent and a case grant can read the minimum packet; direct API attempts to read transcript, unselected evidence, another case, or revoked data fail on the next request.
-- [ ] The second browser displays only the allowlisted packet; contact request, pause recommendation, and checked-source response persist without transfer control or caller certification. API and component tests pass.
+- [ ] Ask My Ally opens an owner-authenticated preview of the exact allowlisted packet and selected excerpts without granting access. Only an explicit Share confirmation with a current preview creates this case grant; Not now leaves ally access denied. An accepted, unrevoked nominated ally with active owner sharing consent and a case grant can read the packet; direct API attempts to read transcript, unselected evidence, another case, or revoked data fail on the next request.
+- [ ] The second browser displays only the packet shown in the owner's preview. A later packet-affecting case correction, draft edit, or evidence change invalidates the grant until the owner re-previews and re-shares; it never silently widens or updates access. Contact request, pause recommendation, and checked-source response persist without transfer control or caller certification. API and both owner-preview/ally component tests pass.
 
-- [ ] **Step 1: Write red direct-API isolation tests.** A nominated but unaccepted ally cannot read; an accepted ally without a case grant cannot read; an active ally cannot access transcript, unselected evidence, or another case; revoked relationship/grant blocks the *next* request:
+- [ ] **Step 1: Write red preview, consent, and direct-API isolation tests.** A nominated but unaccepted ally cannot read; an accepted ally cannot read after Ask My Ally merely opens a preview or after Not now; a stale preview cannot create a grant; the explicit Share command freezes a packet whose content exactly matches the current owner preview. A post-share packet-affecting correction, draft edit, or evidence change invalidates access rather than silently exposing new content. An active ally cannot access transcript, unselected evidence, or another case; revoked relationship/grant blocks the *next* request:
 
   ```ts
   await expect(readAllyPacket(db,'a','c')).rejects.toThrow('FORBIDDEN');
   await acceptInvitation(db, inviteId,'a');
-  await createGrant(db,'u','c',{allyUid:'a',selectedEvidenceIds:['e1']});
+  const preview = await previewAllyPacket(db,'u','c',{selectedEvidenceIds:['e1']});
+  expect(preview.packetContent.selectedEvidence).toEqual([{id:'e1', excerpt:'Transfer ₹50,000 to safe-new'}]);
+  await expect(readAllyPacket(db,'a','c')).rejects.toThrow('FORBIDDEN');
+  await createGrant(db,'u','c',{allyUid:'a',selectedEvidenceIds:['e1'],expectedCaseVersion:preview.caseVersion,expectedPacketHash:preview.packetHash});
   const packet = await readAllyPacket(db,'a','c');
+  expect(packet).toMatchObject(preview.packetContent);
   expect(Object.keys(packet).sort()).toEqual(['amountMinor','caseId','claim','expiresAt','proposedAction','selectedEvidence','verificationGap'].sort());
   expect(JSON.stringify(packet)).not.toContain('fullTranscript');
   await revokeGrant(db,'u','c','a');
   await expect(readAllyPacket(db,'a','c')).rejects.toThrow('FORBIDDEN');
   ```
 
-  Repeat via the actual HTTP route with another case ID, revoked owner-sharing consent, and a direct segments/evidence URL. `AllyScreen.test.tsx` must show only claim/action/amount/verification gap/selected evidence, hide full transcript and unselected evidence, and exercise contact request, pause recommendation, and checked-source submission; the ally cannot call payment commands or certify the caller.
-- [ ] **Step 2: Run red.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- ally.test.ts'`; expected: missing grant/allowlist.
+  Repeat via the actual HTTP routes with another case ID, revoked owner-sharing consent, stale preview version/hash, post-share packet mutation, and a direct segments/evidence URL. `AllySharePreview.test.tsx` must show the exact selected excerpt, require an explicit Share, and leave access denied on Not now. `AllyScreen.test.tsx` must show only claim/action/amount/verification gap/selected evidence, hide full transcript and unselected evidence, and exercise contact request, pause recommendation, and checked-source submission; the ally cannot call payment commands or certify the caller.
+- [ ] **Step 2: Run red.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- ally.test.ts' && npm run test:web -- AllySharePreview.test.tsx AllyScreen.test.tsx`; expected: missing preview/grant/allowlist and owner-confirmation UI.
 - [ ] **Step 3: Implement all three predicates on every read.** Do not cache authorization between requests. Build the packet by allowlisting fields, not by deleting fields from a case object:
 
   ```ts
   if (!ownerPlan.allySharingConsent || !await hasAcceptedRelationship(db, ownerUid, allyUid)
       || !grant || grant.revokedAt || grant.expiresAt <= now().toISOString()) throw Error('FORBIDDEN');
-  return {caseId, expiresAt:grant.expiresAt, claim:caseFacts.claim,
-    proposedAction:caseFacts.requestedAction, amountMinor:payment.amountMinor,
-    verificationGap:caseFacts.verificationGap,
-    selectedEvidence: await readSelectedEvidence(grant.selectedEvidenceIds)};
+  const currentContent = await buildAllowlistedPacket(caseFacts, payment, grant.selectedEvidenceIds);
+  if (hashAllyPacket(currentContent) !== grant.packetHash) throw Error('STALE_GRANT');
+  return {caseId, expiresAt:grant.expiresAt, ...grant.packetSnapshot};
   ```
 
-  Routes: `POST /api/v1/cases/:id/actions/ask-ally` (creates the case grant), `DELETE /api/v1/cases/:id/ally-grant`, `GET /api/v1/ally/cases/:id`, `POST /api/v1/ally/cases/:id/response`. UI shows a second authenticated session and clearly separates nomination from case disclosure. A declined or expired invitation never allows a grant.
-- [ ] **Step 4: Green checks and commit.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- ally.test.ts' && npm run test:web -- AllyScreen.test.tsx && npm run typecheck && git diff --check`; expected: PASS for all direct API denials and immediate revocation. Commit with `DSN-011: add case-scoped ally review`.
+  Routes: owner-only `POST /api/v1/cases/:id/ally-share-preview` with selected-evidence IDs in the body and a no-store response, `POST /api/v1/cases/:id/ally-grant` (explicit Share with previewed case version and packet hash), `DELETE /api/v1/cases/:id/ally-grant`, `GET /api/v1/ally/cases/:id`, `POST /api/v1/ally/cases/:id/response`. The preview route creates no grant and performs no ally disclosure. The grant route rechecks relationship, consent, case version, selected evidence, and packet hash before storing only the allowlisted snapshot; a stale preview must be refreshed. Every ally read rechecks those permissions and compares a current allowlisted packet hash with the snapshot hash, returning only the frozen snapshot or `STALE_GRANT`. Revocation purges the packet snapshot. UI shows a second authenticated session and clearly separates nomination, owner preview, and case disclosure. A declined or expired invitation never allows a grant.
+- [ ] **Step 4: Green checks and commit.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- ally.test.ts' && npm run test:web -- AllySharePreview.test.tsx AllyScreen.test.tsx && npm run typecheck && git diff --check`; expected: PASS for owner preview/Not now, current explicit Share, post-share mutation denial, all direct API denials, and immediate revocation. Commit with `DSN-011: add case-scoped ally review`.
 
 ## Task 10 (DSN-012): Instant same-case already-paid recovery
 
 **Files:** Create `packages/contracts/src/recovery.ts`, `apps/api/src/{recovery,recovery-routes}.ts`, `apps/api/test/recovery.test.ts`, `apps/web/src/{RecoveryScreen,RecoveryScreen.test}.tsx`.
 
-**Interfaces:** Depends on Task 11's retention/source-expiry behavior. Consumes the existing case and user-confirmed facts; produces `RecoveryProjection extends CaseEnvelope { confirmed: Record<string, Fact> }`, `enterRecovery(db, uid, caseId, command): Promise<RecoveryState>`, `RecoveryState { caseId, known, missing, bankAction, helpline1930Action, acknowledgement }`, and command routes for simulated action status. No Gemini call is required to enter recovery or expose immediate actions. A curated real 1930/cybercrime.gov.in route has source URL and review date; only the local acknowledgement/status is simulated.
+**Interfaces:** Depends on Task 11's retention/source-expiry behavior. Consumes the existing case, Task 6's latest simulated `PaymentDraft` if retained, and user-confirmed facts; produces `RecoveryProjection extends CaseEnvelope { confirmed: Record<string, Fact>; paymentDraft?: PaymentDraft }`, `enterRecovery(db, uid, caseId, command): Promise<RecoveryState>`, `confirmPaidDetails(db, uid, caseId, command)`, `PaidPayment { paidPayee, paidAmountMinor, transactionTime?, paymentRail?, referenceId?, origin:'user-reported' }`, `RecoveryState { caseId, known, proposedPayment, paidPayment, missing, bankAction, helpline1930Action, acknowledgement }`, and command routes for paid-detail confirmation and simulated action status. `proposedPayment` is a labeled prefill with `source: 'simulated-draft' | 'caller-request'` and a server-generated fingerprint of the exact source/values shown; prefer a retained simulated draft, otherwise use available user-confirmed caller-requested payee/amount with that different label. If neither is complete, no one-tap match is offered. `paidPayment` is absent until the user reports that the same details were paid or enters different paid details. The separate reported-payment fact lives in `confirmed.paidPayment` so the 24-hour confirmed-facts retention mode can preserve it without preserving a raw transcript or draft as proof. No Gemini call is required to enter recovery or expose immediate actions. A curated real 1930/cybercrime.gov.in route has source URL and review date; only the local acknowledgement/status is simulated.
 
 **Acceptance to hand off:**
-- [ ] “I already paid” enters Recover from every relevant state using the same case ID, reuses only confirmed available facts, prompts only unknown harm-routing fields, and works with Gemini unavailable.
-- [ ] The first screen gives Demo Bank/provider and source-dated real 1930 equal priority, labels only local acknowledgements **Simulated**, and warns about recovery scams. API and component tests pass, including default-retention `source not retained` copy.
+- [ ] “I already paid” enters Recover from every relevant state using the same case ID, reuses confirmed available facts as labeled context/prefill, prompts only unknown harm-routing fields, and works with Gemini unavailable. A simulated draft or confirmed caller-requested payee/amount is never recorded as an actual paid payee/amount until the user explicitly selects “Yes, they match” for that exact prefill or edits paid details; stale-match commands are rejected, and a cancelled simulated proposal is not proof of a payment.
+- [ ] The first screen gives Demo Bank/provider and source-dated real 1930 equal priority before asking for missing details, labels only local acknowledgements **Simulated**, and warns about recovery scams. API and component tests cover both one-tap match and correction, unknown paid fields before either choice, and default-retention `source not retained` copy.
 
-- [ ] **Step 1: Write red no-reentry and outage tests.** From Observe, Check, Pause, Verify, and Resolve, `already-paid` enters Recover on the same case ID. It copies only confirmed caller/claim/payee/amount/time/evidence, asks only unknown harm-routing fields, and presents bank/provider and 1930 in parallel even when Gemini is down:
+- [ ] **Step 1: Write red no-reentry, proposed-vs-paid, stale-prefill, and outage tests.** From Observe, Check, Pause, Verify, and Resolve, `already-paid` enters Recover on the same case ID. It reuses confirmed caller/claim/evidence; the proposed-payee/amount prefill comes from the latest retained simulated draft or, if absent after close, user-confirmed caller-request facts with an honest source label. Actual paid fields remain unknown until a separate user-report command. Bank/provider and 1930 appear in parallel even when Gemini is down:
 
   ```ts
   const before = await readCase<RecoveryProjection>(db,'u','c');
   const recovery = await enterRecovery(db,'u','c',{kind:'already-paid', key:crypto.randomUUID()});
   expect(recovery.caseId).toBe(before.id);
-  expect(recovery.known.amountMinor).toBe(before.confirmed.amountMinor.value);
-  expect(recovery.missing).not.toContain('amountMinor');
+  expect(recovery.proposedPayment!.amountMinor).toBe(before.paymentDraft!.amountMinor);
+  expect(recovery.proposedPayment!.source).toBe('simulated-draft');
+  expect(recovery.paidPayment).toBeNull();
+  expect(recovery.missing).toContain('paidAmountMinor');
   expect(recovery.bankAction.status).toBe('ready');
   expect(recovery.helpline1930Action.status).toBe('ready');
   expect(gemini.extract).not.toHaveBeenCalled();
+  const reported = await confirmPaidDetails(db,'u','c',{
+    kind:'match-prefill', expectedPrefillFingerprint:recovery.proposedPayment!.fingerprint,
+    key:crypto.randomUUID()});
+  expect(reported.paidPayment).toMatchObject({paidAmountMinor:before.paymentDraft!.amountMinor, origin:'user-reported'});
   ```
 
-  Test default 24-hour retention after session close: recovery reuses confirmed facts but labels each `source not retained`. Unknown transaction time stays blank and is prompted. `RecoveryScreen.test.tsx` must display Demo Bank/provider and 1930 with equal priority, show the 1930 source/review date, warn about follow-on recovery scams, and label simulated acknowledgement without implying a real filing.
+  Also test the edit path, a cancelled proposal followed by “I already paid,” a changed/expired prefill between display and click (`STALE_PREFILL`), no one-tap match with incomplete prefill, and direct/API retries: neither entry nor cancellation populates `paidPayment`; only an explicit owner match/edit command does. Test default 24-hour retention after session close: recovery reuses confirmed caller-request context with `source not retained` and never labels it as a surviving simulated draft. Unknown transaction time and reference ID stay blank and are prompted. `RecoveryScreen.test.tsx` must display Demo Bank/provider and 1930 with equal priority before the paid-detail question, show the 1930 source/review date, offer “Yes, they match” and “No, edit paid details” only as appropriate, warn about follow-on recovery scams, and label simulated acknowledgement without implying a real filing.
 - [ ] **Step 2: Run red.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- recovery.test.ts'`; expected: missing recovery path.
 - [ ] **Step 3: Implement same-case conversion and parallel first-hour actions.** Persist an `already-paid` command event and enter Recover through `transition`; do not create a second case or await model work. Treat any simulated 1930 acknowledgement as local status, not proof of official receipt:
 
   ```ts
-  const known = pickConfirmed(caseSnapshot, ['caller','claim','payee','amountMinor','transactionTime','evidenceIds']);
-  const missing = ['transactionTime','paymentRail','referenceId'].filter((key) => known[key] == null);
-  return {caseId:caseSnapshot.id, known, missing,
+  const known = pickConfirmed(caseSnapshot, ['caller','claim','payee','amountMinor','evidenceIds']);
+  const proposedPayment = caseSnapshot.paymentDraft
+    ? prefillFromDraft(caseSnapshot.paymentDraft)
+    : prefillFromCallerRequest(caseSnapshot.confirmed.payee, caseSnapshot.confirmed.amountMinor);
+  const paidPayment = caseSnapshot.confirmed.paidPayment?.value ?? null;
+  const missing = ['paidPayee','paidAmountMinor','transactionTime','paymentRail','referenceId']
+    .filter((key) => paidPayment?.[key] == null);
+  return {caseId:caseSnapshot.id, known, proposedPayment, paidPayment, missing,
     bankAction:{status:'ready', route:'Demo Bank', simulated:true},
     helpline1930Action:{status:'ready', route:'1930', sourceUrl:'https://cybercrime.gov.in/', reviewedAt:'2026-10-02'},
     acknowledgement:null};
   ```
 
-  `RecoveryScreen` starts with bank/provider and 1930 actions side by side or in an equivalent equal-priority layout, uses blame-free copy, warns about follow-on recovery scams, and marks simulated acknowledgements/statuses. It must not badge the real helpline number itself as a fictional number or claim a real call/report happened.
+  `prefillFromDraft` binds the current immutable draft ID/version, beneficiary and amount; `prefillFromCallerRequest` binds the confirmed fact IDs/versions, values, and `source not retained` status. Each returns a stable fingerprint over the exact source/values rendered, or null if payee/amount is incomplete. `confirmPaidDetails` accepts either an explicit `match-prefill` command with that fingerprint or user-edited paid payee/amount. On match, it recomputes the current prefill and rejects a mismatch as `STALE_PREFILL` before copying values; on edit, it stores only what the user entered. Both persist a distinct `confirmed.paidPayment` fact with `user-reported` provenance, never inferring payment from a draft, a cancelled simulator state, or transcript text. Generic model-fact confirmation cannot set this fact. The command is idempotent and owner-only. `RecoveryScreen` starts with bank/provider and 1930 actions side by side or in an equivalent equal-priority layout, then offers one-tap match or correction of honestly labeled prefill details without forcing re-entry. It uses blame-free copy, warns about follow-on recovery scams, and marks simulated acknowledgements/statuses. It must not badge the real helpline number itself as a fictional number or claim a real call/report happened.
 - [ ] **Step 4: Green checks and commit.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- recovery.test.ts' && npm run test:web -- RecoveryScreen.test.tsx && npm run typecheck && git diff --check`; expected: PASS across all relevant entry states and outage. Commit with `DSN-012: add same-case recovery`.
 
 ## Task 11 (DSN-013): Evidence, export, retention, and deletion
@@ -523,7 +540,7 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 
 **Acceptance to hand off:**
 - [ ] All three retention modes pass through the sole HTTP close route; confirmed-only default removes raw content, unselected evidence, grants, and identifying event history; selected-seven-day mode retains only chosen excerpts; retrying interrupted close converges safely.
-- [ ] Export requires active consent and contains a reviewable HTML brief, provenance JSON, and source-dated NCRP field-aligned preview with unknown fields blank and “not submitted or accepted” copy; a user-confirmed account of a caller's claim is never presented as a verified bank fact. Immediate deletion removes all descendants and leaves an unlinkable tombstone; expiry blocks reads and authenticated sweep removes data. API and UI tests pass.
+- [ ] Export requires active consent and contains a reviewable HTML brief, provenance JSON, and source-dated NCRP field-aligned preview with unknown fields blank and “not submitted or accepted” copy; a user-confirmed account of a caller's claim is never presented as a verified bank fact, and proposed payee/amount never fill actual-paid fields without Task 10's separate user report. Immediate deletion removes all descendants and leaves an unlinkable tombstone; expiry blocks reads and authenticated sweep removes data. API and UI tests pass.
 
 - [ ] **Step 1: Write red three-mode and recursive-delete tests.** Seed case, events, segments, evidence, ally grants, and an unrelated case. Assert delete-on-close removes case content; 24-hour default removes all raw segments/evidence while retaining only confirmed facts with `source not retained`; seven-day mode retains only promoted excerpts; immediate deletion removes every descendant and leaves only unlinkable tombstone:
 
@@ -551,7 +568,7 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
   expect(screen.getByRole('button',{name:/download evidence/i})).toBeDisabled();
   ```
 
-  Run all three retention modes through the actual HTTP close route; test that no direct session route can bypass it. Inject a failure after raw purge, then retry close with the same idempotency key and assert the case reaches the chosen pruned state without a leak. Test immediate logical expiry at exactly 24 hours or seven days (owner/ally/export API reads return 404/410), then physical deletion by `sweepExpiredCases`; denial after export-consent revocation; immediate purge of selected excerpts after retention-consent revocation; selected-only export; correction-preserving timeline while source is retained; unsupported NCRP fields blank; simulated acknowledgement labels; and a revoked ally blocked after close/deletion. For `delete-on-close`, verify the UI warns that later no-reentry recovery will not be possible.
+  Run all three retention modes through the actual HTTP close route; test that no direct session route can bypass it. Inject a failure after raw purge, then retry close with the same idempotency key and assert the case reaches the chosen pruned state without a leak. Test immediate logical expiry at exactly 24 hours or seven days (owner/ally/export API reads return 404/410), then physical deletion by `sweepExpiredCases`; denial after export-consent revocation; immediate purge of selected excerpts after retention-consent revocation; selected-only export; correction-preserving timeline while source is retained; proposed payee/amount labeled as proposed while actual-paid fields stay blank until explicit match/edit; preservation of a separately user-reported paid-payment fact under `facts-24h` with `source not retained` provenance; unsupported NCRP fields blank; simulated acknowledgement labels; and a revoked ally blocked after close/deletion. For `delete-on-close`, verify the UI warns that later no-reentry recovery will not be possible.
 - [ ] **Step 2: Run red.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- evidence.test.ts retention.test.ts' && npm run test:web -- EvidenceScreen.test.tsx`; expected: missing handlers, failed retention assertions, and missing UI behavior.
 - [ ] **Step 3: Implement selected evidence and reviewable export.** Promotion requires an active segment and explicit selected ID; export checks consent at request time and uses confirmed facts only. Escape all user/model text in HTML. Pin the NCRP field-map source/review date as data; display **field-aligned preview—not submitted or accepted**. A representative manifest entry is:
 
@@ -562,7 +579,7 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
     correctedAt:confirmed.claim.correctedAt ?? null};
   ```
 
-  At close, first mark the case `closing` and block ordinary case reads/commands, commit any user-selected excerpt promotion, then call Task 3's internal `endSession` to stop intake/purge raw segments, then apply the selected mode: `delete-on-close` calls `deleteCaseContent`; `facts-24h` prunes the case projection to the exact allowlist tested above and deletes **all** event/evidence/grant descendants; `selected-7d` retains only selected excerpts, confirmed facts, and their minimal provenance, removing other events/grants. Make every cleanup stage retry-safe; clear `closing` only after the final allowed projection is written. Revoking export consent updates the case immediately; revoking evidence retention removes selected excerpts and downgrades to the 24-hour confirmed-facts mode (or immediate deletion at the user's choice). Every case/ally/export read rejects at `expiresAt`, then `sweepExpiredCases` queries `expiresAt <= now` in bounded pages and physically deletes expired case content; Firestore TTL is a backup for a missed sweep, not the immediate deletion mechanism. `retention-routes.ts` exposes `POST /internal/retention/sweep` only to a dedicated Cloud Scheduler service identity after OIDC audience/email verification; Firebase user tokens cannot invoke it. Monitor sweep failures; the UI must not promise exact physical deletion timing if the scheduled service is unavailable. `deleteCaseContent` deletes children with bounded batches/bulk writer, then parent; use an unlinked random tombstone ID with completion time only. Keep unknown report fields blank; do not invent transaction identifiers or acceptance states. `EvidenceScreen` offers browser print/save-to-PDF for the reviewable brief; no backend PDF service is added.
+  At close, first mark the case `closing` and block ordinary case reads/commands, commit any user-selected excerpt promotion, then call Task 3's internal `endSession` to stop intake/purge raw segments, then apply the selected mode: `delete-on-close` calls `deleteCaseContent`; `facts-24h` prunes the case projection to the exact allowlist tested above and deletes **all** event/evidence/grant descendants while retaining a separately user-reported `confirmed.paidPayment` fact if it exists; `selected-7d` retains only selected excerpts, confirmed facts, and their minimal provenance, removing other events/grants. Make every cleanup stage retry-safe; clear `closing` only after the final allowed projection is written. Revoking export consent updates the case immediately; revoking evidence retention removes selected excerpts and downgrades to the 24-hour confirmed-facts mode (or immediate deletion at the user's choice). Every case/ally/export read rejects at `expiresAt`, then `sweepExpiredCases` queries `expiresAt <= now` in bounded pages and physically deletes expired case content; Firestore TTL is a backup for a missed sweep, not the immediate deletion mechanism. `retention-routes.ts` exposes `POST /internal/retention/sweep` only to a dedicated Cloud Scheduler service identity after OIDC audience/email verification; Firebase user tokens cannot invoke it. Monitor sweep failures; the UI must not promise exact physical deletion timing if the scheduled service is unavailable. `deleteCaseContent` deletes children with bounded batches/bulk writer, then parent; use an unlinked random tombstone ID with completion time only. Keep unknown report fields blank; do not invent transaction identifiers or acceptance states. `buildExportZip` uses Task 10's `user-reported` paid-payment fields only after match/edit confirmation; a proposed transfer remains separately labeled and never fills actual-paid fields. `EvidenceScreen` offers browser print/save-to-PDF for the reviewable brief; no backend PDF service is added.
 - [ ] **Step 4: Green checks and commit.** `firebase emulators:exec --only auth,firestore 'npm run test:api -- evidence.test.ts retention.test.ts' && npm run test:web -- EvidenceScreen.test.tsx && npm run typecheck && git diff --check`; expected: PASS for all three modes, recursive deletion, export consent, and safe preview. Commit with `DSN-013: add evidence export and retention controls`.
 
 ## Task 12 (DSN-014): Integrate the clean-session product and deployment path
@@ -572,10 +589,10 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
 **Interfaces:** Consumes all feature route installers, React screens, and Firebase Auth. Produces a single-origin `/api/v1/**` web/API deployment, health check, fresh-account setup, attack and legitimate scenario journeys, and a repeatable three-minute demo path. `api-client.ts` attaches Firebase ID tokens and idempotency keys; all case reads come from the API, not Firestore. `apps/api/test/fake-gemini.ts` implements Task 4's `GeminiPort` solely for emulator-backed E2E; production configuration rejects that test double and uses live Google Cloud Gemini.
 
 **Acceptance to hand off:**
-- [ ] On a clean checkout, a two-browser emulator-backed attack journey and legitimate control pass without database edits; the attack completes plan, live-shaped transcript, explicit fact confirmation, pending transfer, verification, ally response, durable prevention resolution, same-case recovery, and evidence download, while the control has no enhanced Pause. The same confirmed claim, payee, and amount appear in recovery and the ZIP brief; unconfirmed fields are not silently filled.
+- [ ] On a clean checkout, a two-browser emulator-backed attack journey and legitimate control pass without database edits; the attack completes plan, live-shaped transcript, explicit fact confirmation, pending transfer, verification, owner-side ally packet preview and explicit Share, ally response, durable prevention resolution, same-case recovery, and evidence download, while the control has no enhanced Pause. Confirmed caller/claim and proposed payee/amount appear as labeled context in recovery; actual-paid payee/amount remain unknown until the user's separate match/edit report, then appear as `user-reported` in recovery and the ZIP brief. No unconfirmed field is silently filled.
 - [ ] Browser network traffic has no Firestore/Gemini call; API paths enforce Firebase-vs-scheduler identity correctly and persistent simulation/pre-OTP copy is visible. After founder cloud authorization, the deployed clean-session smoke repeats the journey with **live fresh Gemini**; without it, the deployment gate remains blocked.
 
-- [ ] **Step 1: Write red end-to-end journey tests.** Start the emulator-backed API and Vite app; the attack scenario must create a new account/session, configure plan, accept ally invitation in a second browser context, stream controlled segments, enter a new-payee transfer, see joined Pause, verify from Demo Bank registry, ask ally, cancel/defer, then enter already-paid recovery and export from the same case. A separate legitimate high-pressure scenario must not see enhanced Pause:
+- [ ] **Step 1: Write red end-to-end journey tests.** Start the emulator-backed API and Vite app; the attack scenario must create a new account/session, configure plan, accept ally invitation in a second browser context, stream controlled segments, enter a new-payee transfer, see joined Pause, verify from Demo Bank registry, preview the exact ally packet, explicitly Share, cancel/defer, then enter already-paid recovery, explicitly confirm/edit paid details, and export from the same case. A separate legitimate high-pressure scenario must not see enhanced Pause:
 
   ```ts
   test('attack journey uses one case and an explicit simulated decision', async ({browser}) => {
@@ -606,6 +623,10 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
     await userPage.getByRole('button',{name:'Verify Officially'}).click();
     await userPage.getByRole('button',{name:'Run Demo Bank verification'}).click();
     await userPage.getByRole('button',{name:'Ask My Ally'}).click();
+    await expect(userPage.getByText(/exact packet.*Alex will see/i)).toBeVisible();
+    await expect(userPage.getByText(/Transfer ₹50,000 to safe-new/i)).toBeVisible();
+    await expect(allyPage.getByText(/Account compromised/i)).not.toBeVisible();
+    await userPage.getByRole('button',{name:'Share this case with Alex'}).click();
     await allyPage.reload();
     await allyPage.getByRole('button',{name:'Recommend pause'}).click();
     await userPage.getByRole('button',{name:'Cancel simulated transfer'}).click();
@@ -616,8 +637,13 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
     await expect(userPage.getByText(/Demo Bank.*ready/i)).toBeVisible();
     await expect(userPage.getByText(/1930.*ready/i)).toBeVisible();
     await expect(userPage.getByTestId('reused-claim')).toContainText('Caller claimed: Account compromised');
-    await expect(userPage.getByTestId('reused-payee')).toContainText('safe-new');
-    await expect(userPage.getByTestId('reused-amount')).toContainText('50,000');
+    await expect(userPage.getByTestId('proposed-payee')).toContainText('safe-new');
+    await expect(userPage.getByTestId('proposed-amount')).toContainText('50,000');
+    await expect(userPage.getByTestId('paid-payee')).toContainText('Unknown');
+    await expect(userPage.getByTestId('paid-amount')).toContainText('Unknown');
+    await userPage.getByRole('button',{name:'Yes, they match'}).click();
+    await expect(userPage.getByTestId('paid-payee')).toContainText('safe-new');
+    await expect(userPage.getByTestId('paid-amount')).toContainText('50,000');
     const downloadPromise = userPage.waitForEvent('download');
     await userPage.getByRole('button',{name:/download evidence/i}).click();
     const download = await downloadPromise;
@@ -628,11 +654,12 @@ Each numbered item below is a planned work package, not yet a claimed task. Befo
     expect(entries.get('brief.html')).toContain('safe-new');
     expect(entries.get('brief.html')).toContain('50,000');
     expect(entries.get('provenance.json')).toContain('user-confirmed');
+    expect(entries.get('provenance.json')).toContain('user-reported');
     await expect(userPage.getByText(/Simulated/i).first()).toBeVisible();
   });
   ```
 
-  The named controls and test IDs above are Task 12's exact UI contract; implement them without hidden operator actions. Implement `readZipEntries(path)` in `journey.spec.ts` using the ZIP library already pinned for Task 11, returning decoded entry text. The attack fixture's fake-Gemini output supplies `caller = Demo Bank fraud team`, `claim = Account compromised`, `payee = safe-new`, and `amountMinor = 5000000` (₹50,000), each with a valid source segment. The test confirms claim, payee, and amount through Task 4's real API and parses the downloaded ZIP to assert the same values and `user-confirmed` provenance; unconfirmed fields remain unknown. The claim's label in both recovery and export says the **caller claimed** this, not that it was independently verified. The emulator-backed local test injects `fake-gemini.ts` at API startup for deterministic contract testing only; it must never be used for the deployed demonstration or evaluation. Add a second test that plays a legitimate high-pressure scenario and never sees the enhanced Pause. Add direct API assertions for an unauthenticated request and an ally trying to fetch another case.
+  The named controls and test IDs above are Task 12's exact UI contract; implement them without hidden operator actions. Implement `readZipEntries(path)` in `journey.spec.ts` using the ZIP library already pinned for Task 11, returning decoded entry text. The attack fixture's fake-Gemini output supplies `caller = Demo Bank fraud team`, `claim = Account compromised`, `payee = safe-new`, and `amountMinor = 5000000` (₹50,000), each with a valid source segment. The test confirms claim and the proposed payee/amount through Task 4's real API; after the counterfactual “I already paid” branch, the user separately reports that the paid details match. The ZIP must distinguish `user-confirmed` proposal/claim context from `user-reported` paid details; before that report the paid fields are blank, even though the simulated transfer was cancelled. The claim's label in both recovery and export says the **caller claimed** this, not that it was independently verified. The emulator-backed local test injects `fake-gemini.ts` at API startup for deterministic contract testing only; it must never be used for the deployed demonstration or evaluation. Add a second test that plays a legitimate high-pressure scenario and never sees the enhanced Pause. Add direct API assertions for an unauthenticated request and an ally trying to fetch another case.
 - [ ] **Step 2: Run red.** `npm run test:e2e -- journey.spec.ts`; expected: missing integrated app/route wiring, not a skipped browser.
 - [ ] **Step 3: Compose routes and screens, then add deployment files.** `server.ts` dispatches three mutually exclusive authentication paths: public `/healthz` with no case data, `/internal/retention/sweep` with verified Cloud Scheduler OIDC audience/service identity, and `/api/v1/**` with verified Firebase bearer token plus case authorization. Any other route returns 404; a Firebase token cannot call the internal sweep and an OIDC service token cannot call a user case route. Test this dispatch before deployment. `App.tsx` maps plan/session/payment/verify/ally/recovery/evidence routes and uses server case state. The API client must not import Firestore:
 
