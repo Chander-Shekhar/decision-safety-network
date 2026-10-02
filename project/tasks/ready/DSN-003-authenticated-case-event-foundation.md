@@ -2,14 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-003 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-003-authenticated-case-event-foundation` @ `.worktrees/dsn-003-authenticated-case-event-foundation`
 - **Owned paths:** `package.json`, `package-lock.json`, `tsconfig.base.json`, `firebase.json`, `firestore.rules`, `.firebaserc.example`, `.npmrc`, `apps/api/package.json`, `apps/web/package.json`, `packages/contracts/package.json`, `packages/contracts/src/case.ts`, `apps/api/src/{app,auth,case-store}.ts`, `apps/api/test/{case-store,auth,test-auth}.ts`
 - **Dependencies:** None (foundation; Tasks 2–13 depend on it)
 - **PRD references:** C12 trust/failure/privacy; locked PRD Part I
 - **Decision references:** 0001-google-cloud-typescript-architecture
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Started:** 2026-10-03
 
 ## Outcome
 
