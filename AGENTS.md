@@ -13,7 +13,7 @@ Authority order:
 
 ## Required read order
 
-Before writing, read this file and the assigned task. Every product-facing task also requires the PRD's AI Builder Cup executive brief, locked decisions, scope/proof boundary, Core MVP, and Cup-ready definition plus any additional sections referenced by the task. Read applicable implementation decisions, and read `project/WORKFLOW.md` before claiming or moving a task.
+Before writing, read this file and the assigned task. Every product-facing task also requires the PRD's AI Builder Cup executive brief, locked decisions, scope/proof boundary, Core MVP, and Cup-ready definition plus any additional sections referenced by the task. Read applicable implementation decisions and the approved Core MVP plan in `docs/superpowers/plans/2026-10-02-core-mvp-implementation-plan.md`. Frontend implementers and reviewers must also read `docs/design/wireframes/README.md` and the plan-mapped frames; they guide hierarchy and interactions, while the PRD remains authoritative. Read `project/WORKFLOW.md` before claiming or moving a task.
 
 ## Task ownership
 

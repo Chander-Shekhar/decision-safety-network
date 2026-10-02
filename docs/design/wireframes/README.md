@@ -1,12 +1,12 @@
 # Core MVP UI wireframes
 
-**Status:** Draft for founder review · 2 October 2026. These are implementation guides, not approved brand designs or working product screens. The locked [PRD](../../../Decision_Safety_Network_PRD_Draft.md), Part I, remains authoritative if a sketch differs.
+**Status:** Founder-approved UI direction · 3 October 2026. These are implementation guides, not final brand designs or working product screens. The locked [PRD](../../../Decision_Safety_Network_PRD_Draft.md), Part I, remains authoritative if a sketch differs. The [Core MVP implementation plan](../../superpowers/plans/2026-10-02-core-mvp-implementation-plan.md) maps each frontend work package to the relevant frames.
 
 ## Intent
 
 Help a person under live pressure make one safer consequential decision, then reuse the same case if harm has already occurred. The main screen should answer three questions in order: **What action is pending? Why should I slow down? What can I do now?** It must not resemble a scam-score dashboard or a chatbot that leaves the user to work out the next step.
 
-I considered a dense case dashboard, a chat-first assistant, and a focused case flow. The focused flow is the draft direction: a quiet live case while evidence develops, a deliberately prominent action view only when conversation and payment converge, then a completed verification/resolution or a first-hour recovery view. This reduces decision load and makes the product's cross-context value visible in the three-minute Cup demo. Desktop can show source context alongside the action; narrow screens stack it below the primary action without hiding correction or Continue.
+I considered a dense case dashboard, a chat-first assistant, and a focused case flow. The focused flow is the approved UI direction: a quiet live case while evidence develops, a deliberately prominent action view only when conversation and payment converge, then a completed verification/resolution or a first-hour recovery view. This reduces decision load and makes the product's cross-context value visible in the three-minute Cup demo. Desktop can show source context alongside the action; narrow screens stack it below the primary action without hiding correction or Continue.
 
 ## Storyboard
 
@@ -40,10 +40,10 @@ Use a responsive web layout. At wide widths, place the live transcript and sourc
 
 All actionable controls need clear text labels, visible focus, keyboard operation, screen-reader names, adequate contrast, and large touch targets. No color alone carries a state. These SVGs do not themselves prove accessibility; the working UI must pass the PRD's keyboard, screen-reader, and 200% text-scaling checks.
 
-## What to review
+## Implementation checkpoints
 
 1. Is the action hierarchy right at the pre-OTP moment, especially the balance between Pause, Verify, Ally, and fair Continue with its explicit acknowledgment?
 2. Does the live screen make the joined conversation/payment insight visible without implying that suspicious words alone block a transfer?
 3. Does the recovery screen feel immediately usable under stress, distinguish proposed from actually paid details, and visibly reuse the same case rather than starting a new workflow?
 
-Once reviewed, implement the approved hierarchy and copy in the existing frontend tasks. Treat spacing and illustrative neutral colors as provisional; do not copy an SVG as production markup.
+Implement the approved hierarchy and safety copy through the mapped frontend tasks. Treat spacing and illustrative neutral colors as provisional; do not copy an SVG as production markup. A working implementation still needs its own behavior, responsive, keyboard, screen-reader, and 200% scaling verification.
