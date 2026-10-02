@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1060" viewBox="0 0 1280 1060" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe 06: same-case urgent recovery and reviewable evidence handoff</title>
+  <desc id="desc">Recovery reuses user-confirmed facts in the original case, gives fictional Demo Bank/provider and real source-dated 1930 equal-priority actions, leaves unknown fields blank, and offers a provenance-aware evidence export with an unsubmitted NCRP preview.</desc>
+  <style>
+    .bg{fill:#f3f6f6}.frame,.card{fill:#fff;stroke:#cbd6d7;stroke-width:2}.soft{fill:#f3f7f7}.line{stroke:#dce4e5;stroke-width:1.5}.ink{fill:#18313a}.muted{fill:#5c7077}.teal{fill:#166d67}.tealbg{fill:#e3f3ef}.button{fill:#176d67}.buttonText{fill:#fff}.chip{fill:#eff4f4;stroke:#cbd6d7}.amber{fill:#fff4e6;stroke:#e3c28d}.section{font:700 23px system-ui,sans-serif}.body{font:16px system-ui,sans-serif}.small{font:14px system-ui,sans-serif}.tiny{font:12px system-ui,sans-serif}.label{font:600 16px system-ui,sans-serif}.heading{font:700 32px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="1280" height="1060"/>
+  <text x="42" y="54" class="heading ink">06 / If payment already happened, keep the case</text>
+  <text x="43" y="82" class="body muted">First-hour actions and an evidence handoff · no generic restart or fact re-entry</text>
+  <text x="42" y="119" class="label teal">RECOVERY · SAME CASE DSN-1042</text>
+  <text x="653" y="119" class="label teal">EVIDENCE · SAME CASE DSN-1042</text>
+
+  <rect x="42" y="136" width="565" height="874" rx="17" class="frame"/>
+  <text x="64" y="177" class="label ink">Safety Case DSN-1042 · Recovery</text>
+  <line x1="43" y1="194" x2="606" y2="194" class="line"/>
+  <text x="64" y="231" class="section ink">You said you already paid</text>
+  <text x="64" y="257" class="small muted">We will reuse what you confirmed. Act quickly; you can fill gaps later.</text>
+  <text x="64" y="299" class="label ink">First-hour options</text>
+  <rect x="64" y="314" width="521" height="99" rx="11" class="tealbg"/>
+  <text x="82" y="340" class="tiny teal">SIMULATED BANK ROUTE · DEMO BANK IS FICTIONAL</text>
+  <text x="82" y="370" class="label ink">Contact Demo Bank support</text>
+  <text x="82" y="394" class="small ink">Use the independent registry route · ready</text>
+  <rect x="64" y="424" width="521" height="99" rx="11" class="tealbg"/>
+  <text x="82" y="450" class="tiny teal">REAL PUBLIC ROUTE · SOURCE REVIEWED 2 OCT 2026</text>
+  <text x="82" y="480" class="label ink">Call 1930</text>
+  <text x="82" y="504" class="small teal">Official source: cybercrime.gov.in · open source</text>
+  <text x="64" y="552" class="label ink">Pre-filled from this case</text>
+  <rect x="64" y="565" width="521" height="104" rx="11" class="soft"/>
+  <text x="82" y="591" class="small ink">Caller claimed: “Account compromised”</text>
+  <text x="82" y="616" class="small ink">Proposed transfer: safe-new · ₹50,000</text>
+  <text x="82" y="644" class="tiny muted">A cancelled proposal is not proof of the payment you made.</text>
+  <text x="64" y="704" class="label ink">Did you pay these same details?</text>
+  <rect x="64" y="718" width="248" height="52" rx="9" class="card"/>
+  <text x="119" y="750" class="small ink">Yes, they match</text>
+  <rect x="326" y="718" width="259" height="52" rx="9" class="card"/>
+  <text x="369" y="750" class="small ink">No, edit paid details</text>
+  <text x="64" y="793" class="tiny muted">“Yes” records paid details as user-reported, without retyping.</text>
+  <text x="64" y="828" class="label ink">Still needed</text>
+  <text x="64" y="855" class="small ink">Transaction time: Unknown</text>
+  <text x="64" y="879" class="small ink">Reference ID: Unknown</text>
+  <rect x="64" y="904" width="521" height="70" rx="11" class="amber"/>
+  <text x="82" y="931" class="label ink">Watch for follow-on “recovery” scams</text>
+  <text x="82" y="954" class="small ink">Do not pay a stranger who promises to retrieve funds.</text>
+
+  <rect x="634" y="136" width="604" height="874" rx="17" class="frame"/>
+  <text x="656" y="177" class="label ink">Evidence and handoff</text>
+  <rect x="1069" y="155" width="145" height="28" rx="14" class="chip"/>
+  <text x="1092" y="174" class="tiny ink">EXPORT OPT-IN</text>
+  <line x1="635" y1="194" x2="1237" y2="194" class="line"/>
+  <text x="656" y="231" class="section ink">Review before sharing</text>
+  <text x="656" y="258" class="small muted">Sources, AI suggestions, and your corrections stay distinct.</text>
+  <rect x="656" y="276" width="558" height="204" rx="11" class="soft"/>
+  <text x="675" y="303" class="tiny teal">CASE TIMELINE · WHILE SOURCE IS AVAILABLE</text>
+  <text x="675" y="334" class="small ink">10:14  Source 03: caller directed ₹50,000 to safe-new</text>
+  <text x="675" y="365" class="small ink">10:14  AI suggested: “protected account” request</text>
+  <text x="675" y="396" class="small ink">10:15  You corrected the claim wording</text>
+  <text x="675" y="427" class="small ink">10:16  Simulated Demo Bank check rejected the claim</text>
+  <text x="675" y="459" class="tiny muted">After default close: raw sources expire; facts say “source not retained”.</text>
+  <rect x="656" y="499" width="558" height="185" rx="11" class="card"/>
+  <text x="675" y="528" class="label ink">NCRP field-aligned preview</text>
+  <text x="675" y="555" class="small ink">Caller claim + proposed payee: labeled as proposed</text>
+  <text x="675" y="580" class="small ink">Paid bank/amount: blank until you confirm</text>
+  <text x="675" y="605" class="small ink">Transaction date/time and UTR: blank</text>
+  <text x="675" y="638" class="tiny teal">Source: cybercrime.gov.in/webform/Crime_AuthoLogin.aspx</text>
+  <text x="675" y="663" class="tiny teal">Reviewed 2 Oct 2026 · NOT SUBMITTED OR ACCEPTED</text>
+  <rect x="656" y="708" width="558" height="62" rx="10" class="button"/>
+  <text x="802" y="746" class="label buttonText">Download evidence ZIP</text>
+  <text x="656" y="801" class="small muted">Includes reviewable brief, provenance and preview.</text>
+  <text x="656" y="830" class="small muted">Only consented, retained content is included.</text>
+  <rect x="656" y="858" width="558" height="64" rx="10" class="soft"/>
+  <text x="675" y="883" class="tiny teal">LOCAL STATUS ONLY · SIMULATED ACKNOWLEDGEMENT</text>
+  <text x="675" y="907" class="small ink">Mark “I contacted support” without claiming official receipt.</text>
+  <text x="42" y="1040" class="small muted">Design note: on narrow screens the two equal-priority urgent actions stack before facts and evidence.</text>
+</svg>

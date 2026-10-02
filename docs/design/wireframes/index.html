@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decision Safety Network — Core MVP wireframes</title>
+  <style>
+    :root{color-scheme:light;font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f3f6f6;color:#18313a}
+    *{box-sizing:border-box}body{margin:0}header{padding:2rem clamp(1rem,4vw,4rem);background:#fff;border-bottom:1px solid #cbd6d7}
+    h1{font-size:clamp(1.8rem,3vw,2.7rem);line-height:1.15;margin:.25rem 0}.eyebrow{font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#166d67;font-size:.8rem}
+    p{max-width:72ch}main{max-width:1500px;margin:auto;padding:1rem clamp(1rem,4vw,4rem) 4rem}
+    nav{display:flex;flex-wrap:wrap;gap:.6rem;margin:1.5rem 0}nav a,a.open{color:#115e59}nav a{background:#e3f3ef;border-radius:99px;padding:.35rem .8rem;text-decoration:none;font-weight:600}nav a:focus-visible,a.open:focus-visible{outline:3px solid #115e59;outline-offset:3px}
+    section{background:#fff;border:1px solid #cbd6d7;border-radius:16px;margin:2rem 0;padding:1.25rem;box-shadow:0 4px 18px #17323a0c}section h2{margin:.25rem 0;font-size:1.45rem}section p{margin:.2rem 0 1rem;color:#51666c}
+    img{display:block;width:100%;height:auto;background:#f3f6f6;border:1px solid #cbd6d7;border-radius:9px}.open{display:inline-block;margin-top:.8rem;font-weight:650}
+    .notice{font-weight:600;color:#445b62}footer{padding:1rem clamp(1rem,4vw,4rem);border-top:1px solid #cbd6d7;color:#51666c;background:#fff}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Draft for founder review · 2 October 2026</div>
+    <h1>Core MVP UI wireframes</h1>
+    <p>One Safety Case from preparation and live decision to independent verification, completed simulated prevention, and same-case recovery.</p>
+    <p class="notice">Design guidance only. The locked PRD defines product behavior; this is not a running prototype or final brand identity.</p>
+  </header>
+  <main>
+    <nav aria-label="Wireframe sections">
+      <a href="#plan">Plan</a><a href="#live">Live case</a><a href="#decision">Decision</a><a href="#human-choice">Human choice + sharing</a><a href="#verify">Verification + ally</a><a href="#resolved">Outcome + control</a><a href="#recovery">Recovery + evidence</a>
+    </nav>
+    <section id="plan"><h2>01 · Prepared Safety Plan</h2><p>Policy and consent are set before pressure; ally readiness does not imply case sharing.</p><img src="01-plan.svg" alt="Wireframe of the Safety Plan configuration with contextual transfer policy, Demo Bank route, ally readiness, separate consents and retention options"><a class="open" href="01-plan.svg">Open full-size SVG</a></section>
+    <section id="live"><h2>02 · Quiet live case and proposed payment</h2><p>Controlled transcript and source-linked facts stay quiet until they meet the consequential payment context.</p><img src="02-live-case.svg" alt="Wireframe of three-column live case: transcript segments, correctable Decision Map, and simulated new-payee transfer"><a class="open" href="02-live-case.svg">Open full-size SVG</a></section>
+    <section id="decision"><h2>03 · Decisive action and honest fallback</h2><p>The pre-OTP human choice is prominent. A pending or unavailable model never fabricates a finding or settles the transfer.</p><img src="03-decision-states.svg" alt="Wireframe of mobile joined-context action with cited reasons and buttons beside Check and model-unavailable variants"><a class="open" href="03-decision-states.svg">Open full-size SVG</a></section>
+    <section id="human-choice"><h2>03b · Human choice and case-specific sharing</h2><p>Continue requires a separate, unselected acknowledgment. Inviting an ally to a plan does not share a case; the owner previews and grants that access deliberately.</p><img src="03b-human-choice.svg" alt="Wireframe of the explicit Continue consequence acknowledgment and a separate owner-side preview of the minimum packet before sharing one case with an ally"><a class="open" href="03b-human-choice.svg">Open full-size SVG</a></section>
+    <section id="verify"><h2>04 · Independent verification and ally</h2><p>Two distinct authenticated surfaces: a completed fictional Demo Bank check and a minimum-disclosure ally packet.</p><img src="04-verify-ally.svg" alt="Wireframe of user verification result and separate minimal Safety Ally review surface"><a class="open" href="04-verify-ally.svg">Open full-size SVG</a></section>
+    <section id="resolved"><h2>05 · Completed prevention and legitimate control</h2><p>A cancelled simulated transfer is a recorded outcome; the legitimate case avoids an enhanced Pause.</p><img src="05-resolution-control.svg" alt="Wireframe of resolved simulated prevention alongside a separate legitimate payment control"><a class="open" href="05-resolution-control.svg">Open full-size SVG</a></section>
+    <section id="recovery"><h2>06 · Same-case recovery and evidence</h2><p>First-hour actions come first; the user confirms whether a proposed payment actually happened, and the report package remains reviewable and unsubmitted.</p><img src="06-recovery-evidence.svg" alt="Wireframe of equal-priority first-hour recovery routes, paid-details confirmation, provenance-aware evidence timeline, and reviewable export"><a class="open" href="06-recovery-evidence.svg">Open full-size SVG</a></section>
+  </main>
+  <footer>See README.md in this folder for the implementation guidance, responsive rules and open design decisions.</footer>
+</body>
+</html>

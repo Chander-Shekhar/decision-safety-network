@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="930" viewBox="0 0 1280 930" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe 04: independent Demo Bank verification and minimal Safety Ally review</title>
+  <desc id="desc">Two separate authenticated surfaces. The user sees a completed simulated verification through the fictional versioned bank registry. The ally sees only a case-scoped minimum packet and may recommend a pause, not control funds or verify a caller.</desc>
+  <style>
+    .bg{fill:#f3f6f6}.frame,.card{fill:#fff;stroke:#cbd6d7;stroke-width:2}.soft{fill:#f3f7f7}.line{stroke:#dce4e5;stroke-width:1.5}.ink{fill:#18313a}.muted{fill:#5c7077}.teal{fill:#166d67}.tealbg{fill:#e3f3ef}.button{fill:#176d67}.buttonText{fill:#fff}.chip{fill:#eff4f4;stroke:#cbd6d7}.section{font:700 23px system-ui,sans-serif}.body{font:16px system-ui,sans-serif}.small{font:14px system-ui,sans-serif}.tiny{font:12px system-ui,sans-serif}.label{font:600 16px system-ui,sans-serif}.heading{font:700 32px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="1280" height="930"/>
+  <text x="42" y="54" class="heading ink">04 / Complete a check; involve one trusted person</text>
+  <text x="43" y="82" class="body muted">Two authenticated browser sessions · each sees only what they need</text>
+  <text x="42" y="120" class="label teal">USER SURFACE</text>
+  <text x="653" y="120" class="label teal">SAFETY ALLY SURFACE</text>
+
+  <rect x="42" y="137" width="565" height="737" rx="17" class="frame"/>
+  <text x="65" y="179" class="label ink">Safety Case DSN-1042 · Verification</text>
+  <rect x="439" y="156" width="144" height="29" rx="14" class="chip"/>
+  <text x="466" y="176" class="tiny ink">SIMULATED</text>
+  <line x1="43" y1="196" x2="606" y2="196" class="line"/>
+  <text x="65" y="231" class="section ink">Verify with Demo Bank</text>
+  <text x="65" y="256" class="small muted">This route came from our registry, not from the caller.</text>
+  <rect x="65" y="276" width="519" height="139" rx="11" class="soft"/>
+  <text x="83" y="302" class="tiny teal">FICTIONAL DEMO BANK · REGISTRY v1.0</text>
+  <text x="83" y="332" class="body ink">Method: simulated outbound-call check</text>
+  <text x="83" y="358" class="body ink">Checked: 2 Oct 2026, 10:16 IST</text>
+  <text x="83" y="387" class="small muted">Caller-provided phone numbers are never used.</text>
+  <rect x="65" y="435" width="519" height="183" rx="11" class="tealbg"/>
+  <text x="83" y="465" class="tiny teal">COMPLETED DEMO BANK RESPONSE · SIMULATED</text>
+  <text x="83" y="503" class="section ink">Claim not supported</text>
+  <text x="83" y="532" class="body ink">No outbound fraud-team call was recorded.</text>
+  <text x="83" y="557" class="body ink">No “safe account” transfer was requested.</text>
+  <text x="83" y="589" class="small muted">Result and registry version saved to this case.</text>
+  <text x="65" y="653" class="small ink">Your simulated transfer is paused by you; no real funds are held.</text>
+  <rect x="65" y="674" width="519" height="59" rx="10" class="button"/>
+  <text x="218" y="710" class="label buttonText">Cancel simulated transfer</text>
+  <rect x="65" y="746" width="519" height="54" rx="10" class="card"/>
+  <text x="238" y="779" class="label ink">Ask my ally</text>
+  <text x="65" y="837" class="small teal">I already paid → first-hour recovery</text>
+
+  <rect x="634" y="137" width="604" height="737" rx="17" class="frame"/>
+  <text x="657" y="179" class="label ink">Safety Ally · separate sign-in</text>
+  <rect x="1053" y="156" width="160" height="29" rx="14" class="chip"/>
+  <text x="1076" y="176" class="tiny ink">CASE GRANT</text>
+  <line x1="635" y1="196" x2="1237" y2="196" class="line"/>
+  <text x="657" y="231" class="section ink">Alex, your review is requested</text>
+  <text x="657" y="258" class="small muted">Accepted relationship + this case's sharing permission.</text>
+  <rect x="657" y="278" width="557" height="278" rx="11" class="soft"/>
+  <text x="676" y="305" class="tiny teal">MINIMUM CASE PACKET · DSN-1042</text>
+  <text x="676" y="335" class="label ink">Caller claimed</text>
+  <text x="825" y="335" class="body ink">“Account compromised”</text>
+  <line x1="676" y1="352" x2="1195" y2="352" class="line"/>
+  <text x="676" y="380" class="label ink">Proposed action</text>
+  <text x="825" y="380" class="body ink">₹50,000 to new payee safe-new</text>
+  <line x1="676" y1="398" x2="1195" y2="398" class="line"/>
+  <text x="676" y="426" class="label ink">Verification gap</text>
+  <text x="825" y="426" class="body ink">Caller not independently verified</text>
+  <line x1="676" y1="444" x2="1195" y2="444" class="line"/>
+  <text x="676" y="472" class="label ink">Selected evidence</text>
+  <text x="825" y="472" class="body ink">Source 03 only</text>
+  <text x="825" y="496" class="small muted">“Transfer ₹50,000 to safe-new”</text>
+  <text x="676" y="535" class="tiny muted">No full transcript or unselected evidence is shared.</text>
+  <text x="657" y="592" class="label ink">Your response</text>
+  <rect x="657" y="608" width="266" height="55" rx="9" class="card"/>
+  <text x="710" y="642" class="small ink">Request contact</text>
+  <rect x="938" y="608" width="276" height="55" rx="9" class="button"/>
+  <text x="997" y="642" class="small buttonText">Recommend pause</text>
+  <rect x="657" y="679" width="557" height="56" rx="9" class="card"/>
+  <text x="680" y="713" class="small ink">Record an independent source you checked</text>
+  <text x="657" y="775" class="small muted">You cannot control funds or certify the caller.</text>
+  <text x="657" y="808" class="small teal">Owner can revoke this case grant at any time.</text>
+  <text x="42" y="909" class="small muted">Design note: the two panels represent different authenticated sessions, not tabs visible to one person.</text>
+</svg>
