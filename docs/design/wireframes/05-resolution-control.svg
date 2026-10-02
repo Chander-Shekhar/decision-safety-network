@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="850" viewBox="0 0 1280 850" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe 05: completed prevention and legitimate control</title>
+  <desc id="desc">The primary case records a simulated negative Demo Bank verification and an explicitly cancelled simulated transfer. A separate legitimate high-pressure control shows ordinary confirmation without an enhanced social-engineering pause.</desc>
+  <style>
+    .bg{fill:#f3f6f6}.frame,.card{fill:#fff;stroke:#cbd6d7;stroke-width:2}.soft{fill:#f3f7f7}.line{stroke:#dce4e5;stroke-width:1.5}.ink{fill:#18313a}.muted{fill:#5c7077}.teal{fill:#166d67}.tealbg{fill:#e3f3ef}.button{fill:#176d67}.buttonText{fill:#fff}.chip{fill:#eff4f4;stroke:#cbd6d7}.section{font:700 23px system-ui,sans-serif}.body{font:16px system-ui,sans-serif}.small{font:14px system-ui,sans-serif}.tiny{font:12px system-ui,sans-serif}.label{font:600 16px system-ui,sans-serif}.heading{font:700 32px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="1280" height="850"/>
+  <text x="42" y="54" class="heading ink">05 / A completed outcome, not a dismissed warning</text>
+  <text x="43" y="82" class="body muted">Primary case on the left · separate legitimate control on the right</text>
+
+  <rect x="42" y="111" width="728" height="682" rx="17" class="frame"/>
+  <text x="66" y="153" class="label ink">Safety Case DSN-1042</text>
+  <rect x="632" y="132" width="113" height="28" rx="14" class="chip"/>
+  <text x="653" y="151" class="tiny ink">RESOLVED</text>
+  <line x1="43" y1="174" x2="769" y2="174" class="line"/>
+  <text x="66" y="216" class="section ink">You chose to stop this transfer</text>
+  <text x="66" y="245" class="body muted">The prototype records the decision and its supporting checks.</text>
+  <rect x="66" y="273" width="680" height="114" rx="11" class="tealbg"/>
+  <text x="85" y="303" class="tiny teal">SIMULATED TRANSFER · STATUS CHANGED</text>
+  <text x="85" y="338" class="section ink">Cancelled, not just hidden</text>
+  <text x="85" y="367" class="small ink">₹50,000 to new payee safe-new · cancelled by your action</text>
+  <rect x="66" y="405" width="680" height="117" rx="11" class="soft"/>
+  <text x="85" y="435" class="tiny teal">SIMULATED DEMO BANK VERIFICATION · REGISTRY v1.0</text>
+  <text x="85" y="465" class="body ink">No outbound fraud call or “safe account” request recorded.</text>
+  <text x="85" y="494" class="small muted">Method and time are attached to this case; no real bank was contacted.</text>
+  <text x="66" y="561" class="label ink">Case record</text>
+  <text x="66" y="592" class="body ink">10:14  Caller-directed transfer linked to current draft</text>
+  <text x="66" y="619" class="body ink">10:15  User paused the simulated transfer</text>
+  <text x="66" y="646" class="body ink">10:16  Demo Bank check rejected the caller's claim</text>
+  <text x="66" y="673" class="body ink">10:17  User cancelled the simulated transfer</text>
+  <rect x="66" y="691" width="304" height="59" rx="10" class="button"/>
+  <text x="125" y="727" class="label buttonText">Review evidence</text>
+  <rect x="386" y="691" width="360" height="59" rx="10" class="card"/>
+  <text x="466" y="727" class="label ink">I already paid</text>
+
+  <rect x="790" y="111" width="448" height="682" rx="17" class="frame"/>
+  <text x="812" y="153" class="label ink">Legitimate control · DSN-CTRL-01</text>
+  <line x1="791" y1="174" x2="1237" y2="174" class="line"/>
+  <text x="812" y="216" class="section ink">No enhanced Pause</text>
+  <text x="812" y="245" class="small muted">A different case, evaluated by the same flow.</text>
+  <rect x="812" y="272" width="403" height="116" rx="11" class="soft"/>
+  <text x="831" y="301" class="tiny teal">CONTEXT</text>
+  <text x="831" y="330" class="body ink">Urgent verified invoice; no caller-directed</text>
+  <text x="831" y="354" class="body ink">transfer or unverified bank claim.</text>
+  <rect x="812" y="405" width="403" height="119" rx="11" class="soft"/>
+  <text x="831" y="435" class="tiny teal">SIMULATED NEW-PAYEE TRANSFER</text>
+  <text x="831" y="466" class="body ink">Ordinary payment confirmation only.</text>
+  <text x="831" y="495" class="small muted">No claim of conversation risk or scam score.</text>
+  <text x="812" y="569" class="label ink">What changed?</text>
+  <text x="812" y="599" class="small ink">The consequence alone did not trigger the</text>
+  <text x="812" y="620" class="small ink">joined-context intervention.</text>
+  <text x="812" y="668" class="small muted">Measured false-Pause result belongs in the</text>
+  <text x="812" y="690" class="small muted">evaluation report, not a decorative badge.</text>
+  <text x="42" y="829" class="small muted">Design note: the resolution is a durable state transition; the recovery branch can reopen this same primary case.</text>
+</svg>

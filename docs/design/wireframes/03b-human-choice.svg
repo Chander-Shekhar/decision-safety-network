@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="900" viewBox="0 0 1280 900" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe 03b: explicit Continue acknowledgment and case-scoped ally sharing preview</title>
+  <desc id="desc">Two user-owned steps branching from the decisive action. Continue requires a separate consequence acknowledgment before a simulated state change. Ask My Ally previews only the case details and selected evidence that will be shared, and creates a case-specific grant only after confirmation.</desc>
+  <style>
+    .bg{fill:#f3f6f6}.frame,.card{fill:#fff;stroke:#cbd6d7;stroke-width:2}.soft{fill:#f3f7f7}.line{stroke:#dce4e5;stroke-width:1.5}.ink{fill:#18313a}.muted{fill:#5c7077}.teal{fill:#166d67}.tealbg{fill:#e3f3ef}.button{fill:#176d67}.buttonText{fill:#fff}.disabled{fill:#dce4e5}.chip{fill:#eff4f4;stroke:#cbd6d7}.amber{fill:#fff4e6;stroke:#e3c28d}.section{font:700 23px system-ui,sans-serif}.body{font:16px system-ui,sans-serif}.small{font:14px system-ui,sans-serif}.tiny{font:12px system-ui,sans-serif}.label{font:600 16px system-ui,sans-serif}.heading{font:700 32px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="1280" height="900"/>
+  <text x="42" y="54" class="heading ink">03b / Two deliberate choices, not invisible side effects</text>
+  <text x="43" y="82" class="body muted">Opened from the decision screen · no automatic settlement and no automatic case sharing</text>
+  <text x="42" y="120" class="label teal">CONTINUE · SECOND STEP</text>
+  <text x="653" y="120" class="label teal">ASK MY ALLY · SHARE PREVIEW</text>
+
+  <rect x="42" y="137" width="565" height="705" rx="17" class="frame"/>
+  <text x="65" y="179" class="label ink">Safety Case DSN-1042</text>
+  <rect x="442" y="156" width="141" height="29" rx="14" class="chip"/>
+  <text x="462" y="176" class="tiny ink">SIMULATED</text>
+  <line x1="43" y1="196" x2="606" y2="196" class="line"/>
+  <text x="65" y="235" class="section ink">Continue is your choice</text>
+  <text x="65" y="267" class="body muted">Pause and verification remain available.</text>
+  <rect x="65" y="293" width="519" height="157" rx="11" class="amber"/>
+  <text x="84" y="322" class="tiny ink">PLEASE READ BEFORE CONTINUING</text>
+  <text x="84" y="353" class="body ink">The caller's request has not been independently</text>
+  <text x="84" y="377" class="body ink">confirmed. If you act on it in real life, a transfer</text>
+  <text x="84" y="401" class="body ink">could be difficult to recover.</text>
+  <text x="84" y="430" class="small muted">Here, Continue changes simulated state only; no money moves.</text>
+  <rect x="65" y="476" width="519" height="109" rx="11" class="soft"/>
+  <rect x="84" y="500" width="22" height="22" rx="4" fill="#fff" stroke="#166d67" stroke-width="2"/>
+  <text x="119" y="511" class="small ink">I understand the caller's request remains unverified,</text>
+  <text x="119" y="535" class="small ink">and I choose to continue the simulated transfer.</text>
+  <text x="84" y="568" class="tiny muted">Not preselected. Required before the Continue command.</text>
+  <rect x="65" y="615" width="519" height="59" rx="10" class="disabled"/>
+  <text x="225" y="651" class="label muted">Confirm Continue</text>
+  <text x="65" y="700" class="small muted">Enabled only after the acknowledgment above.</text>
+  <rect x="65" y="724" width="519" height="56" rx="10" class="card"/>
+  <text x="274" y="759" class="label ink">Pause instead</text>
+  <text x="65" y="813" class="small teal">Return to my options · I already paid → recovery</text>
+
+  <rect x="634" y="137" width="604" height="705" rx="17" class="frame"/>
+  <text x="657" y="179" class="label ink">Safety Case DSN-1042 · Ally request</text>
+  <line x1="635" y1="196" x2="1237" y2="196" class="line"/>
+  <text x="657" y="235" class="section ink">Share this case with Alex?</text>
+  <text x="657" y="265" class="small muted">Alex accepted your invitation, but cannot see this case yet.</text>
+  <rect x="657" y="288" width="557" height="310" rx="11" class="soft"/>
+  <text x="676" y="316" class="tiny teal">EXACT PACKET ALEX WILL SEE</text>
+  <text x="676" y="347" class="label ink">Caller claimed</text>
+  <text x="850" y="347" class="body ink">“Account compromised”</text>
+  <line x1="676" y1="363" x2="1194" y2="363" class="line"/>
+  <text x="676" y="390" class="label ink">Proposed action</text>
+  <text x="850" y="390" class="body ink">₹50,000 to safe-new</text>
+  <line x1="676" y1="407" x2="1194" y2="407" class="line"/>
+  <text x="676" y="435" class="label ink">Verification gap</text>
+  <text x="850" y="435" class="body ink">Caller not independently verified</text>
+  <line x1="676" y1="451" x2="1194" y2="451" class="line"/>
+  <text x="676" y="479" class="label ink">Selected evidence</text>
+  <rect x="850" y="461" width="20" height="20" rx="4" class="tealbg" stroke="#166d67"/>
+  <path d="M854 471l4 4 8-10" fill="none" stroke="#166d67" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="881" y="479" class="body ink">Source 03 only</text>
+  <text x="850" y="505" class="small muted">“Transfer ₹50,000 to safe-new”</text>
+  <text x="676" y="549" class="small muted">Full transcript and other evidence are not included.</text>
+  <text x="676" y="577" class="tiny muted">You can change the selected evidence before sharing.</text>
+  <rect x="657" y="615" width="557" height="61" rx="10" class="button"/>
+  <text x="816" y="652" class="label buttonText">Share this case with Alex</text>
+  <rect x="657" y="690" width="557" height="56" rx="10" class="card"/>
+  <text x="897" y="725" class="label ink">Not now</text>
+  <text x="657" y="780" class="small muted">A case-specific grant is created only after you share.</text>
+  <text x="657" y="809" class="small teal">Revoke this grant at any time; Alex loses access on the next request.</text>
+  <text x="42" y="882" class="small muted">Design note: Continue copy varies with the current verification result; it never asserts a model verdict as fact.</text>
+</svg>

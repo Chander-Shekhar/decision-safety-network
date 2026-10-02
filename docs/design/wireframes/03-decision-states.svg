@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="950" viewBox="0 0 1280 950" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe 03: decisive action and honest fallback states</title>
+  <desc id="desc">Mobile primary joined-context intervention with three cited reasons and human actions. Adjacent Check and AI-unavailable variants keep the simulated transfer pending and retain manual choices without fabricating a risk finding.</desc>
+  <style>
+    .bg{fill:#f3f6f6}.phone,.card{fill:#fff;stroke:#cbd6d7;stroke-width:2}.soft{fill:#f3f7f7}.line{stroke:#dce4e5;stroke-width:1.5}.ink{fill:#18313a}.muted{fill:#5c7077}.teal{fill:#166d67}.tealbg{fill:#e3f3ef}.button{fill:#176d67}.buttonText{fill:#fff}.chip{fill:#eff4f4;stroke:#cbd6d7}.amber{fill:#fff3e2;stroke:#e3c28d}.section{font:700 23px system-ui,sans-serif}.body{font:16px system-ui,sans-serif}.small{font:14px system-ui,sans-serif}.tiny{font:12px system-ui,sans-serif}.label{font:600 16px system-ui,sans-serif}.heading{font:700 32px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="1280" height="950"/>
+  <text x="40" y="54" class="heading ink">03 / Before authorization: a human decision</text>
+  <text x="42" y="82" class="body muted">Primary mobile action frame plus the two non-fabricating fallback states</text>
+
+  <rect x="42" y="105" width="440" height="800" rx="25" class="phone"/>
+  <text x="67" y="145" class="label ink">Safety Case DSN-1042</text>
+  <rect x="290" y="125" width="165" height="30" rx="15" class="chip"/>
+  <text x="308" y="145" class="tiny ink">SIMULATED PAYMENT</text>
+  <line x1="43" y1="165" x2="481" y2="165" class="line"/>
+  <rect x="64" y="184" width="396" height="111" rx="14" class="amber"/>
+  <text x="84" y="213" class="tiny ink">ACTION NEEDED · SIMULATED TRANSFER</text>
+  <text x="84" y="245" class="section ink">Before you enter an OTP</text>
+  <text x="84" y="271" class="body ink">Your ₹50,000 transfer is pending.</text>
+  <text x="65" y="327" class="label ink">Why slow down?</text>
+  <rect x="64" y="344" width="396" height="165" rx="12" class="soft"/>
+  <text x="82" y="371" class="small ink">1  The caller's Demo Bank claim is unverified.</text>
+  <text x="103" y="392" class="tiny teal">Source 01 · Review or correct</text>
+  <text x="82" y="421" class="small ink">2  They directed this new-payee transfer.</text>
+  <text x="103" y="442" class="tiny teal">Source 03 + current transfer draft</text>
+  <text x="82" y="467" class="small ink">3  They asked for secrecy and urgency.</text>
+  <text x="103" y="488" class="tiny teal">Source 02 · Review or correct</text>
+  <text x="65" y="535" class="small muted">You decide what happens next. No real payment is held.</text>
+  <rect x="64" y="551" width="396" height="61" rx="10" class="button"/>
+  <text x="155" y="588" class="label buttonText">Pause simulated transfer</text>
+  <rect x="64" y="625" width="396" height="57" rx="10" class="card"/>
+  <text x="189" y="660" class="label ink">Verify officially</text>
+  <rect x="64" y="695" width="396" height="57" rx="10" class="card"/>
+  <text x="199" y="730" class="label ink">Ask my ally</text>
+  <rect x="64" y="765" width="396" height="52" rx="10" class="card"/>
+  <text x="138" y="797" class="small ink">Continue after acknowledgment</text>
+  <text x="65" y="842" class="small teal">I already paid → use this same case for recovery</text>
+  <line x1="65" y1="859" x2="460" y2="859" class="line"/>
+  <text x="65" y="884" class="tiny muted">Controlled incident · fictional bank · human decision required</text>
+
+  <text x="530" y="139" class="section ink">If the relation is not current</text>
+  <rect x="529" y="157" width="705" height="289" rx="15" class="card"/>
+  <rect x="551" y="180" width="107" height="28" rx="14" class="chip"/>
+  <text x="562" y="199" class="tiny ink">RECHECKING</text>
+  <text x="551" y="237" class="section ink">Rechecking your updated transfer</text>
+  <text x="551" y="264" class="body ink">Your simulated transfer is still pending. We do not yet have</text>
+  <text x="551" y="286" class="body ink">a current, source-backed link to the caller's request.</text>
+  <rect x="551" y="314" width="201" height="54" rx="9" class="button"/>
+  <text x="585" y="347" class="small buttonText">Pause manually</text>
+  <rect x="766" y="314" width="213" height="54" rx="9" class="card"/>
+  <text x="813" y="347" class="small ink">Verify officially</text>
+  <rect x="551" y="381" width="275" height="48" rx="9" class="card"/>
+  <text x="568" y="411" class="small ink">Continue: ordinary confirmation</text>
+  <text x="842" y="411" class="small teal">I already paid → recovery</text>
+
+  <text x="530" y="492" class="section ink">If Gemini is unavailable</text>
+  <rect x="529" y="511" width="705" height="292" rx="15" class="card"/>
+  <rect x="551" y="534" width="167" height="28" rx="14" class="chip"/>
+  <text x="561" y="553" class="tiny ink">AI CHECK UNAVAILABLE</text>
+  <text x="551" y="591" class="section ink">We cannot complete the AI check now</text>
+  <text x="551" y="620" class="body ink">We will not guess whether this transfer is safe. It remains</text>
+  <text x="551" y="642" class="body ink">pending until you choose an action.</text>
+  <rect x="551" y="673" width="201" height="54" rx="9" class="button"/>
+  <text x="585" y="706" class="small buttonText">Pause manually</text>
+  <rect x="766" y="673" width="213" height="54" rx="9" class="card"/>
+  <text x="813" y="706" class="small ink">Verify officially</text>
+  <rect x="551" y="740" width="304" height="50" rx="9" class="card"/>
+  <text x="570" y="771" class="small ink">Continue: acknowledge uncertainty</text>
+  <text x="874" y="771" class="small teal">I already paid → recovery</text>
+  <text x="531" y="850" class="small muted">Neither fallback shows an enhanced Pause finding or settles the transfer.</text>
+  <text x="42" y="934" class="small muted">Design note: action order is deliberate; final styling and product name remain open.</text>
+</svg>

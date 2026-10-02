@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="900" viewBox="0 0 1280 900" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe 01: prepared Safety Plan</title>
+  <desc id="desc">Desktop setup screen with a contextual transfer policy, fictional Demo Bank route, accepted ally, four separate data choices and a disclosed 24-hour confirmed-facts retention default.</desc>
+  <style>
+    .bg{fill:#f3f6f6}.shell,.card{fill:#fff;stroke:#cbd6d7;stroke-width:2}.soft{fill:#f2f7f6}.line{stroke:#dce4e5;stroke-width:1.5}.ink{fill:#18313a}.muted{fill:#5c7077}.teal{fill:#166d67}.tealbg{fill:#e3f3ef}.button{fill:#176d67}.buttonText{fill:#fff}.chip{fill:#eff4f4;stroke:#cbd6d7}.section{font:700 23px system-ui,sans-serif}.body{font:16px system-ui,sans-serif}.small{font:14px system-ui,sans-serif}.tiny{font:12px system-ui,sans-serif}.label{font:600 16px system-ui,sans-serif}.heading{font:700 32px system-ui,sans-serif}
+  </style>
+  <rect class="bg" width="1280" height="900"/>
+  <text x="42" y="54" class="heading ink">01 / Prepare before pressure</text>
+  <text x="43" y="82" class="body muted">Desktop setup frame · the demo opens on a saved summary, not a configuration tour</text>
+  <rect x="40" y="112" width="1200" height="735" rx="18" class="shell"/>
+  <text x="68" y="155" class="label ink">Decision Safety Network</text>
+  <text x="338" y="155" class="small muted">Safety Plan</text>
+  <text x="460" y="155" class="small muted">Live Case</text>
+  <text x="556" y="155" class="small muted">Recovery</text>
+  <rect x="1018" y="130" width="192" height="32" rx="16" class="chip"/>
+  <text x="1041" y="151" class="tiny ink">SYNTHETIC DEMO</text>
+  <line x1="41" y1="174" x2="1239" y2="174" class="line"/>
+
+  <rect x="66" y="196" width="690" height="618" rx="14" class="card"/>
+  <text x="92" y="237" class="section ink">My saved Safety Plan</text>
+  <text x="92" y="264" class="body muted">Only intervene strongly when a live claim meets a consequential action.</text>
+  <rect x="91" y="287" width="639" height="106" rx="12" class="soft"/>
+  <text x="110" y="317" class="label ink">Protect this decision</text>
+  <text x="110" y="345" class="body ink">A large transfer to a new payee while someone directs me live</text>
+  <text x="110" y="371" class="body ink">and their identity or claim is still unverified.</text>
+  <text x="92" y="433" class="label ink">Large new-payee threshold</text>
+  <rect x="92" y="446" width="300" height="48" rx="9" class="card"/>
+  <text x="110" y="476" class="body ink">₹ 10,000</text>
+  <text x="92" y="532" class="label ink">Independent bank route</text>
+  <rect x="92" y="545" width="638" height="65" rx="9" class="card"/>
+  <text x="110" y="573" class="body ink">Demo Bank · fictional verification registry</text>
+  <text x="110" y="594" class="small muted">Never use a number provided by the caller</text>
+  <text x="92" y="646" class="label ink">Safety Ally</text>
+  <rect x="92" y="658" width="638" height="74" rx="9" class="card"/>
+  <text x="110" y="688" class="body ink">Alex · invitation accepted</text>
+  <rect x="588" y="671" width="125" height="26" rx="13" class="tealbg"/>
+  <text x="609" y="689" class="tiny teal">READY TO ASK</text>
+  <text x="110" y="713" class="small muted">No case detail is shared until you explicitly ask this ally.</text>
+  <text x="92" y="774" class="small muted">You granted these choices during setup; each can be revoked.</text>
+
+  <rect x="779" y="196" width="431" height="618" rx="14" class="card"/>
+  <text x="805" y="237" class="section ink">My data choices</text>
+  <text x="805" y="265" class="small muted">Saved choices · each separately granted and revocable.</text>
+  <rect x="805" y="286" width="379" height="54" rx="9" class="soft"/>
+  <rect x="823" y="304" width="18" height="18" rx="4" class="tealbg" stroke="#166d67"/>
+  <path d="M827 313l4 4 7-9" fill="none" stroke="#166d67" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="850" y="310" class="label ink">Process this controlled session</text>
+  <text x="850" y="327" class="tiny muted">Live transcript segments + Gemini inference</text>
+  <rect x="805" y="353" width="379" height="170" rx="9" class="soft"/>
+  <text x="823" y="381" class="label ink">Keep after the session</text>
+  <circle cx="831" cy="407" r="8" fill="#fff" stroke="#166d67" stroke-width="2"/>
+  <text x="850" y="413" class="small ink">Delete case content at close</text>
+  <circle cx="831" cy="443" r="8" fill="#fff" stroke="#166d67" stroke-width="2"/>
+  <circle cx="831" cy="443" r="4" fill="#166d67"/>
+  <text x="850" y="448" class="small ink">Confirmed facts · up to 24 hours</text>
+  <text x="850" y="465" class="tiny teal">DEFAULT · no raw transcript retained</text>
+  <circle cx="831" cy="495" r="8" fill="#fff" stroke="#166d67" stroke-width="2"/>
+  <text x="850" y="501" class="small ink">Selected excerpts + facts · up to 7 days</text>
+  <rect x="805" y="536" width="379" height="53" rx="9" class="soft"/>
+  <rect x="823" y="553" width="18" height="18" rx="4" class="tealbg" stroke="#166d67"/>
+  <path d="M827 562l4 4 7-9" fill="none" stroke="#166d67" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="850" y="560" class="label ink">Share with my accepted ally</text>
+  <text x="850" y="577" class="tiny muted">Case-specific permission is still required later</text>
+  <rect x="805" y="601" width="379" height="53" rx="9" class="soft"/>
+  <rect x="823" y="618" width="18" height="18" rx="4" class="tealbg" stroke="#166d67"/>
+  <path d="M827 627l4 4 7-9" fill="none" stroke="#166d67" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="850" y="626" class="label ink">Allow evidence export</text>
+  <text x="850" y="643" class="tiny muted">A reviewable file, never an automatic report</text>
+  <text x="805" y="685" class="small muted">Deleting at close prevents later no-re-entry recovery.</text>
+  <rect x="805" y="713" width="379" height="58" rx="10" class="button"/>
+  <text x="940" y="748" class="label buttonText">Update my choices</text>
+  <text x="43" y="881" class="small muted">Design note: values and names are synthetic. Palette, typography and product name are provisional.</text>
+</svg>
