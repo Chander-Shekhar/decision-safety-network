@@ -2,13 +2,13 @@
 
 - **Scope:** infrastructure
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** Primary agent (serialized documentation integrator)
+- **Branch/worktree:** `task/DSN-017-implementation-orchestration-handoff` / `.worktrees/dsn-017-implementation-orchestration-handoff`
 - **Owned paths:** `AGENTS.md`, `README.md`, `CLAUDE.md`, `docs/design/wireframes/README.md`, `docs/design/wireframes/index.html`, `docs/implementation/claude-code-orchestrator-prompt.md`, and this task record (serialized integrator ownership)
 - **Dependencies:** DSN-001, DSN-016
 - **PRD references:** Part I Core MVP C1–C12, Cup-ready definition, trust/privacy/accessibility gates
 - **Decision references:** Accepted decision 0001 and founder-approved wireframes and implementation plan, 2026-10-03
-- **Started:** Not started
+- **Started:** 2026-10-03 IST
 - **Last updated:** 2026-10-03 IST
 
 ## Outcome
@@ -45,5 +45,5 @@ Not applicable.
 
 ## Handoff
 
-- **Next action:** Claim on main, create isolated worktree, then implement the documentation and prompt changes.
+- **Next action:** Create the isolated worktree from this claim commit, then implement the documentation and prompt changes.
 - **Unresolved issues:** No product or cloud decision is required for this handoff; future implementation pushes and deployment remain separately gated.
