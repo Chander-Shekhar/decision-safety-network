@@ -137,4 +137,10 @@ describe('ActionConsole', () => {
     expect(screen.getByRole('button', { name: /verify officially/i })).toBeVisible();
     expect(screen.getByRole('button', { name: /ask my ally/i })).toBeVisible();
   });
+
+  it('renders without throwing, and shows zero reason rows, for a projection with no reasons field at all (a quiet case createCase just made)', () => {
+    const noReasonsField = { phase: 'Observe', paymentState: undefined } as unknown as ActionConsoleCaseState;
+    expect(() => render(<ActionConsole caseState={noReasonsField} />)).not.toThrow();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
 });

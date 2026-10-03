@@ -15,7 +15,8 @@ export interface ActionConsoleCaseState {
   phase: Phase;
   /** Absent for a case with no payment draft yet (quiet Observe/Check case). */
   paymentState?: PaymentState;
-  reasons: PaymentReason[];
+  /** Absent for a quiet case `createCase` just made (its `CaseEnvelope` carries no `reasons` field at all) - defaulted to `[]` below, never read unguarded. */
+  reasons?: PaymentReason[];
 }
 
 export interface ActionConsoleProps {
@@ -55,7 +56,7 @@ export function ActionConsole({
   onAskAlly,
 }: ActionConsoleProps): React.JSX.Element {
   const [acknowledged, setAcknowledged] = useState(false);
-  const { phase, paymentState, reasons } = caseState;
+  const { phase, paymentState, reasons = [] } = caseState;
 
   const resolved = paymentState === 'cancelled' || paymentState === 'continued';
   const hasOpenPayment = paymentState === 'pending' || paymentState === 'paused';

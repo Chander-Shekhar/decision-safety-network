@@ -117,23 +117,94 @@ describe('act (explicit human decision commands)', () => {
     expect(persisted.paymentState).toBe('cancelled');
   });
 
-  it('verify from a joined Pause case moves phase to Verify without touching paymentState', async () => {
+  it('verify from a joined Pause case moves phase to Verify without touching paymentState, as a single event (version +1)', async () => {
     const ownerUid = uid('owner');
     const { caseId, pending } = await seedJoinedCase(ownerUid);
+    const beforeEvents = await eventCount(caseId);
 
     const result = await act(db, ownerUid, caseId, { kind: 'verify', key: randomUUID(), expectedVersion: pending.version });
     expect(result.phase).toBe('Verify');
     expect(result.paymentState).toBe('pending');
+    expect(result.version).toBe(pending.version + 1);
+    expect(await eventCount(caseId)).toBe(beforeEvents + 1);
   });
 
-  it('verify from a quiet Observe-only case first legally records Check, never an illegal Observe to Verify jump', async () => {
+  it('verify from a Check-phase case (cues present, not yet joined) stays a single event (version +1)', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedCase(ownerUid, 10_000);
+    await appendSegment(db, ownerUid, { id: 's1', caseId, order: 1, speaker: 'caller', text: 'This is urgent, pay now.' }, () => {});
+    const afterTactics = await readProjection(ownerUid, caseId);
+    const { correctFact } = await import('../src/fact-validator.js');
+    await correctFact(db, ownerUid, caseId, 'observedTactics', 'urgency-pressure', afterTactics.version);
+    const afterCorrect = await readProjection(ownerUid, caseId);
+
+    const draft = await saveDraft(db, ownerUid, caseId, {
+      beneficiaryId: 'safe-new',
+      amountMinor: 50_000,
+      expectedVersion: afterCorrect.version,
+      idempotencyKey: randomUUID(),
+    });
+    const pendingBefore = await submitIntent(db, ownerUid, caseId, {
+      draftId: draft.paymentDraft!.id,
+      expectedVersion: draft.version,
+      idempotencyKey: randomUUID(),
+    });
+    expect(pendingBefore.phase).toBe('Check');
+
+    const beforeEvents = await eventCount(caseId);
+    const result = await act(db, ownerUid, caseId, { kind: 'verify', key: randomUUID(), expectedVersion: pendingBefore.version });
+
+    expect(result.phase).toBe('Verify');
+    expect(result.version).toBe(pendingBefore.version + 1);
+    expect(await eventCount(caseId)).toBe(beforeEvents + 1);
+  });
+
+  it('verify from a quiet Observe-only case persists TWO individually legal events (Observe->Check, then Check->Verify), never a single collapsed Observe->Verify event', async () => {
     const ownerUid = uid('owner');
     const caseId = await seedCase(ownerUid);
     const created = await readProjection(ownerUid, caseId);
     expect(created.phase).toBe('Observe');
+    const beforeEvents = await eventCount(caseId);
 
     const result = await act(db, ownerUid, caseId, { kind: 'verify', key: randomUUID(), expectedVersion: created.version });
     expect(result.phase).toBe('Verify');
+    expect(result.version).toBe(created.version + 2);
+
+    const eventsSnap = await db.collection('cases').doc(caseId).collection('events').get();
+    expect(eventsSnap.size).toBe(beforeEvents + 2);
+    const results = eventsSnap.docs.map((d) => {
+      const r = d.get('result') as { version: number; phase: string };
+      return { version: r.version, phase: r.phase };
+    });
+
+    // The bug this fix removes committed a SINGLE event whose result was
+    // phase Verify at version created.version + 1 - i.e. an Observe->Verify
+    // jump the canonical transition table forbids. That must never appear.
+    expect(results.some((r) => r.phase === 'Verify' && r.version === created.version + 1)).toBe(false);
+
+    // Instead, two individually legal hops are each separately persisted.
+    expect(results).toContainEqual({ version: created.version + 1, phase: 'Check' });
+    expect(results).toContainEqual({ version: created.version + 2, phase: 'Verify' });
+  });
+
+  it('replaying the same two-hop verify key is idempotent: no extra events, no extra version bump, same final projection', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedCase(ownerUid);
+    const created = await readProjection(ownerUid, caseId);
+    const key = randomUUID();
+
+    const first = await act(db, ownerUid, caseId, { kind: 'verify', key, expectedVersion: created.version });
+    expect(first.phase).toBe('Verify');
+    expect(first.version).toBe(created.version + 2);
+    const afterFirstEvents = await eventCount(caseId);
+
+    // Replays with the SAME (now-stale) original expectedVersion, mirroring
+    // a client that retried after not receiving a response the first time.
+    const second = await act(db, ownerUid, caseId, { kind: 'verify', key, expectedVersion: created.version });
+
+    expect(second.version).toBe(first.version);
+    expect(second.phase).toBe('Verify');
+    expect(await eventCount(caseId)).toBe(afterFirstEvents);
   });
 
   it('continue without acknowledged=true is denied with ACK_REQUIRED and leaves the case untouched', async () => {

@@ -8,10 +8,11 @@
 // commands. `phase` only ever moves through the shared, pure `transition()`
 // table (DSN-007); nothing here reads or writes it any other way.
 
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 import type { Firestore } from 'firebase-admin/firestore';
-import type { CaseReducer, Phase } from '@dsn/contracts';
+import type { CaseCommandResult, CaseReducer } from '@dsn/contracts';
 import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
 import { commitCaseCommand, readCase } from './case-store.js';
@@ -33,15 +34,129 @@ export type DecisionAction =
   | { kind: 'continue'; key: string; expectedVersion: number; acknowledged: boolean };
 
 /**
- * `verify`'s phase target. The canonical table (`transitions.ts`) has no
- * direct `Observe -> Verify` pair, so a quiet Observe-only case first legally
- * records `Check` before `Verify` - two chained legal hops collapsed into the
- * one committed event, never an illegal direct jump. `Check`/`Pause` go
- * straight to `Verify`.
+ * Derives a deterministic, RFC-4122-shaped v4 UUID from `seed`.
+ * `commitCaseCommand` validates every `idempotencyKey` against `z.uuid()`
+ * (version AND variant nibbles, not just the general 8-4-4-4-12 shape - see
+ * `case-store.ts`'s `idempotencyKeySchema`), so `actVerify`'s hop-1 key
+ * cannot simply be `action.key` with a string suffix appended - that fails
+ * the format check outright. Hashing the seed and re-stamping the version/
+ * variant nibbles keeps the key deterministic (the same `action.key` always
+ * yields the same hop-1 key, which is what makes the hop idempotent and
+ * resumable) while still satisfying the schema. Collision with a real
+ * `action.key` (itself always a fresh random v4 UUID per `ActionBodySchema`)
+ * or with another action's hop-1 key is cryptographically negligible.
  */
-function verifyPhase(current: Phase): Phase {
-  const checked = current === 'Observe' ? transition(current, 'Check', 'verify-request') : current;
-  return transition(checked, 'Verify', 'verify-request');
+function deterministicUuid(seed: string): string {
+  const hex = createHash('sha256').update(seed).digest('hex');
+  const variantNibble = ((parseInt(hex[15], 16) & 0x3) | 0x8).toString(16);
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    `4${hex.slice(12, 15)}`,
+    `${variantNibble}${hex.slice(16, 19)}`,
+    hex.slice(19, 31),
+  ].join('-');
+}
+
+/**
+ * `verify`'s own two-hop-capable path. The canonical transition table
+ * (`transitions.ts`) has no direct `Observe -> Verify` pair, so a quiet
+ * Observe-only case must legally record `Check` before `Verify` - as TWO
+ * individually legal, individually PERSISTED events (`Observe -> Check`,
+ * then `Check -> Verify`), never one event whose endpoints span an illegal
+ * pair. `Check`/`Pause` already have a direct legal pair to `Verify`, so
+ * those stay a single event, exactly as before.
+ *
+ * Idempotency/OCC across the two hops:
+ * - Hop 1's event-doc id is `deterministicUuid(`${action.key}:to-check`)`;
+ *   hop 2's is `action.key` itself - the same id a single-hop verify always
+ *   used, so a Check/Pause-origin verify (no hop 1 at all) is byte-for-byte
+ *   what it always was: one event, under `action.key`, version +1.
+ * - This function first peeks whether hop 1's event already exists (mirrors
+ *   `payment.ts`'s `recheckRelation` dedup peek). If it does, a PRIOR call
+ *   under this exact `action.key` already committed it - either earlier in
+ *   this very call, or in a previous attempt that crashed before hop 2 ran.
+ *   That event's own stored receipt `version` (always the version
+ *   immediately after hop 1, whether freshly computed just now or replayed
+ *   from a prior attempt) becomes hop 2's `expectedVersion` - never the
+ *   client's original `action.expectedVersion`, which describes the
+ *   pre-hop-1 state and would otherwise mismatch the real current version
+ *   and throw a spurious `VERSION_CONFLICT` on resume.
+ * - If hop 1's event does not exist and the case's current phase actually is
+ *   `Observe`, hop 1 is committed fresh at the client-supplied
+ *   `expectedVersion` (`Observe -> Check`).
+ * - Otherwise (no hop-1 event, non-Observe origin) hop 2 alone runs at the
+ *   client-supplied `expectedVersion`, exactly as a single-hop verify always
+ *   has.
+ * - Hop 2 then commits under `action.key` at whichever `expectedVersion` was
+ *   resolved above. If hop 2's event already exists too (a full replay after
+ *   both hops previously succeeded), `commitCaseCommand`'s own
+ *   idempotency-key-is-event-id check returns the stored receipt before any
+ *   version comparison runs, so a full replay is always a no-op regardless
+ *   of the `expectedVersion` resolved above.
+ *
+ * Each hop's reducer independently re-checks `PAYMENT_FINALIZED` against its
+ * own fresh, transactionally-read `current` (never a value trusted from
+ * outside its own transaction), never calls `assessCase`, and only ever
+ * spreads `{...current, phase}` - never naming `paymentState` - so a
+ * no-draft case (no `paymentState` field at all) is never given an explicit
+ * `undefined` value that `tx.update`'s field-list write would reject.
+ */
+async function actVerify(
+  db: Firestore,
+  uid: string,
+  caseId: string,
+  action: Extract<DecisionAction, { kind: 'verify' }>,
+): Promise<PaymentProjection> {
+  const hop1Key = deterministicUuid(`${action.key}:to-check`);
+  const current = await readCase<PaymentProjection>(db, uid, caseId);
+  const hop1Snap = await db.collection('cases').doc(caseId).collection('events').doc(hop1Key).get();
+
+  let hop2ExpectedVersion = action.expectedVersion;
+
+  if (hop1Snap.exists) {
+    hop2ExpectedVersion = (hop1Snap.get('result') as CaseCommandResult).version;
+  } else if (current.phase === 'Observe') {
+    const hop1Reducer: CaseReducer<PaymentProjection> = (c) => {
+      if (c.paymentState === 'cancelled' || c.paymentState === 'continued') {
+        throw new Error('PAYMENT_FINALIZED');
+      }
+      return { ...c, phase: transition(c.phase, 'Check', 'verify-request') };
+    };
+    const hop1Result = await commitCaseCommand(
+      db,
+      {
+        caseId,
+        actorUid: uid,
+        idempotencyKey: hop1Key,
+        expectedVersion: action.expectedVersion,
+        kind: 'decision.verify-check-hop',
+        payload: {},
+      },
+      hop1Reducer,
+    );
+    hop2ExpectedVersion = hop1Result.version;
+  }
+
+  const hop2Reducer: CaseReducer<PaymentProjection> = (c) => {
+    if (c.paymentState === 'cancelled' || c.paymentState === 'continued') {
+      throw new Error('PAYMENT_FINALIZED');
+    }
+    return { ...c, phase: transition(c.phase, 'Verify', 'verify-request') };
+  };
+  await commitCaseCommand(
+    db,
+    {
+      caseId,
+      actorUid: uid,
+      idempotencyKey: action.key,
+      expectedVersion: hop2ExpectedVersion,
+      kind: 'decision.verify',
+      payload: {},
+    },
+    hop2Reducer,
+  );
+  return readCase<PaymentProjection>(db, uid, caseId);
 }
 
 /**
@@ -50,11 +165,16 @@ function verifyPhase(current: Phase): Phase {
  * `commitCaseCommand` for an idempotent, inspectable, versioned state
  * change - `commitCaseCommand` itself stamps the shared `POLICY_VERSION`
  * (`'cup-core-1'`) on the recorded event, so there is nothing further to
- * record here. `reasons` is never recomputed: every branch below returns
- * `current.reasons` untouched, because this function never calls
- * `assessCase` (DSN-008's `submitIntent`/`applyValidatedRelation` remain the
- * sole call sites) - a human decision here can change `paymentState`/`phase`
- * but never fabricates a fresh policy justification for doing so.
+ * record here. `reasons` is never recomputed: every branch (here and in
+ * `actVerify` above) returns `current.reasons` untouched, because neither
+ * this function nor `actVerify` ever calls `assessCase` (DSN-008's
+ * `submitIntent`/`applyValidatedRelation` remain the sole call sites) - a
+ * human decision here can change `paymentState`/`phase` but never
+ * fabricates a fresh policy justification for doing so.
+ *
+ * `verify` is delegated to `actVerify`, which may commit one or two events
+ * depending on the case's current phase (see its own doc comment);
+ * `pause`/`cancel`/`continue` always commit exactly one, as before.
  *
  * Once a payment is finalized (`cancelled`/`continued`), every further
  * action is rejected with `PAYMENT_FINALIZED` (mirrors `payment.ts`'s own
@@ -62,6 +182,10 @@ function verifyPhase(current: Phase): Phase {
  * cancelled/verified/continued.
  */
 export async function act(db: Firestore, uid: string, caseId: string, action: DecisionAction): Promise<PaymentProjection> {
+  if (action.kind === 'verify') {
+    return actVerify(db, uid, caseId, action);
+  }
+
   const reducer: CaseReducer<PaymentProjection> = (current) => {
     if (current.paymentState === 'cancelled' || current.paymentState === 'continued') {
       throw new Error('PAYMENT_FINALIZED');
@@ -71,24 +195,10 @@ export async function act(db: Firestore, uid: string, caseId: string, action: De
     }
 
     const phase =
-      action.kind === 'verify'
-        ? verifyPhase(current.phase)
-        : action.kind === 'cancel' || action.kind === 'continue'
-          ? transition(current.phase, 'Resolve', 'explicit-user-decision')
-          : current.phase;
+      action.kind === 'cancel' || action.kind === 'continue'
+        ? transition(current.phase, 'Resolve', 'explicit-user-decision')
+        : current.phase;
 
-    // `verify` is the only kind that never changes `paymentState`. Spreading
-    // `current` alone (rather than also assigning `paymentState:
-    // current.paymentState`) matters for a case with no payment draft yet
-    // (quiet verification offered before any transfer is open, PRD causal
-    // matrix row 1): such a case's stored document has no `paymentState`
-    // field at all, and `tx.update`'s field-list write rejects an explicit
-    // `undefined` value - so this must never materialize the key when there
-    // is nothing to carry forward. Every other kind always assigns a
-    // concrete, defined value, so this concern never arises for them.
-    if (action.kind === 'verify') {
-      return { ...current, phase };
-    }
     const paymentState = action.kind === 'cancel' ? 'cancelled' : action.kind === 'pause' ? 'paused' : 'continued';
     return { ...current, paymentState, phase };
   };
