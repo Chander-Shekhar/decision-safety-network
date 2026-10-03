@@ -2,14 +2,14 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-012 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-012-same-case-recovery` @ `.worktrees/dsn-012-same-case-recovery`
 - **Owned paths:** `packages/contracts/src/recovery.ts`, `apps/api/src/{recovery,recovery-routes}.ts`, `apps/api/test/recovery.test.ts`, `apps/web/src/{RecoveryScreen,RecoveryScreen.test}.tsx`
-- **Dependencies:** DSN-009; DSN-013 (retention/source-expiry behavior)
+- **Dependencies:** DSN-009 (done @ fe7b8bb); DSN-013 retention/source-expiry (done @ f9e3e90); also Task 6 PaymentDraft @ 611f85b
 - **PRD references:** C10 same-case recovery
 - **Decision references:** 0001
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Started:** 2026-10-04
+- **Last updated:** 2026-10-04
 
 ## Outcome
 

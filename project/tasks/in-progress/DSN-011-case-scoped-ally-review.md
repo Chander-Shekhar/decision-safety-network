@@ -2,14 +2,14 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-011 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-011-case-scoped-ally-review` @ `.worktrees/dsn-011-case-scoped-ally-review`
 - **Owned paths:** `packages/contracts/src/ally.ts`, `apps/api/src/{ally,ally-routes}.ts`, `apps/api/test/ally.test.ts`, `apps/web/src/{AllySharePreview,AllySharePreview.test,AllyScreen,AllyScreen.test}.tsx`
-- **Dependencies:** DSN-009; DSN-013 (selected-evidence read API)
+- **Dependencies:** DSN-009 (done @ fe7b8bb); DSN-013 selected-evidence API (done @ f9e3e90)
 - **PRD references:** C8 ally review; C12 authorization/revocation
 - **Decision references:** 0001
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Started:** 2026-10-04
+- **Last updated:** 2026-10-04
 
 ## Outcome
 
