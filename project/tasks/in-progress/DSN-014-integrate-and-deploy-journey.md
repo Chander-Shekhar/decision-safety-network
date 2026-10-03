@@ -2,14 +2,15 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** `apps/api/src/server.ts`, `apps/api/test/fake-gemini.ts`, `apps/web/src/{App,main}.tsx`, `apps/web/index.html`, `apps/web/src/api-client.ts`, `apps/web/e2e/journey.spec.ts`, `Dockerfile`, `scripts/smoke.sh`, `docs/demo-runbook.md`; serialized modify: `firebase.json`
-- **Dependencies:** DSN-008, DSN-010, DSN-011, DSN-012, DSN-013
+- **Owner:** Integrator (DSN-014 implementer subagent under integrator)
+- **Branch/worktree:** `task/DSN-014-integrate-and-deploy-journey` @ `.worktrees/dsn-014-integrate-and-deploy-journey`
+- **Owned paths:** `apps/api/src/server.ts`, `apps/api/test/fake-gemini.ts`, `apps/api/test/server.test.ts` (new boot/compose test), `apps/web/src/{App,main}.tsx`, `apps/web/index.html`, `apps/web/src/api-client.ts`, `apps/web/e2e/journey.spec.ts`, `Dockerfile`, `scripts/smoke.sh`, `docs/demo-runbook.md`; serialized modify: `firebase.json`
+- **Dependencies:** DSN-008 (done), DSN-010 (done), DSN-011 (done @ fe7c7f3), DSN-012 (done @ b3dd87a), DSN-013 (done @ f9e3e90)
 - **PRD references:** Cup-ready clean deployed demo
 - **Decision references:** 0001
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Started:** 2026-10-04
+- **Last updated:** 2026-10-04
+- **Scope note (this pass):** Founder authorized the LOCAL integration portion only and directed "keep strictly local" + "defer all pending decisions." This pass delivers the **dependency-free** composition (API composition root `server.ts` wiring all 10 route installers, `fake-gemini.ts` test double, react-only web shell `App/main/index.html` + injected-token `api-client.ts`, `Dockerfile`/`smoke.sh`/`demo-runbook.md` artifacts, `firebase.json` hosting rewrites) and authors `journey.spec.ts` as the red e2e **without running it**. Executing the two-browser Playwright journey + serving the Vite SPA + real Firebase browser auth require NEW serialized dev dependencies (`@playwright/test` + browser binaries, Vite app build/dev scripts + `vite.config.ts`, `firebase` client SDK) — a consequential dependency decision deferred per founder instruction. Deploy (Step 5) blocked on founder cloud/billing authorization. Task lands in `blocked`, not `done` (plan completion contract).
 
 ## Outcome
 
