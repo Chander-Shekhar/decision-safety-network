@@ -29,11 +29,13 @@ A task may move to `done` only after every applicable acceptance check is marked
 
 ## Verification evidence
 
-- **Commits (on `task/DSN-006-live-gemini-facts-provenance`, not yet merged):**
+- **Commits (on `task/DSN-006-live-gemini-facts-provenance`):**
   - `8767d55` DSN-006: add source-grounded live case facts
   - `02a3eb5` DSN-006: record verification evidence for live gemini facts
   - `6fa7f49` DSN-006: fix extraction authz ordering, idempotency, and event-emitting per decision 0004 (scoped fix after CHANGES-REQUIRED review; see decision 0004)
-- **Integration commit:** Not integrated
+  - `033a4e4` DSN-006: record verification evidence for the decision-0004 scoped fix
+- **Decision commit (integrator, on `main`):** `a9c5ed9` DSN-006: record decision 0004 (fact extraction authz + event).
+- **Integration commit:** `057626d` — `DSN-006: integrate live gemini facts and provenance` (merged `task/DSN-006-...` into local `main` with `--no-ff` after two independent read-only reviews; the second returned **APPROVED** on the decision-0004 scoped-fix delta `02a3eb5..033a4e4`, with three explicitly non-blocking residuals: N1 cosmetic event-`kind` dot-vs-hyphen naming, N2 harmless replay-branch projection field inconsistency on the unused `phase`, N3 decision 0004 already present on the merge target — all noted, none held merge).
 - **Commands and results (first round, commits `8767d55`/`02a3eb5`):**
   - `JAVA_HOME=<local JDK 21; path not committed>` + `PATH="$JAVA_HOME/bin:$PATH"` for all emulator runs below.
   - `npx firebase emulators:exec --project demo-dsn --only auth,firestore "npm run test:api -- facts.test.ts"` → 30 passed (30), 1 test file. (First RED run surfaced 1 failing assertion in the test itself - a unit-level call to `extractFacts` asserted a `modelVersion` the test never asked the orchestration to stamp; fixed the test, not the implementation, then reran GREEN.)
@@ -54,7 +56,7 @@ A task may move to `done` only after every applicable acceptance check is marked
   - `npm run test:web` → 26 passed (26), 3 test files (untouched this round; no regression).
   - `npm run typecheck` → exit 0 across `@dsn/contracts`, `@dsn/api`, `@dsn/web`.
   - `git diff --cached --check` → no output (clean), scoped to `apps/api/src/fact-routes.ts`, `apps/api/src/fact-validator.ts`, `apps/api/src/gemini.ts`, `apps/api/test/facts.test.ts` only (verified via `git status --short`/`git diff --cached --stat` before committing - no serialized files touched).
-- **Post-integration verification:** Not run
+- **Post-integration verification:** On integrated `main` @ `057626d` (JDK 21 for the shell only; `JAVA_HOME`/`PATH` never written to any committed file; `--project demo-dsn`): `npm run typecheck` → exit 0 across `@dsn/contracts`, `@dsn/api`, `@dsn/web`; `npm run test:web` → **26 passed (26)**, 3 files; `npx firebase emulators:exec --only auth,firestore 'npm run test:api'` → **93 passed (93)**, 5 files, script exited 0, emulators shut down cleanly; `git diff --check fa34bb7 057626d` → clean; hygiene scan of the integrated tree → only decision 0003's prose documenting the *absence* of workplace URLs matched, no actual leak. (Benign offline `MetadataLookupWarning` from GCP metadata probes; emulator uses local auth. The global-npm `always-auth`/`repo.local.sfdc.net` warning comes from the user's machine-level npm config, not the project `.npmrc`, and is not committed.)
 - **Changed paths:** `packages/contracts/src/facts.ts`, `apps/api/src/gemini.ts`, `apps/api/src/fact-validator.ts`, `apps/api/src/fact-routes.ts`, `apps/api/test/facts.test.ts`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/DecisionMap.test.tsx`. (Second round touched only `apps/api/src/{gemini,fact-validator,fact-routes}.ts` and `apps/api/test/facts.test.ts`.)
 - **Limitations or skipped checks:**
   - `apps/api/src/gemini.ts` is never exercised against the real Google Cloud endpoint; every test uses an inline fake `GeminiPort`. Live calls remain gated to DSN-014 per decision 0003.
@@ -67,9 +69,13 @@ A task may move to `done` only after every applicable acceptance check is marked
 
 ## Blocker or deferral
 
-Not applicable.
+Not applicable — integrated and verified on local `main`.
 
 ## Handoff
 
-- **Next action:** Awaiting integrator review and merge of `task/DSN-006-live-gemini-facts-provenance` (commits `8767d55`, `02a3eb5`, `6fa7f49`) into `main`.
-- **Unresolved issues:** Live-Gemini calls use a fake `GeminiPort` in tests; real calls gated to DSN-014 cloud auth. See "Limitations or skipped checks" above for the extraction-trigger wiring, `GeminiPort` injection, and decision-0004 OCC-sharing/accepted-LOW-item notes the integrator should be aware of.
+- **Next action:** Done. No further action on this task.
+- **Carry-forward for later tasks (not DSN-006 defects):**
+  - **Route wiring (DSN-014 / server-assembly task):** the extract/correct/confirm routes are composed only in tests via `buildApi([createFactRoutes(fakeGemini)], deps)`; they are NOT mounted in the serialized `app.ts`. Production assembly must call `createFactRoutes(createGeminiPort())` and mount it, and the client session flow must call the existing session append route then this extract route in sequence (see Limitations). Same route-mounting deferral pattern as prior feature tasks.
+  - **Live Gemini (DSN-014):** `gemini.ts` is never exercised against the real endpoint; all tests use a fake `GeminiPort`. Live calls gated to DSN-014 under founder cloud/billing authorization, which must also revisit decision 0003's `@google/genai`/`gaxios`/`uuid` audit before any live call ships.
+  - **DSN-008:** consumes `GeminiPort.relate`/`CandidateRelation` directly (no HTTP route here by design); should confirm the `CandidateRelation.matches` shape before relying on it, and read `facts.extracted` events like any other case event.
+  - **Non-blocking residuals from re-review (optional cleanup, not required for Cup):** N1 event-`kind` naming convention (`facts.extracted` dot-style vs sibling hyphen-style); N2 replay-branch returns the historical receipt's `version`/`phase` alongside current `facts` (only `.version` is consumed, no correctness impact).
