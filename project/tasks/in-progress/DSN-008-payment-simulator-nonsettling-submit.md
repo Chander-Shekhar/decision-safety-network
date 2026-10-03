@@ -2,14 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-008 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-008-payment-simulator-nonsettling-submit` @ `.worktrees/dsn-008-payment-simulator-nonsettling-submit`
 - **Owned paths:** `packages/contracts/src/payment.ts`, `apps/api/src/{payment,payment-routes}.ts`, `apps/api/test/payment.test.ts`, `apps/web/src/{PaymentPanel,PaymentPanel.test}.tsx`
-- **Dependencies:** DSN-003, DSN-006, DSN-007
+- **Dependencies:** DSN-003 (done @ e560d2d), DSN-006 (done @ 057626d), DSN-007 (done @ e9f9aea)
 - **PRD references:** C4 conversation/payment bind; C5
-- **Decision references:** 0001
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Decision references:** 0001; consumes 0004 (fact-extraction events) context via `GeminiPort.relate`
+- **Started:** 2026-10-03
 
 ## Outcome
 
