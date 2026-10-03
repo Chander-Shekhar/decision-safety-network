@@ -2,14 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-007 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-007-deterministic-policy-transitions` @ `.worktrees/dsn-007-deterministic-policy-transitions`
 - **Owned paths:** `apps/api/src/{policy,transitions}.ts`, `apps/api/test/{policy,transitions}.test.ts`
-- **Dependencies:** DSN-003, DSN-006
+- **Dependencies:** DSN-003 (done @ e560d2d), DSN-006 (done @ 057626d)
 - **PRD references:** C5 state orchestrator; four-row causal matrix
 - **Decision references:** 0001
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Started:** 2026-10-03
 
 ## Outcome
 
