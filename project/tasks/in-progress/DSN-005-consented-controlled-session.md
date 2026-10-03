@@ -2,14 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-005 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-005-consented-controlled-session` @ `.worktrees/dsn-005-consented-controlled-session`
 - **Owned paths:** `packages/contracts/src/session.ts`, `apps/api/src/{session,session-routes}.ts`, `apps/api/test/session.test.ts`, `apps/web/src/{SessionScreen,SessionScreen.test}.tsx`
-- **Dependencies:** DSN-003, DSN-004
+- **Dependencies:** DSN-003 (done @ e560d2d), DSN-004 (done @ 0564d69)
 - **PRD references:** C2 controlled live session; C12 consent revocation
 - **Decision references:** 0001
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Started:** 2026-10-03
 
 ## Outcome
 
