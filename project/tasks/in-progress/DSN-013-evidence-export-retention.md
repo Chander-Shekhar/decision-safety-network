@@ -2,13 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-013 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-013-evidence-export-retention` @ `.worktrees/dsn-013-evidence-export-retention`
 - **Owned paths:** `packages/contracts/src/evidence.ts`, `apps/api/src/{retention,retention-routes,export,evidence-routes}.ts`, `apps/api/test/{evidence,retention}.test.ts`, `apps/web/src/{EvidenceScreen,EvidenceScreen.test}.tsx`
-- **Dependencies:** DSN-009 (reviewable after Task 7); provides selected-evidence/retention API to DSN-011, DSN-012
+- **Dependencies:** DSN-009 (done @ fe7b8bb); also DSN-003 endSession @ e560d2d, DSN-007 facts @ e9f9aea, DSN-008 payment @ 611f85b. Provides selected-evidence/retention API to DSN-011, DSN-012.
 - **PRD references:** C11 evidence/handoff; C12 retention/deletion
 - **Decision references:** 0001
-- **Started:** Not started
+- **Started:** 2026-10-03
 - **Last updated:** 2026-10-03
 
 ## Outcome
