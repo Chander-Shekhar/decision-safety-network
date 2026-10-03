@@ -25,7 +25,7 @@ describe('AllyScreen', () => {
 
   it('hides the full transcript and unselected evidence, and says so', () => {
     render(<AllyScreen packet={packet} />);
-    expect(screen.queryByText(/SECRET-TRANSCRIPT|UNSELECTED-EVIDENCE/)).toBeNull();
+    expect(screen.queryByText(/HIDDEN-TRANSCRIPT|UNSELECTED-EVIDENCE/)).toBeNull();
     expect(screen.getByText(/no full transcript or unselected evidence is shared/i)).toBeVisible();
     expect(screen.queryByRole('link')).toBeNull();
   });

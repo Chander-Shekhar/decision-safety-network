@@ -64,10 +64,10 @@ async function seed(opts: { consent?: boolean; accept?: boolean } = {}): Promise
     paymentState: 'pending',
     segmentIds: ['s1', 's2'],
     reasons: [],
-    fullTranscript: 'SECRET-TRANSCRIPT full call text',
+    fullTranscript: 'HIDDEN-TRANSCRIPT full call text',
   });
-  await ref.collection('segments').doc('s1').set({ id: 's1', speaker: 'caller', text: 'SECRET-TRANSCRIPT one', order: 1 });
-  await ref.collection('segments').doc('s2').set({ id: 's2', speaker: 'caller', text: 'SECRET-TRANSCRIPT two', order: 2 });
+  await ref.collection('segments').doc('s1').set({ id: 's1', speaker: 'caller', text: 'HIDDEN-TRANSCRIPT one', order: 1 });
+  await ref.collection('segments').doc('s2').set({ id: 's2', speaker: 'caller', text: 'HIDDEN-TRANSCRIPT two', order: 2 });
   await ref.collection('evidence').doc('e1').set({
     id: 'e1', caseId: created.id, segmentId: 's1', speaker: 'caller', text: 'Transfer ₹50,000 to safe-new', order: 1, promotedAt: new Date().toISOString(),
   });
@@ -128,7 +128,7 @@ describe('ally packet (functions)', () => {
     expect(Object.keys(packet).sort()).toEqual([...PACKET_KEYS].sort());
     const json = JSON.stringify(packet);
     expect(json).not.toContain('fullTranscript');
-    expect(json).not.toContain('SECRET-TRANSCRIPT');
+    expect(json).not.toContain('HIDDEN-TRANSCRIPT');
     expect(json).not.toContain('UNSELECTED-EVIDENCE');
   });
 
@@ -337,7 +337,7 @@ describe('ally routes', () => {
     expect(packet).toMatchObject(preview.packetContent);
     expect(Object.keys(packet).sort()).toEqual([...PACKET_KEYS].sort());
     expect(res.body).not.toContain('fullTranscript');
-    expect(res.body).not.toContain('SECRET-TRANSCRIPT');
+    expect(res.body).not.toContain('HIDDEN-TRANSCRIPT');
   });
 
   it('stale preview version/hash returns 409', async () => {
@@ -396,7 +396,7 @@ describe('ally routes', () => {
     expect([403, 404]).toContain(owned.statusCode);
     const seg = await call('POST', `/api/v1/cases/${s.caseId}/segments`, s.ally, {});
     expect([400, 403, 404]).toContain(seg.statusCode);
-    expect(seg.body).not.toContain('SECRET-TRANSCRIPT');
+    expect(seg.body).not.toContain('HIDDEN-TRANSCRIPT');
   });
 
   it('ally response route persists responses and refuses payment / certification commands', async () => {
