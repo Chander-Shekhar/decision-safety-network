@@ -37,6 +37,14 @@ export async function savePlan(db: Firestore, ownerUid: string, input: SavePlanI
  * plan. Requires the owner to already have a saved plan (consistent with
  * `apps/api/src/case-store.ts`'s existing `PLAN_REQUIRED` boundary) so this
  * never creates a malformed partial plan document.
+ *
+ * Enforces a single-active-ally invariant: at most one non-revoked
+ * invitation per owner at a time. Re-nominating (a different ally, or even
+ * the same one) first revokes every existing non-revoked invitation for
+ * `ownerUid`, so a stale accepted invitation can never keep granting
+ * `hasAcceptedRelationship` to an ally who is no longer the current
+ * nomination. Revocation only happens after `consumePairingCode` succeeds,
+ * so an invalid code never revokes the prior (still-valid) invitation.
  */
 export async function createInvitation(db: Firestore, ownerUid: string, pairingCode: string): Promise<AllyInvitation> {
   const planRef = db.collection('plans').doc(ownerUid);
@@ -45,6 +53,15 @@ export async function createInvitation(db: Firestore, ownerUid: string, pairingC
     throw new Error('PLAN_REQUIRED');
   }
   const allyUid = await consumePairingCode(db, ownerUid, pairingCode);
+
+  const priorActive = await db
+    .collection('allyInvitations')
+    .where('ownerUid', '==', ownerUid)
+    .where('revokedAt', '==', null)
+    .get();
+  const revokedAt = new Date().toISOString();
+  await Promise.all(priorActive.docs.map((doc) => doc.ref.update({ revokedAt })));
+
   const ref = db.collection('allyInvitations').doc(randomUUID());
   const invitation: AllyInvitation = { id: ref.id, ownerUid, allyUid, acceptedAt: null, revokedAt: null };
   await ref.create(invitation);

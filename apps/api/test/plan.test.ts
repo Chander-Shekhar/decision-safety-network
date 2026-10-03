@@ -238,6 +238,41 @@ describe('hasAcceptedRelationship', () => {
     await expect(revokeInvitation(db, invitationId, impostorUid)).rejects.toThrow('FORBIDDEN');
     expect(await hasAcceptedRelationship(db, ownerUid, allyUid)).toBe(true);
   });
+
+  it('re-nominating a new ally revokes the prior accepted ally, immediately and without caching', async () => {
+    const ownerUid = uid('owner');
+    const allyA = uid('allyA');
+    const allyB = uid('allyB');
+    await savePlan(db, ownerUid, {
+      thresholdMinor: 500000,
+      bankId: 'demo-bank',
+      processingConsent: true,
+      retentionMode: 'facts-24h',
+      allySharingConsent: true,
+      exportConsent: true,
+    });
+
+    const invitationA = await nominate(ownerUid, allyA);
+    await acceptInvitation(db, invitationA, allyA);
+    expect(await hasAcceptedRelationship(db, ownerUid, allyA)).toBe(true);
+
+    await nominate(ownerUid, allyB);
+    expect(await hasAcceptedRelationship(db, ownerUid, allyA)).toBe(false);
+    expect(await hasAcceptedRelationship(db, ownerUid, allyB)).toBe(false);
+
+    const activeAfterRenomination = await db
+      .collection('allyInvitations')
+      .where('ownerUid', '==', ownerUid)
+      .where('revokedAt', '==', null)
+      .get();
+    expect(activeAfterRenomination.docs).toHaveLength(1);
+    expect(activeAfterRenomination.docs[0]?.get('allyUid')).toBe(allyB);
+
+    const invitationBId = activeAfterRenomination.docs[0]!.id;
+    await acceptInvitation(db, invitationBId, allyB);
+    expect(await hasAcceptedRelationship(db, ownerUid, allyB)).toBe(true);
+    expect(await hasAcceptedRelationship(db, ownerUid, allyA)).toBe(false);
+  });
 });
 
 describe('authenticated plan/ally-pairing HTTP routes', () => {
