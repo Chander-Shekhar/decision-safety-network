@@ -80,6 +80,40 @@ describe('composed server', () => {
     expect(res.json()).toHaveProperty('error');
   });
 
+  it('starts a case from a saved plan and only the owner can read it', async () => {
+    const owner = await authHeader(`server-owner-${Date.now()}`);
+    const noPlan = await app.inject({ method: 'POST', url: '/api/v1/cases', headers: owner });
+    expect(noPlan.statusCode).toBe(400);
+    expect(noPlan.json()).toEqual({ error: 'PLAN_REQUIRED' });
+
+    const plan = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/plan',
+      headers: owner,
+      payload: {
+        thresholdMinor: 1_000_000,
+        bankId: 'demo-bank',
+        processingConsent: true,
+        retentionMode: 'facts-24h',
+        allySharingConsent: true,
+        exportConsent: true,
+      },
+    });
+    expect(plan.statusCode).toBe(200);
+    const created = await app.inject({ method: 'POST', url: '/api/v1/cases', headers: owner });
+    expect(created.statusCode).toBe(201);
+    const { id } = created.json() as { id: string };
+
+    expect((await app.inject({ method: 'GET', url: `/api/v1/cases/${id}`, headers: owner })).statusCode).toBe(200);
+    const other = await app.inject({
+      method: 'GET',
+      url: `/api/v1/cases/${id}`,
+      headers: await authHeader(`server-other-${Date.now()}`),
+    });
+    expect(other.statusCode).toBe(403);
+    expect((await app.inject({ method: 'GET', url: `/api/v1/cases/${id}` })).statusCode).toBe(401);
+  });
+
   it('maps IDEMPOTENCY_CONFLICT to 409 through the composed error handler', async () => {
     const probe = buildServer(deps, createFakeGemini(), schedulerConfig, (instance) => {
       instance.get('/__probe', async () => {

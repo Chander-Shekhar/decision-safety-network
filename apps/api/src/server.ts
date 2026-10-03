@@ -4,6 +4,8 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { buildApi, type ApiDeps, type RouteInstaller } from './app.js';
+import { requireUser } from './auth.js';
+import { createCase, readCase } from './case-store.js';
 import { createAllyRoutes } from './ally-routes.js';
 import { createDecisionRoutes } from './decision-routes.js';
 import { createEvidenceRoutes } from './evidence-routes.js';
@@ -20,6 +22,29 @@ import type { GeminiPort } from '../../../packages/contracts/src/facts.js';
 /** Public health check: no authentication, no case data. */
 const healthRoutes: RouteInstaller = (app) => {
   app.get('/healthz', async () => ({ status: 'ok' }));
+};
+
+/**
+ * Case lifecycle glue the feature installers do not expose: start a case
+ * from the owner's saved plan, and read the owner's own case projection. The
+ * browser reads case state only through this API, never Firestore.
+ * `createCase` throws `PLAN_REQUIRED` (400) without a saved plan; `readCase`
+ * throws `FORBIDDEN` for anyone but the owner.
+ */
+const caseRoutes: RouteInstaller = (app, deps) => {
+  app.post('/api/v1/cases', async (request, reply) => {
+    const uid = await requireUser(request, deps.auth);
+    const plan = await deps.db.collection('plans').doc(uid).get();
+    const created = await createCase(deps.db, uid, (plan.get('version') as number | undefined) ?? 1);
+    reply.code(201);
+    return created;
+  });
+
+  app.get('/api/v1/cases/:id', async (request) => {
+    const uid = await requireUser(request, deps.auth);
+    const { id } = request.params as { id: string };
+    return readCase(deps.db, uid, id);
+  });
 };
 
 /**
@@ -46,6 +71,7 @@ export function buildServer(
   const installers: RouteInstaller[] = [
     healthRoutes,
     planRoutes,
+    caseRoutes,
     sessionRoutes,
     createFactRoutes(gemini),
     createPaymentRoutes(gemini),
