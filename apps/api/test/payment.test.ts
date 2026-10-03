@@ -539,6 +539,40 @@ describe('recheckRelation (bounded, deduplicated, consent-gated)', () => {
     expect(calls).toBe(1);
   });
 
+  it('a joined Pause persists reasons, not just the returned projection (DSN-008 B1 regression)', async () => {
+    const ownerUid = uid('owner');
+    const { caseId, pending } = await seedPendingCase(ownerUid);
+    expect(pending.phase).toBe('Check');
+    expect(pending.reasons.some((r) => r.code === 'manipulation-cues')).toBe(true);
+    expect(pending.reasons.some((r) => r.code === 'unverified-claim')).toBe(true);
+
+    const gemini = fakeGemini(async (input) =>
+      joinedRelation({
+        segmentIds: ['s1'],
+        draftEventId: input.draftEventId,
+        draftVersion: input.draftVersion,
+        inputCaseVersion: input.inputCaseVersion,
+      }),
+    );
+
+    const outcome: RecheckOutcome = await recheckRelation(db, ownerUid, caseId, gemini);
+    expect(outcome.status).toBe('ok');
+    const returned = outcome.status === 'ok' ? outcome.projection : undefined;
+    expect(returned?.phase).toBe('Pause');
+
+    // Read a FRESH projection straight from Firestore rather than trusting
+    // the object `recheckRelation`/`applyValidatedRelation` returned -
+    // without the fix, `applyValidatedRelation`'s `tx.update` call's
+    // explicit field list omits `reasons`, so Firestore's merge semantics
+    // leave the persisted `reasons` stale (missing `large-new-payee` and its
+    // grounding) even though the persisted `phase` already moved to `Pause`.
+    const persisted = await readProjection(ownerUid, caseId);
+    expect(persisted.phase).toBe('Pause');
+    expect(persisted.reasons.some((r) => r.code === 'large-new-payee')).toBe(true);
+    expect(persisted.reasons.find((r) => r.code === 'large-new-payee')?.sourceSegmentIds.length).toBeGreaterThan(0);
+    expect(persisted.reasons).toEqual(returned?.reasons);
+  });
+
   it('is gated on processing consent: a revoked/closed session never calls relate() and never pauses', async () => {
     const ownerUid = uid('owner');
     const { caseId } = await seedPendingCase(ownerUid);

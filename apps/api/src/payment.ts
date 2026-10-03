@@ -347,11 +347,16 @@ export async function applyValidatedRelation(
     };
     const decision = assessCase(assessInput);
     const nextPhase = decision.phase === current.phase ? current.phase : transition(current.phase, decision.phase, 'payment-relation-applied');
+    // Persist the same `reasons` value being returned on both branches below -
+    // Firestore `update` with an explicit field list merges rather than
+    // replacing, so omitting `reasons` here would leave a fresh read's
+    // persisted reasons stale against the (possibly new) `phase` (DSN-008 B1).
+    const reasons = toPaymentReasons(decision.reasons);
 
     if (nextPhase === current.phase) {
-      tx.update(caseRef, { segmentIds: effectiveSegmentIds, updatedAt: now });
+      tx.update(caseRef, { segmentIds: effectiveSegmentIds, updatedAt: now, reasons });
       tx.create(eventRef, rechecked(eventId, caseId, current, now));
-      return { ...current, segmentIds: effectiveSegmentIds, reasons: toPaymentReasons(decision.reasons) };
+      return { ...current, segmentIds: effectiveSegmentIds, reasons };
     }
 
     const nextVersion = current.version + 1;
@@ -361,9 +366,9 @@ export async function applyValidatedRelation(
       version: nextVersion,
       updatedAt: now,
       segmentIds: effectiveSegmentIds,
-      reasons: toPaymentReasons(decision.reasons),
+      reasons,
     };
-    tx.update(caseRef, { phase: nextPhase, version: nextVersion, updatedAt: now, segmentIds: effectiveSegmentIds });
+    tx.update(caseRef, { phase: nextPhase, version: nextVersion, updatedAt: now, segmentIds: effectiveSegmentIds, reasons });
     tx.create(eventRef, {
       id: eventId,
       caseId,
@@ -372,7 +377,10 @@ export async function applyValidatedRelation(
       at: now,
       causationId: eventId,
       policyVersion: POLICY_VERSION,
-      refs: decision.reasons.flatMap((r) => r.sourceSegmentIds),
+      // Mirrors fact-validator.ts's `[...changedFields, ...citedSegmentIds]`
+      // convention: reason codes are metadata, carried in `refs` alongside
+      // the segments they cite, without widening the shared `CaseEvent` type.
+      refs: [...decision.reasons.map((r) => r.code), ...decision.reasons.flatMap((r) => r.sourceSegmentIds)],
       result: { id: current.id, version: nextVersion, phase: nextPhase } satisfies CaseCommandResult,
     });
     return next;
