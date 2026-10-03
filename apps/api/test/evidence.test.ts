@@ -225,6 +225,42 @@ describe('buildExportZip', () => {
     expect(claimFact?.provenanceLabel).toBe('selected evidence');
   });
 
+  it('exports an OPEN (never-closed) case with raw facts, normalizing them to the retained manifest shape', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedConfirmedCase(ownerUid);
+    await db.collection('cases').doc(caseId).update({
+      'confirmed.paidPayment': { payeeId: 'actual-safe-payee', amountMinor: 42000, origin: 'user-reported', reportedAt: new Date().toISOString() },
+    });
+
+    const { zip } = await buildExportZip(db, ownerUid, caseId);
+    const brief = readZipEntry(zip, 'brief.html');
+    const provenance = JSON.parse(readZipEntry(zip, 'provenance.json')) as {
+      facts: Array<{ field: string; provenanceLabel: string; sourceIds: string[]; correctedAt: string | null }>;
+    };
+
+    expect(brief).toContain('&lt;b&gt;Your account&lt;/b&gt;');
+    expect(brief).not.toContain('<b>Your account</b>');
+    expect(brief).toContain('actual-safe-payee');
+    expect(readZipEntry(zip, 'ncrp-preview.html')).not.toContain('undefined');
+    const claim = provenance.facts.find((f) => f.field === 'claim');
+    // s1 was never promoted, so its source is not retained evidence.
+    expect(claim?.provenanceLabel).toBe('source not retained');
+    expect(claim?.sourceIds).toEqual([]);
+    expect(claim?.correctedAt).toBeNull();
+  });
+
+  it('labels an open-case fact "selected evidence" once its citing segment has been promoted', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedConfirmedCase(ownerUid);
+    await promoteEvidence(db, ownerUid, caseId, 's1');
+
+    const { zip } = await buildExportZip(db, ownerUid, caseId);
+    const provenance = JSON.parse(readZipEntry(zip, 'provenance.json')) as { facts: Array<{ field: string; provenanceLabel: string; sourceIds: string[] }> };
+    const claim = provenance.facts.find((f) => f.field === 'claim');
+    expect(claim?.provenanceLabel).toBe('selected evidence');
+    expect(claim?.sourceIds).toEqual(['s1']);
+  });
+
   it('preserves a correction in the exported brief while its original source excerpt is separately retained', async () => {
     const ownerUid = uid('owner');
     const caseId = await seedConfirmedCase(ownerUid);

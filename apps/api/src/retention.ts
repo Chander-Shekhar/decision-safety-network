@@ -109,7 +109,7 @@ function isPaidPayment(value: Fact | RetainedPaidPayment | RetainedFact): value 
  * never subject to the segment-citation check (it was never segment-sourced
  * to begin with).
  */
-function buildRetainedConfirmed(confirmed: Record<string, Fact | RetainedPaidPayment> | undefined, retainedSegmentIds: ReadonlySet<string>): RetainedConfirmed {
+export function buildRetainedConfirmed(confirmed: Record<string, Fact | RetainedPaidPayment> | undefined, retainedSegmentIds: ReadonlySet<string>): RetainedConfirmed {
   const result: RetainedConfirmed = {};
   for (const [field, value] of Object.entries(confirmed ?? {})) {
     if (isPaidPayment(value)) {

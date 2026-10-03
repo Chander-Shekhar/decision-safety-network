@@ -5,7 +5,9 @@
 import { crc32 } from 'node:zlib';
 import type { Firestore } from 'firebase-admin/firestore';
 import { readCase } from './case-store.js';
-import type { ManifestFact, RetainedCaseProjection, RetainedConfirmed } from '../../../packages/contracts/src/evidence.js';
+import { buildRetainedConfirmed } from './retention.js';
+import type { Fact } from '../../../packages/contracts/src/facts.js';
+import type { ManifestFact, RetainedPaidPayment, RetainedCaseProjection, RetainedConfirmed } from '../../../packages/contracts/src/evidence.js';
 
 // --- Minimal, dependency-free ZIP writer -----------------------------------
 // No zip library is pinned anywhere in this repo (see apps/api/package.json);
@@ -138,6 +140,32 @@ function buildManifestFacts(confirmed: RetainedConfirmed): ManifestFact[] {
   return facts;
 }
 
+/**
+ * A pre-close case still holds raw `Fact`/paid-payment entries (no
+ * `provenanceLabel`), whereas a closed case holds the retained shape. Any
+ * entry lacking `provenanceLabel` is run through the same
+ * `buildRetainedConfirmed` convention `pruneToRetained` uses, against the
+ * segment ids currently promoted to `evidence`, so pre- and post-close
+ * exports label provenance identically.
+ */
+async function normalizeConfirmed(db: Firestore, caseId: string, confirmed: Record<string, unknown> | undefined): Promise<RetainedConfirmed> {
+  const result: RetainedConfirmed = {};
+  const raw: Record<string, Fact | RetainedPaidPayment> = {};
+  for (const [field, value] of Object.entries(confirmed ?? {})) {
+    if (typeof value === 'object' && value !== null && 'provenanceLabel' in value) {
+      result[field] = value as RetainedConfirmed[string];
+    } else {
+      raw[field] = value as Fact | RetainedPaidPayment;
+    }
+  }
+  if (Object.keys(raw).length === 0) {
+    return result;
+  }
+  const evidenceSnap = await db.collection('cases').doc(caseId).collection('evidence').get();
+  const retainedSegmentIds = new Set(evidenceSnap.docs.map((d) => d.id));
+  return { ...result, ...buildRetainedConfirmed(raw, retainedSegmentIds) };
+}
+
 function renderFactRow(label: string, fact: ManifestFact | undefined): string {
   if (!fact) {
     return `<tr><td>${escapeHtml(label)}</td><td></td><td></td><td></td></tr>`;
@@ -222,7 +250,7 @@ export async function buildExportZip(db: Firestore, uid: string, caseId: string)
     throw new Error('EXPORT_CONSENT_REQUIRED');
   }
 
-  const facts = buildManifestFacts(current.confirmed ?? {});
+  const facts = buildManifestFacts(await normalizeConfirmed(db, caseId, current.confirmed));
   const provenance = {
     caseId: current.id,
     generatedAt: new Date().toISOString(),
