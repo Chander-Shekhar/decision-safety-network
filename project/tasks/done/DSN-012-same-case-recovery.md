@@ -30,8 +30,8 @@ A task may move to `done` only after every applicable acceptance check is marked
 
 ## Verification evidence
 
-- **Commits (branch `task/DSN-012-same-case-recovery`, local only):** `4bb3f45` red API tests + contract; `5731b29` API implementation; red web tests (between); `655f4e6` RecoveryScreen.
-- **Integration commit:** Not integrated
+- **Commits (branch `task/DSN-012-same-case-recovery`, local only):** `4bb3f45` red API tests + contract; `5731b29` API implementation; `258b652` red web tests; `655f4e6` RecoveryScreen; `34b6aa1` task record.
+- **Integration commit:** `b3dd87a` (`--no-ff` merge into local main). Local only; not pushed.
 - **Commands and results:**
   - Red API: `npx firebase emulators:exec --project demo-dsn --only auth,firestore 'npm --workspace apps/api run test -- recovery.test.ts'` -> FAIL, `../src/recovery.js` missing, no tests ran.
   - Green API: same command -> 1 file, 26/26 passed.
@@ -39,7 +39,8 @@ A task may move to `done` only after every applicable acceptance check is marked
   - Green web: first run 13/14 (my own "not your fault" copy tripped the blame-free assertion; reworded), then full `npm --workspace apps/web run test` -> 8 files, 94/94 passed.
   - Full API regression (emulators) -> 13 files, 313/313 passed.
   - `npm run typecheck` -> clean (contracts, api, web). `git diff --check` -> clean. Hygiene grep over the branch diff (sfdc/salesforce/chander//Users//secret/password/apikey) -> no hits.
-- **Post-integration verification:** Not run
+- **Post-integration verification (on local main @ `b3dd87a`):** `npm run typecheck` -> clean (contracts, api, web); `git diff --check` -> clean; full web suite `npm --workspace apps/web run test` -> 8 files, 94/94; full API emulator suite `npx firebase emulators:exec --project demo-dsn --only auth,firestore 'npm --workspace apps/api run test'` -> 13 files, 313/313; hygiene `git grep -i` over integrated files (sfdc/salesforce/chander//Users//repo.local/bazel_jdk/apikey/password/secret) -> no hits; committer identity `Chander Shekhar <44772437+Chander-Shekhar@users.noreply.github.com>` (personal no-reply).
+- **Independent review (dsn012-review, read-only):** Verdict **mergeable as-is, no BLOCKING findings**. Reviewer re-ran recovery 26/26, typecheck, `git diff --check` clean independently. Confirmed: `paidPayment` set ONLY via `confirmPaidDetails` match-prefill/edit (never by `enterRecovery`, acknowledgement, read path, cancelled draft, or generic `correctFact`/`confirmFact` — both throw `UNKNOWN_FIELD` via `assertKnownField`); `STALE_PREFILL` fingerprint recomputed in-transaction before copy. Six NON-BLOCKING findings carried forward: (1) caller-request `amount` unit ambiguity — digits-only read as minor units, non-digit text fails safe to no one-tap match (disclosed; user can see/edit); (2) retention allowlist drops `transactionTime`/`paymentRail`/`referenceId` and `recoveryAcknowledgement` on facts-24h close (serialized `retention.ts` carry-forward); (3) API-only repeat `confirmPaidDetails` rebuilds `paid` and can drop a prior referenceId (UI hides controls once set); (4) only the latest `recoveryAcknowledgement` is kept; (5) the `gemini.extract` not-called assertion is vacuous but backed by a static no-model-import test + routes taking no `GeminiPort`; (6) static cancelled-proposal copy shows for live caller-request prefills too (accurate, slightly off-context).
 - **Changed paths:** `packages/contracts/src/recovery.ts`, `apps/api/src/recovery.ts`, `apps/api/src/recovery-routes.ts`, `apps/api/test/recovery.test.ts`, `apps/web/src/RecoveryScreen.tsx`, `apps/web/src/RecoveryScreen.test.tsx`.
 - **Limitations or skipped checks:**
   - Transitions: the shared table has a legal edge to Recover from every origin (Observe, Check, Pause, Verify, Resolve); all use `transition()`. Recover->Recover is not in the table, so a repeat entry with a new key records an event but writes no phase edge. No illegal edge is written.
@@ -55,5 +56,5 @@ Not applicable.
 
 ## Handoff
 
-- **Next action:** Review, then integrate. Route mounting (`createRecoveryRoutes()` into `app.ts`) and `App.tsx` wiring belong to DSN-014.
+- **Next action:** Done — reviewed and integrated to local main @ `b3dd87a`. Route mounting (`createRecoveryRoutes()` into `app.ts`) and `App.tsx` wiring belong to DSN-014.
 - **Unresolved issues:** Retention drops optional paid fields on close (see Limitations); serialized `retention.ts` carry-forward.
