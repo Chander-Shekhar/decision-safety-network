@@ -61,6 +61,9 @@ export async function createCase(
  * Reads a case projection, denying access to anyone but the owner. A
  * nonexistent case and a wrong-owner case both throw `FORBIDDEN` so a
  * probing request cannot distinguish "no such case" from "not yours".
+ * Ownership is checked before expiry, so a non-owner still gets `FORBIDDEN`
+ * (never learns the case expired) and an owner gets `EXPIRED` once
+ * `expiresAt` has passed.
  */
 export async function readCase<T extends CaseEnvelope = CaseEnvelope>(
   db: Firestore,
@@ -74,6 +77,9 @@ export async function readCase<T extends CaseEnvelope = CaseEnvelope>(
   const data = snap.data() as T;
   if (data.ownerUid !== requesterUid) {
     throw new Error('FORBIDDEN');
+  }
+  if (data.expiresAt !== undefined && data.expiresAt <= new Date().toISOString()) {
+    throw new Error('EXPIRED');
   }
   return data;
 }

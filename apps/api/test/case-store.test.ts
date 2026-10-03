@@ -56,6 +56,23 @@ describe('readCase', () => {
     const read = await readCase(db, ownerUid, created.id);
     expect(read).toEqual(created);
   });
+
+  it('denies the owner once expiresAt is in the past', async () => {
+    const ownerUid = await seedOwnerPlan();
+    const created = await createCase(db, ownerUid, 1);
+    const past = new Date(Date.now() - 60_000).toISOString();
+    await db.collection('cases').doc(created.id).update({ expiresAt: past });
+    await expect(readCase(db, ownerUid, created.id)).rejects.toThrow('EXPIRED');
+  });
+
+  it('still returns the case when expiresAt is unset or in the future', async () => {
+    const ownerUid = await seedOwnerPlan();
+    const created = await createCase(db, ownerUid, 1);
+    const future = new Date(Date.now() + 60_000).toISOString();
+    await db.collection('cases').doc(created.id).update({ expiresAt: future });
+    const read = await readCase(db, ownerUid, created.id);
+    expect(read.expiresAt).toBe(future);
+  });
 });
 
 describe('commitCaseCommand', () => {

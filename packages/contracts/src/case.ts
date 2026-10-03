@@ -14,6 +14,8 @@ export interface CaseEnvelope {
   planVersion: number;
   createdAt: string;
   updatedAt: string;
+  /** ISO timestamp after which the case is no longer readable. Unset = never expires. */
+  expiresAt?: string;
 }
 
 /**

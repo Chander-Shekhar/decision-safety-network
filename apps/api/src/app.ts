@@ -29,6 +29,7 @@ const STATUS_BY_ERROR_MESSAGE: Record<string, number> = {
   INVALID_IDEMPOTENCY_KEY: 400,
   VERSION_CONFLICT: 409,
   IDEMPOTENCY_CONFLICT: 409,
+  EXPIRED: 410,
 };
 
 function statusForError(error: unknown): number {
