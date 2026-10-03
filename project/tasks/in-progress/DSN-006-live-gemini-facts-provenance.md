@@ -2,14 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-006 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-006-live-gemini-facts-provenance` @ `.worktrees/dsn-006-live-gemini-facts-provenance`
 - **Owned paths:** `packages/contracts/src/facts.ts`, `apps/api/src/{gemini,fact-validator,fact-routes}.ts`, `apps/api/test/facts.test.ts`, `apps/web/src/{DecisionMap,DecisionMap.test}.tsx`
-- **Dependencies:** DSN-003, DSN-005
+- **Dependencies:** DSN-003 (done @ e560d2d), DSN-005 (done @ 5a88b56); `@google/genai@2.24.0` provisioned @ 5295ef3
 - **PRD references:** C3 living source-linked case; C12 prompt-injection resistance
-- **Decision references:** 0001
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Decision references:** 0001; 0003 (genai client provisioning)
+- **Started:** 2026-10-03
 
 ## Outcome
 
