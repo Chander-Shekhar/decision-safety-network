@@ -2,14 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
+- **Owner:** DSN-010 implementer subagent (serialized under integrator)
+- **Branch/worktree:** `task/DSN-010-demo-bank-verification` @ `.worktrees/dsn-010-demo-bank-verification`
 - **Owned paths:** `apps/api/src/{demo-bank-registry,verification,verification-routes}.ts`, `apps/api/test/verification.test.ts`, `apps/web/src/{VerifyPanel,VerifyPanel.test}.tsx`
-- **Dependencies:** DSN-009 (reviewable after DSN-009 / Task 7)
+- **Dependencies:** DSN-009 (done @ fe7b8bb; also DSN-003 @ e560d2d, DSN-007 @ e9f9aea, DSN-008 @ 611f85b)
 - **PRD references:** C7 Demo Bank verification; C9
 - **Decision references:** 0001
-- **Started:** Not started
-- **Last updated:** 2026-10-03
+- **Started:** 2026-10-03
 
 ## Outcome
 
