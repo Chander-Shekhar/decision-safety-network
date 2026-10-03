@@ -1,5 +1,6 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
+import type { CaseCommandResult } from '@dsn/contracts';
 import {
   REQUIRED_FACT_FIELDS,
   type CandidateFact,
@@ -70,7 +71,12 @@ export function validateFacts(
   return [...byField.values()];
 }
 
-/** Bounded wait for one promise; rejects with `GEMINI_TIMEOUT` if it does not settle in time. */
+/**
+ * Bounded wait for one promise; rejects with `GEMINI_TIMEOUT` if it does not
+ * settle in time. Accepted for the MVP: this races the call against a timer
+ * rather than aborting it - a timed-out `gemini.extract` call keeps running
+ * in the background (its eventual result is simply never awaited again).
+ */
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('GEMINI_TIMEOUT')), timeoutMs);
@@ -119,6 +125,59 @@ export interface ExtractFactsOptions {
 }
 
 /**
+ * Authoritative owner/session check, read directly (no transaction) BEFORE
+ * any transcript segment is read or `GeminiPort.extract` is called (decision
+ * 0004, rule 1). A non-owner (or a nonexistent case) must trigger zero
+ * segment reads and zero model calls - the case's `appendSegment`/model-call
+ * path can be expensive and processes another owner's private transcript,
+ * so it must never run for anyone but the owner. The commit transaction
+ * inside `extractFacts` still re-checks owner, `sessionClosed`, and
+ * `expectedVersion` authoritatively afterward (defense in depth / no TOCTOU
+ * on the version token); this call is a cheap pre-check, not a replacement.
+ */
+export async function assertExtractionAuthorized(db: Firestore, uid: string, caseId: string): Promise<void> {
+  const snap = await db.collection('cases').doc(caseId).get();
+  if (!snap.exists) {
+    throw new Error('FORBIDDEN');
+  }
+  const current = snap.data() as FactsProjection & { sessionClosed?: boolean };
+  if (current.ownerUid !== uid) {
+    throw new Error('FORBIDDEN');
+  }
+  if (current.sessionClosed) {
+    throw new Error('CONSENT_REQUIRED');
+  }
+}
+
+/** Field-wise equality for one `Fact`, used to detect an actual change in the `facts` map. */
+function sameFact(a: Fact | undefined, b: Fact | undefined): boolean {
+  if (!a || !b) {
+    return a === b;
+  }
+  return (
+    a.value === b.value &&
+    a.origin === b.origin &&
+    a.uncertainty === b.uncertainty &&
+    a.modelVersion === b.modelVersion &&
+    a.supersededBy === b.supersededBy &&
+    a.sourceSegmentIds.length === b.sourceSegmentIds.length &&
+    a.sourceSegmentIds.every((id, index) => id === b.sourceSegmentIds[index])
+  );
+}
+
+/** True if two `facts` maps are identical field-for-field (decision 0004 rule 2: idempotent on no change). */
+function factMapsEqual(a: Record<string, Fact>, b: Record<string, Fact>): boolean {
+  const fields = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...fields].every((field) => sameFact(a[field], b[field]));
+}
+
+/** Stable hash identifying one logical extraction attempt (same case + expected version + segment set). */
+function extractionRequestHash(expectedVersion: number, knownSegmentIds: ReadonlySet<string>): string {
+  const sortedIds = [...knownSegmentIds].sort();
+  return createHash('sha256').update(JSON.stringify({ kind: 'facts.extracted', expectedVersion, segmentIds: sortedIds })).digest('hex');
+}
+
+/**
  * Runs one fresh extraction pass over the given (already-persisted, ordered)
  * segments and, if the model responds in time, merges validated results into
  * the case's live `facts` map. `expectedVersion` is the case version read
@@ -128,6 +187,14 @@ export interface ExtractFactsOptions {
  * `sessionClosed` - throws instead of silently overwriting newer state.
  * `facts` is never a trusted-state projection; only `confirmed`
  * (`correctFact`/`confirmFact`) is.
+ *
+ * Per decision 0004: the commit is idempotent (no `version` bump, no event,
+ * when the merged `facts` map does not actually change) and, when it does
+ * change, writes exactly one metadata-only `CaseEvent` (never raw transcript
+ * text) keyed by a stable id for this logical attempt (`extract-{expectedVersion}`),
+ * mirroring `commitCaseCommand`'s event-first replay check: a retry of the
+ * same attempt after it already committed replays the stored receipt rather
+ * than re-running the version/session checks.
  */
 export async function extractFacts(
   db: Firestore,
@@ -145,9 +212,13 @@ export async function extractFacts(
   }
 
   const knownSegmentIds = new Set(segments.map((segment) => segment.id));
+  const requestHash = extractionRequestHash(expectedVersion, knownSegmentIds);
+  const eventId = `extract-${expectedVersion}`;
 
   return db.runTransaction(async (tx) => {
     const caseRef = db.collection('cases').doc(caseId);
+    const eventRef = caseRef.collection('events').doc(eventId);
+
     const snap = await tx.get(caseRef);
     if (!snap.exists) {
       throw new Error('FORBIDDEN');
@@ -156,6 +227,16 @@ export async function extractFacts(
     if (current.ownerUid !== uid) {
       throw new Error('FORBIDDEN');
     }
+
+    const eventSnap = await tx.get(eventRef);
+    if (eventSnap.exists) {
+      if (eventSnap.get('requestHash') !== requestHash) {
+        throw new Error('STALE_EXTRACTION');
+      }
+      const receipt = eventSnap.get('result') as CaseCommandResult;
+      return { status: 'ok' as const, projection: { ...current, version: receipt.version, phase: receipt.phase } };
+    }
+
     if (current.sessionClosed) {
       throw new Error('CONSENT_REQUIRED');
     }
@@ -165,16 +246,41 @@ export async function extractFacts(
 
     const supersededFields = new Set(Object.keys(current.confirmed ?? {}));
     const validated = validateFacts(result, knownSegmentIds, supersededFields);
-    const nextFacts: Record<string, Fact> = { ...(current.facts ?? {}) };
+    const currentFacts = current.facts ?? {};
+    const nextFacts: Record<string, Fact> = { ...currentFacts };
     for (const fact of validated) {
       nextFacts[fact.field] = options.modelVersion ? { ...fact, modelVersion: options.modelVersion } : fact;
+    }
+
+    if (factMapsEqual(currentFacts, nextFacts)) {
+      return { status: 'ok' as const, projection: current };
+    }
+
+    const changedFields = Object.keys(nextFacts).filter((field) => !sameFact(currentFacts[field], nextFacts[field]));
+    const citedSegmentIds = new Set<string>();
+    for (const field of changedFields) {
+      for (const id of nextFacts[field]!.sourceSegmentIds) {
+        citedSegmentIds.add(id);
+      }
     }
 
     const nextVersion = current.version + 1;
     const now = new Date().toISOString();
     tx.update(caseRef, { facts: nextFacts, version: nextVersion, updatedAt: now });
+    tx.create(eventRef, {
+      id: eventId,
+      caseId,
+      actorUid: uid,
+      kind: 'facts.extracted',
+      at: now,
+      causationId: eventId,
+      policyVersion: 'cup-core-1',
+      refs: [...changedFields, ...citedSegmentIds],
+      requestHash,
+      result: { id: current.id, version: nextVersion, phase: current.phase },
+    });
 
-    return { status: 'ok', projection: { ...current, facts: nextFacts, version: nextVersion, updatedAt: now } };
+    return { status: 'ok' as const, projection: { ...current, facts: nextFacts, version: nextVersion, updatedAt: now } };
   });
 }
 
@@ -189,7 +295,9 @@ function assertKnownField(field: string): void {
  * `user-corrected` fact becomes the trusted value in `confirmed`, and any
  * existing `model`-origin fact for that field is marked `supersededBy` so
  * its provenance is preserved rather than overwritten. Per PRD C12,
- * corrections append a superseding (metadata-only) event.
+ * corrections append a superseding (metadata-only) event. Accepted for the
+ * MVP: unlike `extractFacts`, this does not check `sessionClosed` - the
+ * owner's manual controls stay available even after processing is revoked.
  */
 export async function correctFact(
   db: Firestore,
@@ -250,6 +358,8 @@ export async function correctFact(
  * or entered, never that the underlying claim is genuine) and marked
  * `supersededBy` in `facts`. Requires an actual source-linked model fact to
  * confirm; the synthesized `'unknown'` placeholder cannot be confirmed.
+ * Accepted for the MVP: like `correctFact`, this does not check
+ * `sessionClosed` - manual confirmation stays available after revocation.
  */
 export async function confirmFact(db: Firestore, uid: string, caseId: string, field: string, expectedVersion: number): Promise<void> {
   assertKnownField(field);

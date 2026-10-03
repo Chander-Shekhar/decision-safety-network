@@ -103,15 +103,22 @@ function modelId(): string {
 /**
  * Concrete `GeminiPort` adapter over `@google/genai` (Vertex AI mode, Google
  * Cloud service identity - no API key handled by this process). Segments
- * are always sent as the structured `segments` field of the JSON request
- * body, never interpolated into a prompt/system-instruction string: that is
- * what keeps attacker-controlled transcript text from ever being
- * interpreted as an instruction rather than data (PRD C12). `temperature: 0`
- * plus a `responseJsonSchema` keep output schema-constrained; this adapter
- * still re-validates every response with Zod rather than trusting the SDK's
- * enforcement, and never returns a field beyond what `facts.ts` declares -
- * in particular, no scam-probability or mental-state field exists anywhere
- * in these schemas, and this module never selects an action.
+ * are sent as structured prompt content (the `segments` field of a JSON
+ * request body) rather than concatenated into free-form instruction text,
+ * but that framing alone does not prove hostile transcript text can never
+ * sway the model (PRD C12 is a defense-in-depth posture, not a guarantee
+ * about model behavior). The actual safety boundary is downstream of this
+ * adapter: `temperature: 0` plus a `responseJsonSchema` constrain the
+ * response shape, `fact-validator.ts`'s Zod re-validation (never trusting
+ * the SDK's own enforcement) drops anything malformed or fabricated, and -
+ * most importantly - a `CandidateFact` can never become trusted or
+ * consequential state on its own; only the owner's explicit
+ * `correctFact`/`confirmFact` promotes a value into `confirmed`. So even a
+ * successful injection can at most produce a wrong *displayed, model-origin*
+ * claim, never a trusted fact, an action, or a field beyond what `facts.ts`
+ * declares - in particular, no scam-probability or mental-state field
+ * exists anywhere in these schemas, and this module never selects an
+ * action.
  *
  * Not exercised against the real Google Cloud endpoint by any test in this
  * task: `apps/api/test/facts.test.ts` uses an inline fake `GeminiPort`

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
-import { correctFact, confirmFact, extractFacts } from './fact-validator.js';
+import { assertExtractionAuthorized, correctFact, confirmFact, extractFacts } from './fact-validator.js';
 import { EXTRACT_PROMPT_VERSION } from './gemini.js';
 import type { FactSegmentInput, GeminiPort } from '../../../packages/contracts/src/facts.js';
 import type { TranscriptSegment } from '../../../packages/contracts/src/session.js';
@@ -73,6 +73,9 @@ export function createFactRoutes(gemini: GeminiPort): RouteInstaller {
         return undefined;
       }
       try {
+        // Decision 0004: ownership/session must be verified before any segment
+        // read or model call - a non-owner gets FORBIDDEN with zero of either.
+        await assertExtractionAuthorized(deps.db, uid, caseId);
         const segments = await readOrderedSegments(deps, caseId);
         const outcome = await extractFacts(deps.db, uid, caseId, segments, parsed.data.expectedVersion, gemini, {
           modelVersion: EXTRACT_PROMPT_VERSION,

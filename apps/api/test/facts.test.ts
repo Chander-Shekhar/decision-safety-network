@@ -328,6 +328,65 @@ describe('extractFacts (orchestration against a fake GeminiPort)', () => {
     expect(callCount).toBe(2);
     expect(outcome.status).toBe('degraded');
   });
+
+  it('bumps the case version by exactly one and writes exactly one event when extraction changes facts (decision 0004)', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedCase(ownerUid);
+    const seg1 = await appendSegment(db, ownerUid, { id: 's1', caseId, order: 1, speaker: 'caller', text: 'Pay safe-new' }, () => {});
+    const gemini: GeminiPort = {
+      async extract() {
+        return [{ field: 'payee', value: 'safe-new', sourceSegmentIds: ['s1'], uncertainty: 'medium' }];
+      },
+      relate: unusedRelate,
+    };
+
+    const beforeEvents = await db.collection('cases').doc(caseId).collection('events').get();
+    const outcome = expectOk(
+      await extractFacts(db, ownerUid, caseId, [{ id: 's1', speaker: 'caller', text: 'Pay safe-new' }], seg1.caseVersion, gemini),
+    );
+    const afterEvents = await db.collection('cases').doc(caseId).collection('events').get();
+
+    expect(outcome.projection.version).toBe(seg1.caseVersion + 1);
+    expect(afterEvents.docs).toHaveLength(beforeEvents.docs.length + 1);
+    const newEventDoc = afterEvents.docs.find((doc) => !beforeEvents.docs.some((before) => before.id === doc.id));
+    const newEvent = newEventDoc?.data();
+    expect(newEvent?.kind).toBe('facts.extracted');
+    expect(newEvent?.result).toEqual({ id: caseId, version: seg1.caseVersion + 1, phase: 'Observe' });
+    // Metadata-only: the event never carries raw transcript text.
+    expect(JSON.stringify(newEvent)).not.toContain('Pay safe-new');
+  });
+
+  it('does not bump the case version or write a new event when re-extraction produces identical facts (decision 0004)', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedCase(ownerUid);
+    const seg1 = await appendSegment(db, ownerUid, { id: 's1', caseId, order: 1, speaker: 'caller', text: 'Pay safe-new' }, () => {});
+    const gemini: GeminiPort = {
+      async extract() {
+        return [{ field: 'payee', value: 'safe-new', sourceSegmentIds: ['s1'], uncertainty: 'medium' }];
+      },
+      relate: unusedRelate,
+    };
+
+    const first = expectOk(
+      await extractFacts(db, ownerUid, caseId, [{ id: 's1', speaker: 'caller', text: 'Pay safe-new' }], seg1.caseVersion, gemini),
+    );
+    const eventsAfterFirst = await db.collection('cases').doc(caseId).collection('events').get();
+
+    const second = expectOk(
+      await extractFacts(
+        db,
+        ownerUid,
+        caseId,
+        [{ id: 's1', speaker: 'caller', text: 'Pay safe-new' }],
+        first.projection.version,
+        gemini,
+      ),
+    );
+    const eventsAfterSecond = await db.collection('cases').doc(caseId).collection('events').get();
+
+    expect(second.projection.version).toBe(first.projection.version);
+    expect(eventsAfterSecond.docs).toHaveLength(eventsAfterFirst.docs.length);
+  });
 });
 
 describe('correctFact', () => {
@@ -485,6 +544,32 @@ describe('fact HTTP routes', () => {
       payload: { expectedVersion: 0 },
     });
     expect(response.statusCode).toBe(401);
+  });
+
+  it('POST /api/v1/cases/:id/facts/extract denies another user and never calls the model (decision 0004)', async () => {
+    const ownerUid = uid('owner');
+    const impostorUid = uid('impostor');
+    const caseId = await seedCase(ownerUid);
+    await appendSegment(db, ownerUid, { id: 's1', caseId, order: 1, speaker: 'caller', text: 'Pay safe-new' }, () => {});
+    let callCount = 0;
+    const gemini: GeminiPort = {
+      async extract() {
+        callCount += 1;
+        return [];
+      },
+      relate: unusedRelate,
+    };
+    const app = buildApi([createFactRoutes(gemini)], deps);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/v1/cases/${caseId}/facts/extract`,
+      headers: await authHeader(impostorUid),
+      payload: { expectedVersion: 0 },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(callCount).toBe(0);
   });
 
   it('POST /api/v1/cases/:id/facts/extract returns 409 for a stale expectedVersion', async () => {
