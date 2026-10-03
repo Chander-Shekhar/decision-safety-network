@@ -24,9 +24,12 @@ export const POLICY_VERSION = 'cup-core-1';
  *   conversation has been validated as directing this specific payment (PRD C4). Never emitted
  *   without a validated matching relation, so a large payment is never cited as a reason unless
  *   it is actually joined to the conversation.
- * - `correction-rollback`: an owner correction retracted a previously joined condition
- *   (PRD causal acceptance matrix, row 4); the case is quietly re-checked rather than left
- *   silently at its prior severity.
+ * - `correction-rollback`: an owner correction was applied and the case has been re-checked
+ *   (PRD causal acceptance matrix, row 4). This policy is stateless - it has no record of what,
+ *   if anything, was previously joined - so this code and its fixed text only ever assert that a
+ *   correction happened and the case is being re-evaluated, never that a conversation/payment join
+ *   previously existed. It is only emitted when it carries a valid reference (see
+ *   `AssessCaseInput.correctionEventId`); an ungrounded correction is never asserted as a reason.
  */
 export type ReasonCode = 'manipulation-cues' | 'unverified-claim' | 'large-new-payee' | 'correction-rollback';
 
@@ -36,6 +39,7 @@ export interface GroundedReason {
   text: string;
   sourceSegmentIds: string[];
   paymentEventId?: string;
+  correctionEventId?: string;
 }
 
 /**
@@ -54,12 +58,20 @@ export interface AssessCaseInput {
   matchingRelation: boolean;
   /** The open payment is a new payee above the plan's threshold. */
   largeNewPayee: boolean;
-  /** An owner correction retracted a previously joined condition (PRD causal matrix row 4). */
+  /** An owner correction was applied to this case (PRD causal matrix row 4 rollback trigger). This policy does not know, and never claims, what - if anything - was previously joined. */
   corrected?: boolean;
   /** Transcript segments backing `cues`/`unverified`/`matchingRelation`; cited verbatim onto whichever reasons need them. */
   sourceSegmentIds?: string[];
   /** The payment draft/submit event backing `largeNewPayee`; cited only onto the `large-new-payee` reason. */
   paymentEventId?: string;
+  /**
+   * The `fact-corrected`/`fact-confirmed` `CaseEvent` id backing `corrected` (DSN-006's
+   * `correctFact`/`confirmFact`, which record `sourceSegmentIds: []` for the correction itself -
+   * a correction is not transcript-sourced). Caller contract: whenever `corrected` is true, pass
+   * this id so the `correction-rollback` reason has something honest to cite; cited only onto
+   * that reason.
+   */
+  correctionEventId?: string;
 }
 
 export interface AssessCaseResult {
@@ -108,11 +120,25 @@ function buildReasons(input: AssessCaseInput): GroundedReason[] {
   const reasons: GroundedReason[] = [];
 
   if (input.corrected) {
-    reasons.push({
-      code: 'correction-rollback',
-      text: 'A correction retracted part of what previously joined the conversation to this payment.',
-      sourceSegmentIds,
-    });
+    // This policy is stateless: it has no record of what, if anything, was
+    // previously joined, so the text never claims a prior join - only that a
+    // correction happened and the case was re-checked. A correction itself
+    // is not transcript-sourced (DSN-006's correctFact/confirmFact record
+    // `sourceSegmentIds: []`), so `correctionEventId` is the honest primary
+    // reference; `sourceSegmentIds` is accepted as a fallback only if the
+    // caller actually supplied one (e.g. citing the original claim that was
+    // corrected). With neither, there is nothing honest to cite, so the
+    // reason is omitted entirely rather than asserted ungrounded - the
+    // `Check` phase itself still reflects the rollback either way.
+    const hasReference = Boolean(input.correctionEventId) || sourceSegmentIds.length > 0;
+    if (hasReference) {
+      reasons.push({
+        code: 'correction-rollback',
+        text: 'An owner correction was applied to this case, which has been re-checked as a result.',
+        sourceSegmentIds,
+        ...(input.correctionEventId ? { correctionEventId: input.correctionEventId } : {}),
+      });
+    }
   }
   if (input.cues && input.unverified) {
     reasons.push({

@@ -69,18 +69,105 @@ describe('assessCase: correction rollback retracts an active joined condition', 
     expect(result.phase).toBe('Check');
   });
 
-  it('preserves the correction as a reason even when no conversation cues remain', () => {
+  it('preserves the correction as a reason even when no conversation cues remain, when the correction event id is given', () => {
+    const result = assessCase(
+      input({
+        cues: false,
+        unverified: false,
+        matchingRelation: false,
+        largeNewPayee: true,
+        corrected: true,
+        correctionEventId: 'correction-evt-1',
+      }),
+    );
+    expect(result.reasons.map((r) => r.code)).toContain('correction-rollback');
+  });
+
+  it('does not assert a prior join when none existed, and cites the correction event, not an invented transcript link', () => {
+    const result = assessCase(
+      input({
+        cues: false,
+        unverified: false,
+        matchingRelation: false,
+        largeNewPayee: true,
+        corrected: true,
+        correctionEventId: 'correction-evt-1',
+      }),
+    );
+    const reason = result.reasons.find((r) => r.code === 'correction-rollback');
+    expect(reason).toBeDefined();
+    expect(reason!.text.toLowerCase()).not.toContain('join');
+    expect(reason!.text.toLowerCase()).not.toContain('previously');
+    expect(reason!.correctionEventId).toBe('correction-evt-1');
+  });
+
+  it('never asserts an ungrounded correction-rollback reason: with no correctionEventId and no sourceSegmentIds, the reason is omitted even though the phase still rolls back to Check', () => {
     const result = assessCase(
       input({ cues: false, unverified: false, matchingRelation: false, largeNewPayee: true, corrected: true }),
     );
-    expect(result.reasons.map((r) => r.code)).toContain('correction-rollback');
+    expect(result.phase).toBe('Check');
+    expect(result.reasons.map((r) => r.code)).not.toContain('correction-rollback');
+    expect(result.reasons).toEqual([]);
+  });
+
+  it('falls back to sourceSegmentIds as a valid reference when no correctionEventId is given', () => {
+    const result = assessCase(
+      input({
+        cues: false,
+        unverified: false,
+        matchingRelation: false,
+        largeNewPayee: true,
+        corrected: true,
+        sourceSegmentIds: ['seg-corrected-claim'],
+      }),
+    );
+    const reason = result.reasons.find((r) => r.code === 'correction-rollback');
+    expect(reason).toBeDefined();
+    expect(reason!.sourceSegmentIds).toEqual(['seg-corrected-claim']);
   });
 });
 
 describe('assessCase: at most three grounded reasons, fixed priority order, valid references', () => {
   const FIXED_CODES: readonly ReasonCode[] = ['manipulation-cues', 'unverified-claim', 'large-new-payee', 'correction-rollback'];
 
-  it('never emits more than three reasons for any input', () => {
+  it('never emits more than three reasons, and every emitted reason carries a valid reference, for any input', () => {
+    const combos = [true, false];
+    for (const cues of combos) {
+      for (const unverified of combos) {
+        for (const matchingRelation of combos) {
+          for (const largeNewPayee of combos) {
+            for (const corrected of combos) {
+              // Feed a reference for every signal so that, whenever a reason
+              // *is* emitted, it has something valid to cite - this isolates
+              // the "at most 3, always grounded" assertion from the separate
+              // "omit correction-rollback when ungrounded" behavior, which
+              // has its own dedicated tests above.
+              const result = assessCase(
+                input({
+                  cues,
+                  unverified,
+                  matchingRelation,
+                  largeNewPayee,
+                  corrected,
+                  sourceSegmentIds: ['seg-1'],
+                  paymentEventId: 'pay-evt-1',
+                  correctionEventId: corrected ? 'correction-evt-1' : undefined,
+                }),
+              );
+              expect(result.reasons.length).toBeLessThanOrEqual(3);
+              for (const reason of result.reasons) {
+                const grounded =
+                  reason.sourceSegmentIds.length > 0 || Boolean(reason.paymentEventId) || Boolean(reason.correctionEventId);
+                expect(grounded).toBe(true);
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('with no references supplied at all, correction-rollback specifically is never emitted ungrounded (the fixed defect)', () => {
     const combos = [true, false];
     for (const cues of combos) {
       for (const unverified of combos) {
@@ -88,7 +175,10 @@ describe('assessCase: at most three grounded reasons, fixed priority order, vali
           for (const largeNewPayee of combos) {
             for (const corrected of combos) {
               const result = assessCase(input({ cues, unverified, matchingRelation, largeNewPayee, corrected }));
-              expect(result.reasons.length).toBeLessThanOrEqual(3);
+              const correctionReason = result.reasons.find((r) => r.code === 'correction-rollback');
+              if (corrected) {
+                expect(correctionReason).toBeUndefined();
+              }
             }
           }
         }
