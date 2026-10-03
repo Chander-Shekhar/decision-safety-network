@@ -27,6 +27,8 @@ const LOCAL_ERROR_STATUS: Record<string, number> = {
   SEGMENT_NOT_FOUND: 404,
   EXPORT_CONSENT_REQUIRED: 403,
   NOT_SELECTED_RETENTION: 400,
+  EXPIRED: 410,
+  CONCURRENT_MODIFICATION: 409,
 };
 
 function replyOrRethrow(reply: FastifyReply, error: unknown): undefined {

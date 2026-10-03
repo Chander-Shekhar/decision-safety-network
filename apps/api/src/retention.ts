@@ -2,7 +2,7 @@
 // the sole place that implements the three retention modes
 // (`delete-on-close`, `facts-24h`, `selected-7d`); `evidence-routes.ts` and
 // `retention-routes.ts` only translate HTTP in and out of these functions.
-import type { CollectionReference, Firestore } from 'firebase-admin/firestore';
+import type { CollectionReference, DocumentReference, Firestore } from 'firebase-admin/firestore';
 import type { CaseEnvelope } from '@dsn/contracts';
 import type { Fact } from '../../../packages/contracts/src/facts.js';
 import type { RetentionMode } from '../../../packages/contracts/src/plan.js';
@@ -34,6 +34,18 @@ function caseRef(db: Firestore, caseId: string) {
   return db.collection('cases').doc(caseId);
 }
 
+/** Rejects a mutation on a case already past its logical `expiresAt` (awaiting the sweep), so a mutator can never rewrite or resurrect it. */
+function assertNotExpired(current: { expiresAt?: string }): void {
+  if (current.expiresAt !== undefined && current.expiresAt <= new Date().toISOString()) {
+    throw new Error('EXPIRED');
+  }
+}
+
+/** Test seam: lets a test interleave a concurrent writer right before the prune's final transactional write. */
+export interface CloseHooks {
+  beforeFinalWrite?: () => Promise<void>;
+}
+
 /** True once a case has fully converged on a close under `mode` - see the final allowlisted write in `pruneToRetained`/`deleteCaseContent`'s outright removal. */
 function hasConverged(current: CloseCapableCase): boolean {
   return current.closing !== true && typeof current.retentionMode === 'string';
@@ -50,6 +62,12 @@ async function markClosing(db: Firestore, uid: string, caseId: string, mode: Ret
     const ref = caseRef(db, caseId);
     const snap = await tx.get(ref);
     if (!snap.exists) {
+      // A completed delete-on-close removes the case document itself, so a
+      // retry of that same close finds nothing left: converged, not an error.
+      // Any other mode has no such terminal absence, so stays FORBIDDEN.
+      if (mode === 'delete-on-close') {
+        return { alreadyConverged: true };
+      }
       throw new Error('FORBIDDEN');
     }
     const current = snap.data() as CloseCapableCase;
@@ -91,6 +109,15 @@ async function deleteCollection(db: Firestore, collectionRef: CollectionReferenc
     await batch.commit();
     if (page.size < DELETE_BATCH_SIZE) {
       return;
+    }
+  }
+}
+
+/** Deletes every subcollection of a case except those named in `keep`, discovered via `listCollections()` so a future child collection can never silently leak. */
+async function deleteSubcollections(db: Firestore, ref: DocumentReference, keep: readonly string[] = []): Promise<void> {
+  for (const child of await ref.listCollections()) {
+    if (!keep.includes(child.id)) {
+      await deleteCollection(db, child);
     }
   }
 }
@@ -155,7 +182,7 @@ async function readLiveExportConsent(db: Firestore, ownerUid: string): Promise<b
  * drops the transient `closing`/`closingMode`/`sessionClosed`/
  * `lastSegmentOrder` fields without a separate cleanup step.
  */
-async function pruneToRetained(db: Firestore, uid: string, caseId: string, mode: 'facts-24h' | 'selected-7d'): Promise<void> {
+async function pruneToRetained(db: Firestore, uid: string, caseId: string, mode: 'facts-24h' | 'selected-7d', hooks: CloseHooks = {}): Promise<void> {
   const ref = caseRef(db, caseId);
   const snap = await ref.get();
   if (!snap.exists) {
@@ -170,13 +197,11 @@ async function pruneToRetained(db: Firestore, uid: string, caseId: string, mode:
   if (mode === 'selected-7d') {
     const evidenceSnap = await ref.collection('evidence').get();
     retainedSegmentIds = new Set(evidenceSnap.docs.map((d) => d.id));
-  } else {
-    await deleteCollection(db, ref.collection('evidence'));
   }
 
-  await deleteCollection(db, ref.collection('events'));
-  await deleteCollection(db, ref.collection('allyGrants'));
-  await deleteCollection(db, ref.collection('segments'));
+  // Everything except the (selected-7d) evidence excerpts goes, including any
+  // child collection added in future.
+  await deleteSubcollections(db, ref, mode === 'selected-7d' ? ['evidence'] : []);
 
   const confirmed = buildRetainedConfirmed(current.confirmed, retainedSegmentIds);
   const exportConsent = await readLiveExportConsent(db, current.ownerUid);
@@ -197,7 +222,23 @@ async function pruneToRetained(db: Firestore, uid: string, caseId: string, mode:
     confirmed,
   };
 
-  await ref.set(retainedProjection);
+  await hooks.beforeFinalWrite?.();
+
+  // Transactional re-check: the plain `.get()` above is stale by now. Only
+  // write if the case is still ours to prune (`closing`) and no other writer
+  // advanced `version` since we read it; otherwise fail retryably instead of
+  // clobbering (or resurrecting state on) a concurrently-written document.
+  await db.runTransaction(async (tx) => {
+    const latestSnap = await tx.get(ref);
+    if (!latestSnap.exists) {
+      throw new Error('FORBIDDEN');
+    }
+    const latest = latestSnap.data() as CloseCapableCase;
+    if (latest.closing !== true || latest.version !== current.version) {
+      throw new Error('CONCURRENT_MODIFICATION');
+    }
+    tx.set(ref, { ...retainedProjection, version: latest.version + 1 });
+  });
 }
 
 /**
@@ -208,7 +249,7 @@ async function pruneToRetained(db: Firestore, uid: string, caseId: string, mode:
  * mode. `endSession` purges segments and raw transcript text; the mode-
  * specific step then prunes or deletes everything else.
  */
-export async function closeSessionWithRetention(db: Firestore, uid: string, caseId: string, mode: RetentionMode): Promise<void> {
+export async function closeSessionWithRetention(db: Firestore, uid: string, caseId: string, mode: RetentionMode, hooks: CloseHooks = {}): Promise<void> {
   const { alreadyConverged } = await markClosing(db, uid, caseId, mode);
   if (alreadyConverged) {
     return;
@@ -221,7 +262,7 @@ export async function closeSessionWithRetention(db: Firestore, uid: string, case
     return;
   }
 
-  await pruneToRetained(db, uid, caseId, mode);
+  await pruneToRetained(db, uid, caseId, mode, hooks);
 }
 
 /**
@@ -238,7 +279,8 @@ export async function deleteCaseContent(db: Firestore, uid: string, caseId: stri
   const ref = caseRef(db, caseId);
   const snap = await ref.get();
   if (!snap.exists) {
-    throw new Error('FORBIDDEN');
+    // Already fully deleted by an earlier (possibly interrupted-then-retried) call: converged.
+    return;
   }
   const current = snap.data() as CloseCapableCase;
   if (current.ownerUid !== uid) {
@@ -248,10 +290,7 @@ export async function deleteCaseContent(db: Firestore, uid: string, caseId: stri
   const tombstone: DeletionTombstone = { completedAt: new Date().toISOString() };
   await db.collection('deletionTombstones').doc().set(tombstone);
 
-  await deleteCollection(db, ref.collection('events'));
-  await deleteCollection(db, ref.collection('segments'));
-  await deleteCollection(db, ref.collection('evidence'));
-  await deleteCollection(db, ref.collection('allyGrants'));
+  await deleteSubcollections(db, ref);
   await ref.delete();
 }
 
@@ -261,22 +300,36 @@ export async function deleteCaseContent(db: Firestore, uid: string, caseId: stri
  * backup only - this is what actually enforces the 24h/7d retention window
  * promptly. Converges because each deletion shrinks the matched set.
  */
-export async function sweepExpiredCases(db: Firestore, now: () => Date): Promise<number> {
+export async function sweepExpiredCases(
+  db: Firestore,
+  now: () => Date,
+  deleteCase: (db: Firestore, uid: string, caseId: string) => Promise<void> = deleteCaseContent,
+): Promise<{ swept: number; failed: number }> {
   const PAGE_SIZE = 50;
   let swept = 0;
+  let failed = 0;
   for (;;) {
     const nowIso = now().toISOString();
     const page = await db.collection('cases').where('expiresAt', '<=', nowIso).limit(PAGE_SIZE).get();
     if (page.empty) {
-      return swept;
+      return { swept, failed };
     }
+    let sweptThisPage = 0;
     for (const doc of page.docs) {
       const data = doc.data() as CaseEnvelope;
-      await deleteCaseContent(db, data.ownerUid, doc.id);
-      swept += 1;
+      // One poison case must not block the rest of the sweep.
+      try {
+        await deleteCase(db, data.ownerUid, doc.id);
+        swept += 1;
+        sweptThisPage += 1;
+      } catch (error) {
+        failed += 1;
+        console.error(`retention sweep: failed to delete case ${doc.id}: ${error instanceof Error ? error.message : 'unknown error'}`);
+      }
     }
-    if (page.size < PAGE_SIZE) {
-      return swept;
+    // A page that made no progress would re-match the same failing cases forever.
+    if (page.size < PAGE_SIZE || sweptThisPage === 0) {
+      return { swept, failed };
     }
   }
 }
@@ -301,6 +354,7 @@ export async function promoteEvidence(db: Firestore, uid: string, caseId: string
     if (current.ownerUid !== uid) {
       throw new Error('FORBIDDEN');
     }
+    assertNotExpired(current);
     if (current.sessionClosed === true || current.closing === true) {
       throw new Error('SESSION_CLOSED');
     }
@@ -361,6 +415,7 @@ export async function revokeExportConsent(db: Firestore, uid: string, caseId: st
     if (current.ownerUid !== uid) {
       throw new Error('FORBIDDEN');
     }
+    assertNotExpired(current);
     tx.update(ref, { exportConsent: false, version: current.version + 1, updatedAt: new Date().toISOString() });
   });
 }
@@ -393,6 +448,7 @@ export async function revokeRetentionConsent(
   if (current.ownerUid !== uid) {
     throw new Error('FORBIDDEN');
   }
+  assertNotExpired(current);
   if (current.retentionMode !== 'selected-7d') {
     throw new Error('NOT_SELECTED_RETENTION');
   }
@@ -409,13 +465,26 @@ export async function revokeRetentionConsent(
   }
 
   const now = new Date();
+  const cappedExpiresAt = new Date(now.getTime() + FACTS_24H_MS).toISOString();
   const next: RetainedCaseProjection = {
     ...current,
     confirmed: downgradedConfirmed,
     retentionMode: 'facts-24h',
-    expiresAt: new Date(now.getTime() + FACTS_24H_MS).toISOString(),
-    version: current.version + 1,
+    // Revocation may only ever SHORTEN retention, never extend it.
+    expiresAt: current.expiresAt !== undefined && current.expiresAt < cappedExpiresAt ? current.expiresAt : cappedExpiresAt,
     updatedAt: now.toISOString(),
   };
-  await ref.set(next);
+  // Transactional re-check so a concurrent writer (e.g. an export-consent
+  // revocation) is not overwritten by this read-then-set.
+  await db.runTransaction(async (tx) => {
+    const latestSnap = await tx.get(ref);
+    if (!latestSnap.exists) {
+      throw new Error('FORBIDDEN');
+    }
+    const latest = latestSnap.data() as RetainedCaseProjection;
+    if (latest.version !== current.version || latest.retentionMode !== 'selected-7d') {
+      throw new Error('CONCURRENT_MODIFICATION');
+    }
+    tx.set(ref, { ...next, version: latest.version + 1 });
+  });
 }

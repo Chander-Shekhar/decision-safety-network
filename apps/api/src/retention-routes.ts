@@ -101,8 +101,7 @@ export function createRetentionRoutes(config: SchedulerIdentityConfig): RouteIns
         return undefined;
       }
 
-      const swept = await sweepExpiredCases(deps.db, deps.now);
-      return { swept };
+      return sweepExpiredCases(deps.db, deps.now);
     });
   };
 }

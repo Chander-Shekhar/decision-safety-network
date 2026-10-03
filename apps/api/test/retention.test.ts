@@ -274,12 +274,20 @@ describe('closeSessionWithRetention: retry-safety and bypass prevention', () => 
     await expect(closeSessionWithRetention(db, impostor, caseId, 'facts-24h')).rejects.toThrow('FORBIDDEN');
   });
 
-  it('a delete-on-close retry after full completion is rejected (nothing left to converge on), mirroring endSession\'s own missing-doc convention', async () => {
+  it('a delete-on-close retry after full completion converges as an idempotent success', async () => {
     const ownerUid = uid('owner');
     const caseId = await seedFullCase(ownerUid);
     await closeSessionWithRetention(db, ownerUid, caseId, 'delete-on-close');
 
-    await expect(closeSessionWithRetention(db, ownerUid, caseId, 'delete-on-close')).rejects.toThrow('FORBIDDEN');
+    await expect(closeSessionWithRetention(db, ownerUid, caseId, 'delete-on-close')).resolves.toBeUndefined();
+  });
+
+  it('a delete-on-close retry after completion converges, but a wrong owner on an EXISTING case is still FORBIDDEN', async () => {
+    const ownerUid = uid('owner');
+    const impostor = uid('impostor');
+    const caseId = await seedFullCase(ownerUid);
+    await expect(closeSessionWithRetention(db, impostor, caseId, 'delete-on-close')).rejects.toThrow('FORBIDDEN');
+    expect((await db.collection('cases').doc(caseId).get()).exists).toBe(true);
   });
 
   it('no direct session route can bypass the sole close command: sessionRoutes exposes no close path, evidence-routes does', async () => {
@@ -350,7 +358,7 @@ describe('logical expiry and physical sweep', () => {
     await expect(readCase(db, ownerUid, caseId)).rejects.toThrow('EXPIRED');
     expect((await db.collection('cases').doc(caseId).get()).exists).toBe(true);
 
-    const swept = await sweepExpiredCases(db, () => new Date());
+    const { swept } = await sweepExpiredCases(db, () => new Date());
     expect(swept).toBeGreaterThanOrEqual(1);
     expect((await db.collection('cases').doc(caseId).get()).exists).toBe(false);
   });
@@ -500,6 +508,120 @@ describe('an unrelated case is never touched', () => {
     expect((await db.collection('cases').doc(caseA).get()).exists).toBe(false);
     expect((await db.collection('cases').doc(caseB).get()).exists).toBe(true);
     expect(await collectionEmpty(caseB, 'segments')).toBe(false);
+  });
+});
+
+describe('DSN-013 review fixes', () => {
+  const HOUR = 60 * 60 * 1000;
+
+  it('B3: revoking retention consent on a selected-7d case near expiry never LENGTHENS its life', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedFullCase(ownerUid);
+    await closeSessionWithRetention(db, ownerUid, caseId, 'selected-7d');
+    const soon = new Date(Date.now() + HOUR).toISOString();
+    await db.collection('cases').doc(caseId).update({ expiresAt: soon });
+
+    await revokeRetentionConsent(db, ownerUid, caseId, 'facts-24h');
+
+    const after = (await db.collection('cases').doc(caseId).get()).data() as RetainedCaseProjection;
+    expect(after.retentionMode).toBe('facts-24h');
+    expect((after.expiresAt ?? '') <= soon).toBe(true);
+  });
+
+  it('B3: revoking retention consent still caps a far-future expiry at 24h', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedFullCase(ownerUid);
+    await closeSessionWithRetention(db, ownerUid, caseId, 'selected-7d');
+
+    await revokeRetentionConsent(db, ownerUid, caseId, 'facts-24h');
+
+    const after = (await db.collection('cases').doc(caseId).get()).data() as RetainedCaseProjection;
+    expect(Date.parse(after.expiresAt ?? '')).toBeLessThanOrEqual(Date.now() + 24 * HOUR + 1000);
+  });
+
+  it('B3: mutators reject an already-expired-but-unswept case rather than resurrecting it', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedFullCase(ownerUid);
+    await closeSessionWithRetention(db, ownerUid, caseId, 'selected-7d');
+    const past = new Date(Date.now() - 1000).toISOString();
+    const ref = db.collection('cases').doc(caseId);
+    await ref.update({ expiresAt: past });
+
+    await expect(revokeRetentionConsent(db, ownerUid, caseId, 'facts-24h')).rejects.toThrow('EXPIRED');
+    await expect(revokeExportConsent(db, ownerUid, caseId)).rejects.toThrow('EXPIRED');
+    await expect(promoteEvidence(db, ownerUid, caseId, 's1')).rejects.toThrow('EXPIRED');
+
+    const after = (await ref.get()).data() as RetainedCaseProjection;
+    expect(after.expiresAt).toBe(past);
+    expect(after.retentionMode).toBe('selected-7d');
+    expect(after.exportConsent).toBe(true);
+  });
+
+  it('B2: the final prune write rejects (instead of clobbering) when the case version advanced mid-prune', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedFullCase(ownerUid);
+    const ref = db.collection('cases').doc(caseId);
+
+    await expect(
+      closeSessionWithRetention(db, ownerUid, caseId, 'facts-24h', {
+        beforeFinalWrite: async () => {
+          const snap = await ref.get();
+          await ref.update({ version: (snap.data() as { version: number }).version + 1, concurrentMarker: 'kept' });
+        },
+      }),
+    ).rejects.toThrow('CONCURRENT_MODIFICATION');
+
+    const midState = (await ref.get()).data() as Record<string, unknown>;
+    expect(midState.concurrentMarker).toBe('kept');
+    expect(midState.closing).toBe(true);
+
+    // A plain retry converges.
+    await closeSessionWithRetention(db, ownerUid, caseId, 'facts-24h');
+    const retained = await readCase<RetainedCaseProjection>(db, ownerUid, caseId);
+    expect(retained.retentionMode).toBe('facts-24h');
+    expect(Object.keys(retained)).not.toContain('concurrentMarker');
+  });
+
+  it('N3: deleteCaseContent, delete-on-close and prune also remove an unexpected extra subcollection', async () => {
+    for (const mode of ['delete-on-close', 'facts-24h', 'selected-7d'] as const) {
+      const ownerUid = uid('owner');
+      const caseId = await seedFullCase(ownerUid);
+      await db.collection('cases').doc(caseId).collection('mysteryChild').doc('x').set({ secret: 'leak' });
+      await closeSessionWithRetention(db, ownerUid, caseId, mode);
+      expect(await collectionEmpty(caseId, 'mysteryChild')).toBe(true);
+    }
+    const ownerUid = uid('owner');
+    const caseId = await seedFullCase(ownerUid);
+    await db.collection('cases').doc(caseId).collection('mysteryChild').doc('x').set({ secret: 'leak' });
+    await deleteCaseContent(db, ownerUid, caseId);
+    expect(await collectionEmpty(caseId, 'mysteryChild')).toBe(true);
+  });
+
+  it('N4: one failing case does not abort the sweep, and failures are counted', async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const ownerUid = uid('owner');
+      const caseId = await seedFullCase(ownerUid);
+      await closeSessionWithRetention(db, ownerUid, caseId, 'facts-24h');
+      await db.collection('cases').doc(caseId).update({ expiresAt: new Date(Date.now() - 1000).toISOString() });
+      ids.push(caseId);
+    }
+    const poison = ids[0]!;
+
+    const result = await sweepExpiredCases(db, () => new Date(), async (dbArg, ownerUid, caseId) => {
+      if (caseId === poison) {
+        throw new Error('boom');
+      }
+      await deleteCaseContent(dbArg, ownerUid, caseId);
+    });
+
+    expect(result.failed).toBeGreaterThanOrEqual(1);
+    expect(result.swept).toBeGreaterThanOrEqual(2);
+    expect((await db.collection('cases').doc(poison).get()).exists).toBe(true);
+    for (const id of ids.slice(1)) {
+      expect((await db.collection('cases').doc(id).get()).exists).toBe(false);
+    }
+    await deleteCaseContent(db, String((await db.collection('cases').doc(poison).get()).get('ownerUid')), poison);
   });
 });
 
