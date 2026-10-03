@@ -1,11 +1,14 @@
 import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  plugins: [react()],
   test: {
-    environment: 'node',
-    // No test files exist yet in this foundation task; app/screen tests are
-    // added by their owning tasks (Task 2 onward). Avoid a false "no test
-    // files found" failure on `npm run test:web` until then.
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./test-setup.ts'],
+    // Feature tasks (DSN-004 onward) add *.test.tsx under src/. Keep this true
+    // so `npm run test:web` stays green on the empty foundation stub.
     passWithNoTests: true,
   },
 });
