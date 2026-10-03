@@ -148,6 +148,24 @@ describe('appendSegment', () => {
 
     expect(calls).toHaveLength(1);
   });
+
+  it('never writes raw transcript text into the committed event document', async () => {
+    const ownerUid = uid('owner');
+    const caseId = await seedCase(ownerUid);
+    const { onSegment } = recordingCallback();
+    const sentinel = 'SENTINEL-do-not-leak-c9f1b2';
+
+    await appendSegment(db, ownerUid, { id: 's1', caseId, order: 1, speaker: 'caller', text: sentinel }, onSegment);
+    await appendSegment(db, ownerUid, { id: 's2', caseId, order: 2, speaker: 'caller', text: `more ${sentinel} text` }, onSegment);
+
+    const events = await db.collection('cases').doc(caseId).collection('events').get();
+    expect(events.docs).toHaveLength(2);
+    for (const doc of events.docs) {
+      const payload = JSON.stringify(doc.data());
+      expect(payload).not.toContain(sentinel);
+      expect(doc.data()).not.toHaveProperty('text');
+    }
+  });
 });
 
 describe('revokeProcessing', () => {
