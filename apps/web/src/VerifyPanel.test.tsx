@@ -80,17 +80,18 @@ describe('VerifyPanel', () => {
     expect(screen.getByText(/no protected-account transfer/i)).toBeVisible();
   });
 
-  it('offers Cancel and Defer for the simulated transfer once a result is recorded', async () => {
+  it('offers Cancel for the simulated transfer once a result is recorded', async () => {
     const onCancel = vi.fn();
-    const onDefer = vi.fn();
     const user = userEvent.setup();
-    render(<VerifyPanel registry={registry} result={result} onCancel={onCancel} onDefer={onDefer} />);
+    render(<VerifyPanel registry={registry} result={result} onCancel={onCancel} />);
 
     await user.click(screen.getByRole('button', { name: /cancel/i }));
     expect(onCancel).toHaveBeenCalled();
+  });
 
-    await user.click(screen.getByRole('button', { name: /defer/i }));
-    expect(onDefer).toHaveBeenCalled();
+  it('never renders a Defer control, since there is no backend action to back it', () => {
+    render(<VerifyPanel registry={registry} result={result} />);
+    expect(screen.queryByRole('button', { name: /defer/i })).toBeNull();
   });
 
   it('frames Cancel as ending the simulated transfer, cancelled not just hidden', () => {

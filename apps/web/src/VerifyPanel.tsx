@@ -33,7 +33,6 @@ export interface VerifyPanelProps {
   result?: VerifyPanelResult;
   onVerify?: () => void;
   onCancel?: () => void;
-  onDefer?: () => void;
 }
 
 /**
@@ -48,7 +47,7 @@ export interface VerifyPanelProps {
  * Labels the surface **Simulated** persistently, both before and after a
  * result is recorded.
  */
-export function VerifyPanel({ registry, result, onVerify, onCancel, onDefer }: VerifyPanelProps): React.JSX.Element {
+export function VerifyPanel({ registry, result, onVerify, onCancel }: VerifyPanelProps): React.JSX.Element {
   return (
     <section aria-label="Demo Bank verification">
       <h2>Demo Bank verification</h2>
@@ -88,9 +87,11 @@ export function VerifyPanel({ registry, result, onVerify, onCancel, onDefer }: V
           <button type="button" onClick={() => onCancel?.()}>
             Cancel the simulated transfer
           </button>
-          <button type="button" onClick={() => onDefer?.()}>
-            Defer the decision
-          </button>
+          {/* No Defer control here: there is no `deferred` PaymentState and no
+              `defer` command in `act()` (both server-side, out of this
+              component's scope) to back it, so a Defer button would be a
+              no-op reaching the user. Re-add only alongside that backend, if
+              the founder decides defer becomes a real action. */}
           <p>Choosing Cancel ends this case&apos;s simulated transfer &mdash; cancelled, not just hidden.</p>
         </div>
       )}
