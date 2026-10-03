@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "declaration": false,
+    "types": ["node"],
+    "paths": {
+      "@dsn/contracts": ["../../packages/contracts/src/case.ts"]
+    }
+  },
+  "include": ["src", "test"]
+}
