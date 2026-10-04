@@ -1,4 +1,7 @@
-// NOT RUN in this pass. This spec REQUIRES dependencies that are not installed:
+// SKIPPED (every test is test.skip): pending the deferred shell wiring and the
+// Playwright/Vite/firebase-client sub-gates. It is the documented TARGET journey,
+// not a passing or red spec; it references controls the shell does not yet render
+// (e.g. 'Play legitimate scenario') and cannot run as written. It REQUIRES dependencies that are not installed:
 //   - @playwright/test (plus browser binaries and a playwright.config.ts)
 //   - a Vite dev server serving apps/web (build/dev scripts + vite.config.ts)
 //   - the `firebase` client SDK in apps/web (real synthetic sign-in; main.tsx
@@ -7,7 +10,7 @@
 // the red journey is reviewable; it is excluded from the web tsconfig.
 import { expect, test } from '@playwright/test';
 
-test('attack journey uses one case and an explicit simulated decision', async ({ browser }) => {
+test.skip('attack journey uses one case and an explicit simulated decision', async ({ browser }) => {
   const userPage = await (await browser.newContext()).newPage();
   const allyPage = await (await browser.newContext()).newPage();
   await userPage.goto('/');
@@ -73,7 +76,7 @@ test('attack journey uses one case and an explicit simulated decision', async ({
   await expect(userPage.getByText(/Simulated/i).first()).toBeVisible();
 });
 
-test('legitimate high-pressure control never sees the enhanced Pause', async ({ browser }) => {
+test.skip('legitimate high-pressure control never sees the enhanced Pause', async ({ browser }) => {
   const page = await (await browser.newContext()).newPage();
   await page.goto('/');
   await page.getByRole('button', { name: 'Create synthetic user' }).click();
@@ -88,7 +91,7 @@ test('legitimate high-pressure control never sees the enhanced Pause', async ({ 
   await expect(page.getByRole('button', { name: /^Pause$/ })).toHaveCount(0);
 });
 
-test('API rejects an unauthenticated request and an ally reading another case', async ({ request, browser }) => {
+test.skip('API rejects an unauthenticated request and an ally reading another case', async ({ request, browser }) => {
   expect((await request.get('/api/v1/cases/some-case')).status()).toBe(401);
   const allyPage = await (await browser.newContext()).newPage();
   await allyPage.goto('/');
