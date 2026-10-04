@@ -1,0 +1,45 @@
+# Demo runbook (DSN-014)
+
+**Status:** authored for the eventual Cloud Run / Firebase Hosting path. **Deploy is pending founder cloud authorization; nothing here has been deployed or executed.** Everything in the product is synthetic. Demo Bank, the transfer, and local acknowledgements are **Simulated**; the 1930 helpline and cybercrime.gov.in are real official routes and are never filed on the user's behalf.
+
+## Architecture (single origin)
+
+Browser -> Firebase Hosting (SPA) -> rewrite `/api/v1/**` -> Cloud Run service (region `asia-south1`, Node 22) -> Firestore + Gemini. The browser never talks to Firestore or Gemini. Three mutually exclusive auth paths: public `GET /healthz` (no case data), `/api/v1/**` (Firebase ID token `Authorization: Bearer <token>`), and `POST /internal/retention/sweep` (Cloud Scheduler OIDC token for the dedicated scheduler service account only). Any other path is 404.
+
+## Configuration (environment, never committed)
+
+`PORT` (default 8080), `GOOGLE_CLOUD_PROJECT`, `GEMINI_MODEL`, `DSN_SCHEDULER_AUDIENCE`, `DSN_SCHEDULER_SA`. Placeholders only: `DSN_GCP_PROJECT`, `DSN_API_SA`, `DSN_SCHEDULER_SA`. `NODE_ENV=production` rejects the test Gemini double.
+
+## Request and error shapes
+
+Commands are JSON. Routes that accept an idempotency key take `idempotencyKey` (RFC 4122 v4) in the body; the client also sends an `Idempotency-Key` header. Errors are `{ "error": "<CODE>" }`.
+
+| Code | Status |
+| --- | --- |
+| UNAUTHENTICATED | 401 |
+| FORBIDDEN | 403 |
+| NOT_FOUND | 404 |
+| PLAN_REQUIRED, INVALID_IDEMPOTENCY_KEY, INVALID_BODY | 400 |
+| VERSION_CONFLICT, IDEMPOTENCY_CONFLICT | 409 |
+| EXPIRED | 410 |
+
+Routes (all under `/api/v1`): `PUT plan`; `POST ally-pairing-code`; `POST ally-invitations` `{pairingCode}`; `POST ally-invitations/:id/accept|revoke`; `POST cases` (201, needs saved plan); `GET cases/:id`; `POST cases/:id/segments` `{id,order,speaker,text}`; `POST cases/:id/processing/revoke`; `POST cases/:id/facts/extract` `{expectedVersion}`; `POST cases/:id/facts/:field/correct` `{value,expectedVersion}`; `POST cases/:id/facts/:field/confirm` `{expectedVersion}`; `POST cases/:id/payment/draft` `{beneficiaryId,amountMinor,expectedVersion,idempotencyKey}`; `POST cases/:id/payment/submit` `{draftId,expectedVersion,idempotencyKey}`; `POST cases/:id/payment/recheck`; `POST cases/:id/actions/pause|cancel|verify|continue` `{expectedVersion,idempotencyKey}`; `GET registry/demo-bank`; `POST cases/:id/verify` `{}`; `POST cases/:id/ally-share-preview` `{selectedEvidenceIds}`; `POST|DELETE cases/:id/ally-grant`; `GET ally/cases/:id`; `POST ally/cases/:id/response` `{idempotencyKey,kind}`; `POST cases/:id/recovery/enter`; `GET cases/:id/recovery`; `POST cases/:id/recovery/paid-details`; `POST cases/:id/recovery/acknowledgement`; `GET cases/:id/evidence?ids=`; `POST cases/:id/session/close`; `POST cases/:id/export` (ZIP). Outside `/api/v1`: `GET /healthz`, `POST /internal/retention/sweep`.
+
+## Synthetic accounts and fixtures
+
+Two non-secret synthetic Firebase accounts created by the "Create synthetic user" / "Create synthetic ally" buttons (no credentials stored). Attack fixture: caller "Demo Bank fraud team", claim "Account compromised", payee `safe-new`, amount 50,000 (5,000,000 paise). Legitimate control: known payee, no enhanced Pause.
+
+## Three-minute path (narration)
+
+1. (0:00) Plan: "This is a simulated prototype on synthetic data." Save plan, pair ally.
+2. (0:30) Session: controlled transcript plays; facts appear with sources; confirm claim, payee, amount.
+3. (1:00) Payment: simulated new-payee transfer submitted; joined Pause "before you enter an OTP".
+4. (1:30) Verify with the Demo Bank registry; preview the exact ally packet, then explicitly Share; ally recommends pause.
+5. (2:00) Cancel the simulated transfer; "I already paid" opens same-case recovery with blank paid fields until the user reports a match.
+6. (2:30) Download the evidence ZIP (`brief.html`, `provenance.json`, `ncrp-preview.html`): a preview, never a submitted report.
+
+Scenario two: legitimate high-pressure call, ordinary confirmation, no enhanced Pause.
+
+## Deploy steps (BLOCKED until founder cloud authorization)
+
+Validate `DSN_GCP_PROJECT`, `DSN_API_SA`, `DSN_SCHEDULER_SA`; enable only required services; set budget alert and max instances; build the Dockerfile and deploy to Cloud Run in `asia-south1`; deploy Hosting; create the Cloud Scheduler job calling `POST /internal/retention/sweep` with an OIDC token from `DSN_SCHEDULER_SA`; verify a user token and an unauthenticated call are denied; run `BASE_URL=... ID_TOKEN=... scripts/smoke.sh` and confirm a fresh live Gemini call for the run. Operational logs carry route template, status, and latency only.
