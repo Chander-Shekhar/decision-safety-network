@@ -27,7 +27,7 @@ Routes (all under `/api/v1`): `PUT plan`; `POST ally-pairing-code`; `POST ally-i
 
 ## Synthetic accounts and fixtures
 
-Two non-secret synthetic Firebase accounts created by the "Create synthetic user" / "Create synthetic ally" buttons (no credentials stored). Attack fixture: caller "Demo Bank fraud team", claim "Account compromised", payee `safe-new`, amount 50,000 (5,000,000 paise). Legitimate control: known payee, no enhanced Pause.
+Two synthetic Firebase accounts created by the "Create synthetic user" / "Create synthetic ally" buttons (no credentials stored). Attack fixture: caller "Demo Bank fraud team", claim "Account compromised", payee `safe-new`, amount 50,000 (5,000,000 paise). Legitimate control: known payee, no enhanced Pause.
 
 ## Three-minute path (narration)
 
