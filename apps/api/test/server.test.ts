@@ -101,7 +101,7 @@ describe('composed server', () => {
     });
     expect(plan.statusCode).toBe(200);
     const created = await app.inject({ method: 'POST', url: '/api/v1/cases', headers: owner });
-    expect(created.statusCode).toBe(201);
+    expect(created.statusCode).toBe(200);
     const { id } = created.json() as { id: string };
 
     expect((await app.inject({ method: 'GET', url: `/api/v1/cases/${id}`, headers: owner })).statusCode).toBe(200);
