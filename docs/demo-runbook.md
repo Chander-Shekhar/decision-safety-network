@@ -23,7 +23,7 @@ Commands are JSON. Routes that accept an idempotency key take `idempotencyKey` (
 | VERSION_CONFLICT, IDEMPOTENCY_CONFLICT | 409 |
 | EXPIRED | 410 |
 
-Routes (all under `/api/v1`): `PUT plan`; `POST ally-pairing-code`; `POST ally-invitations` `{pairingCode}`; `POST ally-invitations/:id/accept|revoke`; `POST cases` (201, needs saved plan); `GET cases/:id`; `POST cases/:id/segments` `{id,order,speaker,text}`; `POST cases/:id/processing/revoke`; `POST cases/:id/facts/extract` `{expectedVersion}`; `POST cases/:id/facts/:field/correct` `{value,expectedVersion}`; `POST cases/:id/facts/:field/confirm` `{expectedVersion}`; `POST cases/:id/payment/draft` `{beneficiaryId,amountMinor,expectedVersion,idempotencyKey}`; `POST cases/:id/payment/submit` `{draftId,expectedVersion,idempotencyKey}`; `POST cases/:id/payment/recheck`; `POST cases/:id/actions/pause|cancel|verify|continue` `{expectedVersion,idempotencyKey}`; `GET registry/demo-bank`; `POST cases/:id/verify` `{}`; `POST cases/:id/ally-share-preview` `{selectedEvidenceIds}`; `POST|DELETE cases/:id/ally-grant`; `GET ally/cases/:id`; `POST ally/cases/:id/response` `{idempotencyKey,kind}`; `POST cases/:id/recovery/enter`; `GET cases/:id/recovery`; `POST cases/:id/recovery/paid-details`; `POST cases/:id/recovery/acknowledgement`; `GET cases/:id/evidence?ids=`; `POST cases/:id/session/close`; `POST cases/:id/export` (ZIP). Outside `/api/v1`: `GET /healthz`, `POST /internal/retention/sweep`.
+Routes (all under `/api/v1`): `PUT plan`; `POST ally-pairing-code`; `POST ally-invitations` `{pairingCode}`; `POST ally-invitations/:id/accept|revoke`; `POST cases` (200, needs saved plan); `GET cases/:id`; `POST cases/:id/segments` `{id,order,speaker,text}`; `POST cases/:id/processing/revoke`; `POST cases/:id/facts/extract` `{expectedVersion}`; `POST cases/:id/facts/:field/correct` `{value,expectedVersion}`; `POST cases/:id/facts/:field/confirm` `{expectedVersion}`; `POST cases/:id/payment/draft` `{beneficiaryId,amountMinor,expectedVersion,idempotencyKey}`; `POST cases/:id/payment/submit` `{draftId,expectedVersion,idempotencyKey}`; `POST cases/:id/payment/recheck`; `POST cases/:id/actions/pause|cancel|verify|continue` `{expectedVersion,idempotencyKey}`; `GET registry/demo-bank`; `POST cases/:id/verify` `{}`; `POST cases/:id/ally-share-preview` `{selectedEvidenceIds}`; `POST|DELETE cases/:id/ally-grant`; `GET ally/cases/:id`; `POST ally/cases/:id/response` `{idempotencyKey,kind}`; `POST cases/:id/recovery/enter`; `GET cases/:id/recovery`; `POST cases/:id/recovery/paid-details`; `POST cases/:id/recovery/acknowledgement`; `GET cases/:id/evidence?ids=`; `POST cases/:id/session/close`; `POST cases/:id/export` (ZIP). Outside `/api/v1`: `GET /healthz`, `POST /internal/retention/sweep`.
 
 ## Synthetic accounts and fixtures
 
@@ -39,6 +39,17 @@ Two synthetic Firebase accounts created by the "Create synthetic user" / "Create
 6. (2:30) Download the evidence ZIP (`brief.html`, `provenance.json`, `ncrp-preview.html`): a preview, never a submitted report.
 
 Scenario two: legitimate high-pressure call, ordinary confirmation, no enhanced Pause.
+
+## Run locally end-to-end (no cloud, no cost)
+
+Fully local: Firebase emulators + the deterministic fake Gemini (no real Gemini/Vertex call, no billable resource). See decision 0007. The emulator needs a JDK, so export `JAVA_HOME` first (shell only — never committed).
+
+1. `export JAVA_HOME=<path-to-a-jdk-21>` and `export PATH="$JAVA_HOME/bin:$PATH"`.
+2. Terminal A: `npm run dev:api` — starts the Auth (`:9099`) + Firestore (`:8080`) emulators and the dev API on `:8787` with the fake Gemini.
+3. Terminal B: `npm run dev:web` — serves the SPA on `http://localhost:5173` (proxies `/api/v1/**` and `/healthz` to `:8787`).
+4. Open `http://localhost:5173` in two windows (owner in one, ally in an incognito/second-profile window — each gets its own anonymous emulator user). Walk the Plan → Session → Decision → Verify → Ally → Recovery → Evidence journey.
+
+Smoke check (with the dev servers up): `curl http://localhost:5173/healthz` → `{"status":"ok"}`; `curl http://localhost:5173/api/v1/cases/x` → `401 {"error":"UNAUTHENTICATED"}`. The automated two-browser Playwright journey (`apps/web/e2e/journey.spec.ts`) stays `test.skip` pending the Playwright dependency decision.
 
 ## Deploy steps (BLOCKED until founder cloud authorization)
 

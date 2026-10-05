@@ -6,9 +6,12 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "dev": "vite",
+    "preview": "vite build && vite preview"
   },
   "dependencies": {
+    "firebase": "12.19.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
