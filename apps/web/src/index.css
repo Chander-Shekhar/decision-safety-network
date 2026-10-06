@@ -1,0 +1,10 @@
+@import './ui/tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface font-sans text-text;
+  }
+}
