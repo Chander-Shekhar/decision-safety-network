@@ -1,3 +1,5 @@
+import { ActionBar, Badge, Button, Card } from './ui';
+
 /**
  * One rendered timeline row's display shape - a locally defined mirror, not
  * an import of apps/api's internal retention/evidence types (same
@@ -41,31 +43,40 @@ const RETENTION_LABELS: Record<EvidenceRetentionMode, string> = {
 export function EvidenceScreen({ timeline, exportAllowed, retentionMode, onExport }: EvidenceScreenProps): React.JSX.Element {
   return (
     <section aria-label="Evidence and export">
-      <h2>Evidence</h2>
-      <p>SIMULATED</p>
-      <p>This is a reviewable preview &mdash; not submitted or accepted. No report has been filed on your behalf.</p>
-
-      <p>Retention: {RETENTION_LABELS[retentionMode]}</p>
-      {retentionMode === 'delete-on-close' && (
-        <p role="alert">
-          Once this case closes under delete-on-close, its content is gone for good &mdash; there is no re-entry recovery path back into this case afterward.
+      <Card
+        title="Evidence"
+        footer={
+          <ActionBar>
+            <Button onClick={() => onExport?.()} disabled={!exportAllowed}>
+              Download evidence
+            </Button>
+          </ActionBar>
+        }
+      >
+        <p>
+          <Badge tone="simulated">SIMULATED</Badge>
         </p>
-      )}
+        <p>This is a reviewable preview &mdash; not submitted or accepted. No report has been filed on your behalf.</p>
 
-      <ol>
-        {timeline.map((entry, index) => (
-          <li key={index}>
-            <span>{entry.label}</span>
-            {entry.value && <span> &mdash; {entry.value}</span>}
-            {entry.correctedFrom && <span> (corrected from: {entry.correctedFrom})</span>}
-          </li>
-        ))}
-      </ol>
+        <p>Retention: {RETENTION_LABELS[retentionMode]}</p>
+        {retentionMode === 'delete-on-close' && (
+          <p role="alert" className="rounded-md border border-border bg-surface-sunken p-space-3">
+            Once this case closes under delete-on-close, its content is gone for good &mdash; there is no re-entry recovery path back into this case afterward.
+          </p>
+        )}
 
-      <button type="button" onClick={() => onExport?.()} disabled={!exportAllowed}>
-        Download evidence
-      </button>
-      {!exportAllowed && <p>Export is unavailable right now &mdash; export consent was either never given or has been revoked.</p>}
+        <ol className="list-decimal pl-space-4">
+          {timeline.map((entry, index) => (
+            <li key={index}>
+              <span>{entry.label}</span>
+              {entry.value && <span> &mdash; {entry.value}</span>}
+              {entry.correctedFrom && <span> (corrected from: {entry.correctedFrom})</span>}
+            </li>
+          ))}
+        </ol>
+
+        {!exportAllowed && <p>Export is unavailable right now &mdash; export consent was either never given or has been revoked.</p>}
+      </Card>
     </section>
   );
 }
