@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import type { Fact, FactOrigin } from '../../../packages/contracts/src/facts';
+import { ActionBar, Badge, Button, Card, Field } from './ui';
 
 /**
  * Live-extraction status for this case's Decision Map, independent of the
@@ -45,6 +46,21 @@ const PROVENANCE_COPY: Record<FactOrigin, string> = {
   'user-corrected': 'User corrected',
 };
 
+/**
+ * Non-color cue per provenance state, so the three states differ by shape and
+ * label as well as tone (never color alone).
+ */
+const PROVENANCE_TONE: Record<FactOrigin, 'neutral' | 'info'> = {
+  model: 'neutral',
+  'user-confirmed': 'info',
+  'user-corrected': 'info',
+};
+const PROVENANCE_GLYPH: Record<FactOrigin, string> = {
+  model: '?',
+  'user-confirmed': '\u2713',
+  'user-corrected': '\u270E',
+};
+
 export interface DecisionMapProps {
   status?: DecisionMapStatus;
   /**
@@ -83,23 +99,26 @@ export function DecisionMap({
 }: DecisionMapProps): React.JSX.Element {
   return (
     <section aria-label="Decision Map">
-      <h2>Decision Map</h2>
-      <p role="status">{STATUS_COPY[status]}</p>
-      <p>Source IDs and corrections travel with the case.</p>
+      <Card title="Decision Map">
+        <p role="status" className="text-sm font-medium">
+          {STATUS_COPY[status]}
+        </p>
+        <p className="text-sm text-text-muted">Source IDs and corrections travel with the case.</p>
 
-      <ol aria-label="Case facts">
-        {facts.map((fact) => (
-          <li key={fact.field}>
-            <FactCard
-              fact={fact}
-              sourceRetained={sourceRetained}
-              onViewSource={onViewSource}
-              onCorrect={onCorrect}
-              onConfirm={onConfirm}
-            />
-          </li>
-        ))}
-      </ol>
+        <ol aria-label="Case facts" className="flex flex-col gap-space-3">
+          {facts.map((fact) => (
+            <li key={fact.field}>
+              <FactCard
+                fact={fact}
+                sourceRetained={sourceRetained}
+                onViewSource={onViewSource}
+                onCorrect={onCorrect}
+                onConfirm={onConfirm}
+              />
+            </li>
+          ))}
+        </ol>
+      </Card>
     </section>
   );
 }
@@ -128,36 +147,52 @@ function FactCard({ fact, sourceRetained, onViewSource, onCorrect, onConfirm }: 
   }
 
   return (
-    <div>
-      <h3>{label}</h3>
-      <p>{PROVENANCE_COPY[fact.origin]}</p>
-      <p>Not independently verified.</p>
+    <div className="flex flex-col gap-space-2 rounded-md border border-border bg-surface-sunken p-space-3">
+      <h3 className="text-base font-semibold">{label}</h3>
+      <p>
+        <Badge tone={PROVENANCE_TONE[fact.origin]}>
+          <span aria-hidden="true" className="mr-space-1">
+            {PROVENANCE_GLYPH[fact.origin]}
+          </span>
+          {PROVENANCE_COPY[fact.origin]}
+        </Badge>
+      </p>
+      <p className="text-sm text-text-muted">Not independently verified.</p>
       <p>{isUnknown ? 'Unknown' : fact.value}</p>
-      <p>Certainty: {fact.uncertainty}</p>
+      <p className="text-sm text-text-muted">Certainty: {fact.uncertainty}</p>
 
-      {hasSource ? (
-        sourceRetained ? (
-          <button type="button" onClick={() => onViewSource?.(fact.field, fact.sourceSegmentIds)}>
-            View source
-          </button>
-        ) : (
-          <p>Source not retained</p>
-        )
-      ) : null}
+      <ActionBar>
+        {hasSource ? (
+          sourceRetained ? (
+            <Button variant="secondary" size="sm" onClick={() => onViewSource?.(fact.field, fact.sourceSegmentIds)}>
+              View source
+            </Button>
+          ) : (
+            <Badge tone="neutral">Source not retained</Badge>
+          )
+        ) : null}
 
-      {fact.origin === 'model' && !isUnknown && (
-        <button type="button" onClick={() => onConfirm?.(fact.field)}>
-          Confirm {label.toLowerCase()}
-        </button>
-      )}
+        {fact.origin === 'model' && !isUnknown && (
+          <Button variant="primary" size="sm" onClick={() => onConfirm?.(fact.field)}>
+            Confirm {label.toLowerCase()}
+          </Button>
+        )}
+      </ActionBar>
 
-      <div>
-        <label htmlFor={correctionInputId}>Correct {label.toLowerCase()}</label>
-        <input id={correctionInputId} type="text" value={draft} onChange={(event) => setDraft(event.target.value)} />
-        <button type="button" onClick={submitCorrection}>
+      <Field label={`Correct ${label.toLowerCase()}`} htmlFor={correctionInputId}>
+        <input
+          id={correctionInputId}
+          type="text"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          className="rounded-md border border-border bg-surface-raised px-space-3 py-space-2"
+        />
+      </Field>
+      <ActionBar>
+        <Button variant="secondary" size="sm" onClick={submitCorrection}>
           Correct
-        </button>
-      </div>
+        </Button>
+      </ActionBar>
     </div>
   );
 }

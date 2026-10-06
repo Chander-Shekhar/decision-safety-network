@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Phase } from '../../../packages/contracts/src/case';
 import type { PaymentReason, PaymentState } from '../../../packages/contracts/src/payment';
+import { ActionBar, Badge, Button, Card } from './ui';
 
 /** ≤3 reasons shown (PRD C6) - never a 4th, even if the projection carries more. */
 const MAX_VISIBLE_REASONS = 3;
@@ -67,79 +68,89 @@ export function ActionConsole({
 
   return (
     <section aria-label="Action console">
-      <p>SIMULATED PAYMENT</p>
-      <h2>Before you enter an OTP</h2>
-      <p>Nothing here moves real money. Every action below changes only this simulated case.</p>
+      <Card title="Before you enter an OTP">
+        <p>
+          <Badge tone="simulated">SIMULATED PAYMENT</Badge>
+        </p>
+        <p className="text-sm text-text-muted">Nothing here moves real money. Every action below changes only this simulated case.</p>
 
-      {resolved ? (
-        <div role="status">
-          {paymentState === 'cancelled' ? (
-            <>
-              <h3>Simulated transfer cancelled</h3>
-              <p>Cancelled, not just hidden. The simulated transfer will not proceed.</p>
-            </>
-          ) : (
-            <>
-              <h3>Simulated transfer continued</h3>
-              <p>You chose to continue the simulated transfer after acknowledging the request remains unverified.</p>
-            </>
-          )}
-        </div>
-      ) : (
-        <>
-          <section aria-label="Why slow down">
-            <h3>Why slow down?</h3>
-            <ul>
-              {reasons.slice(0, MAX_VISIBLE_REASONS).map((reason) => (
-                <li key={reason.code}>{reason.text}</li>
-              ))}
-            </ul>
-          </section>
-
-          {hasOpenPayment && (
-            <button type="button" onClick={() => onPause?.()}>
-              Pause simulated transfer
-            </button>
-          )}
-          {hasOpenPayment && (
-            <button type="button" onClick={() => onCancel?.()}>
-              Cancel simulated transfer
-            </button>
-          )}
-
-          <button type="button" onClick={() => onVerify?.()}>
-            Verify officially
-          </button>
-
-          <button type="button" onClick={() => onAskAlly?.()}>
-            Ask my ally
-          </button>
-          <p>Opens a preview to share this case - nothing is sent yet.</p>
-
-          {hasOpenPayment &&
-            (ackGated ? (
-              <div>
-                {aiCheckDegraded && (
-                  <p>
-                    The safety check could not be completed right now. The simulated transfer stays as it is until you choose an
-                    action, and continuing still requires your acknowledgment.
-                  </p>
-                )}
-                <label>
-                  <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
-                  I understand the caller&apos;s request remains unverified, and I choose to continue the simulated transfer.
-                </label>
-                <button type="button" disabled={!acknowledged} onClick={() => onContinue?.()}>
-                  Confirm Continue
-                </button>
-              </div>
+        {resolved ? (
+          <div role="status" className="rounded-md border border-border bg-surface-sunken p-space-3">
+            {paymentState === 'cancelled' ? (
+              <>
+                <h3 className="font-semibold">Simulated transfer cancelled</h3>
+                <p>Cancelled, not just hidden. The simulated transfer will not proceed.</p>
+              </>
             ) : (
-              <button type="button" onClick={() => onContinue?.()}>
-                Continue the simulated transfer
-              </button>
-            ))}
-        </>
-      )}
+              <>
+                <h3 className="font-semibold">Simulated transfer continued</h3>
+                <p>You chose to continue the simulated transfer after acknowledging the request remains unverified.</p>
+              </>
+            )}
+          </div>
+        ) : (
+          <>
+            <section aria-label="Why slow down">
+              <h3 className="font-semibold">Why slow down?</h3>
+              <ul className="list-disc pl-space-4">
+                {reasons.slice(0, MAX_VISIBLE_REASONS).map((reason) => (
+                  <li key={reason.code}>{reason.text}</li>
+                ))}
+              </ul>
+            </section>
+
+            <ActionBar>
+              {hasOpenPayment && (
+                <Button variant="pause" onClick={() => onPause?.()}>
+                  Pause simulated transfer
+                </Button>
+              )}
+              {hasOpenPayment && (
+                <Button variant="cancel" onClick={() => onCancel?.()}>
+                  Cancel simulated transfer
+                </Button>
+              )}
+              <Button variant="secondary" onClick={() => onVerify?.()}>
+                Verify officially
+              </Button>
+            </ActionBar>
+
+            <ActionBar>
+              <Button variant="secondary" onClick={() => onAskAlly?.()}>
+                Ask my ally
+              </Button>
+            </ActionBar>
+            <p className="text-sm text-text-muted">Opens a preview to share this case - nothing is sent yet.</p>
+
+            {hasOpenPayment &&
+              (ackGated ? (
+                <div className="flex flex-col gap-space-2 rounded-md border border-border bg-surface-sunken p-space-3">
+                  {aiCheckDegraded && (
+                    <p>
+                      The safety check could not be completed right now. The simulated transfer stays as it is until you choose an
+                      action, and continuing still requires your acknowledgment.
+                    </p>
+                  )}
+                  <label className="flex items-start gap-space-2">
+                    <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
+                    I understand the caller&apos;s request remains unverified, and I choose to continue the simulated transfer.
+                  </label>
+                  <ActionBar>
+                    <Button variant="secondary" disabled={!acknowledged} onClick={() => onContinue?.()}>
+                      Confirm Continue
+                    </Button>
+                  </ActionBar>
+                </div>
+              ) : (
+                <ActionBar>
+                  <Button variant="secondary" onClick={() => onContinue?.()}>
+                    Continue the simulated transfer
+                  </Button>
+                </ActionBar>
+              ))}
+          </>
+        )}
+      </Card>
     </section>
   );
 }
