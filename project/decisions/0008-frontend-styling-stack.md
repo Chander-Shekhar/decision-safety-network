@@ -28,8 +28,10 @@ labelled.
   properties on `:root` (neutral ramp, `--color-primary`, `--color-pause`
   (warm amber, not red), `--color-safe`, `--color-info`, `--color-simulated`,
   spacing, radii, shadows). `tailwind.config.js` maps theme keys to these
-  variables. Note that `theme.extend.spacing` overrides Tailwind's numeric keys
-  1-6, 8 and 10 with the token scale.
+  variables. Token spacing is namespaced (`p-space-4`, `gap-space-6`) so
+  Tailwind's default numeric scale (`p-4`, `w-8`, ...) is left intact.
+- `index.css` also sets a base `body` rule (surface background, text color,
+  sans font).
 - System font stack only; no web-font dependency or network call.
 - Color never carries state alone; components add a label or shape.
 
