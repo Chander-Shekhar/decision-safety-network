@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AllyPacket, AllyPacketContent } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
@@ -9,10 +9,12 @@ import { AllySharePreview } from './AllySharePreview';
 import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken } from './api-client';
 import { DecisionMap } from './DecisionMap';
 import { EvidenceScreen } from './EvidenceScreen';
+import { canVerify, initialStep, journeySteps, STEPS, type JourneyState, type Step } from './journey';
 import { PaymentPanel } from './PaymentPanel';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
 import { RecoveryScreen } from './RecoveryScreen';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
+import { Button, Callout, Card, Dialog, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /**
@@ -25,10 +27,6 @@ export interface AuthProvider {
   signInSynthetic(role: 'owner' | 'ally'): Promise<void>;
   getIdToken: GetIdToken;
 }
-
-/** Journey order follows the wireframe storyboard frames 01-06. */
-const STEPS = ['Plan', 'Session', 'Decision', 'Verify', 'Ally', 'Recovery', 'Evidence'] as const;
-type Step = (typeof STEPS)[number];
 
 type CaseView = Partial<PaymentProjection> & {
   id: string;
@@ -62,6 +60,8 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [allyPacket, setAllyPacket] = useState<AllyPacket | null>(null);
   const [recovery, setRecovery] = useState<RecoveryState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [planSavedFlag, setPlanSavedFlag] = useState(false);
+  const stepInitialised = useRef(false);
 
   const run = useCallback(async (work: () => Promise<void>) => {
     setError(null);
@@ -85,10 +85,39 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   );
   const owner = role === 'owner';
 
+  const journeyState: JourneyState = {
+    role,
+    planSaved: planSavedFlag || !!caseView,
+    caseId,
+    phase: caseView?.phase,
+    factsExtracted: facts.length > 0,
+    paymentExists: !!caseView?.paymentDraft,
+    hasVerification: !!verifyResult,
+    recoveryEntered: !!recovery || caseView?.phase === 'Recover',
+    hasConfirmedFacts: facts.some((f) => !!caseView?.confirmed?.[f.field]),
+  };
+  const verifyGate = canVerify(journeyState);
+  // The ally still needs the Plan step to accept an invitation, so keep it reachable for that role.
+  const railSteps = journeySteps(journeyState).map((s) => (role === 'ally' && s.step === 'Plan' ? { step: s.step, available: true } : s));
+
+  // Deep-link / reload: load the case once the owner is signed in, so gating sees the real phase.
+  useEffect(() => {
+    if (owner && caseId) void run(() => refreshCase(caseId));
+  }, [owner, caseId, run, refreshCase]);
+
+  // Pick the starting step once, after the case (if any) has loaded. Pure client state; no API call.
+  useEffect(() => {
+    if (!role || stepInitialised.current) return;
+    if (role === 'owner' && caseId && !caseView) return;
+    stepInitialised.current = true;
+    setStep(initialStep(journeyState));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, caseId, caseView]);
+
   return (
-    <div>
-      <header role="banner">
-        <h1>Decision Safety Network</h1>
+    <div className="min-h-screen bg-surface text-text">
+      <header role="banner" className="border-b border-border bg-surface-raised px-space-4 py-space-4">
+        <h1 className="text-xl font-semibold">Decision Safety Network</h1>
         <p>
           <strong>Simulated</strong> &mdash; Demo Bank, the transfer, and local acknowledgements are simulated and
           fictional. Synthetic data only. Controlled transcript input.
@@ -98,33 +127,31 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
           official routes; this app does not file reports for you.
         </p>
         {!role && (
-          <p>
-            <button type="button" onClick={() => run(async () => { await auth.signInSynthetic('owner'); setRole('owner'); })}>
+          <p className="flex gap-space-2">
+            <Button onClick={() => run(async () => { await auth.signInSynthetic('owner'); setRole('owner'); })}>
               Create synthetic user
-            </button>{' '}
-            <button type="button" onClick={() => run(async () => { await auth.signInSynthetic('ally'); setRole('ally'); })}>
+            </Button>
+            <Button variant="secondary" onClick={() => run(async () => { await auth.signInSynthetic('ally'); setRole('ally'); })}>
               Create synthetic ally
-            </button>
+            </Button>
           </p>
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <Callout kind="error" role="alert">
+            {error}
+          </Callout>
+        )}
       </header>
 
-      {role && (
-        <nav aria-label="Journey">
-          <ol>
-            {STEPS.map((name) => (
-              <li key={name}>
-                <button type="button" aria-current={name === step ? 'step' : undefined} onClick={() => setStep(name)}>
-                  {name}
-                </button>
-              </li>
-            ))}
-          </ol>
-        </nav>
-      )}
+      <div className="mx-auto flex max-w-5xl flex-col gap-space-4 p-space-4 md:flex-row">
+        {role && (
+          <aside className="md:w-56">
+            <StepRail steps={railSteps} current={step} onSelect={setStep} />
+          </aside>
+        )}
 
-      <main>
+      <main className="flex-1">
+        <Card>
         {role && step === 'Plan' && (
           <PlanScreen
             role={role}
@@ -140,6 +167,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             onSavePlan={({ allyPairingCode, ...plan }) =>
               run(async () => {
                 await api.command('PUT', 'plan', plan);
+                setPlanSavedFlag(true);
                 if (allyPairingCode) {
                   const invitation = await api.command<{ allyUid: string }>('POST', 'ally-invitations', { pairingCode: allyPairingCode });
                   setAllyUid(invitation.allyUid);
@@ -267,6 +295,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
         {owner && caseId && step === 'Verify' && (
           <>
+            {!verifyGate.allowed && <Callout kind="info">{verifyGate.reason}</Callout>}
             {!registry && (
               <button
                 type="button"
@@ -281,6 +310,11 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 result={verifyResult}
                 onVerify={() =>
                   run(async () => {
+                    // Client-side gate: Observe has no Verify transition, so never issue the call.
+                    if (!verifyGate.allowed) {
+                      setError(verifyGate.reason ?? 'Verification is not available yet.');
+                      return;
+                    }
                     setVerifyResult(await api.command<VerifyPanelResult>('POST', `cases/${caseId}/verify`, {}));
                     await refreshCase(caseId);
                   })
@@ -309,24 +343,26 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             >
               Preview what my ally would see
             </button>
-            {preview && (
-              <AllySharePreview
-                allyName="your Safety Ally"
-                packet={preview.packet}
-                onNotNow={() => setPreview(null)}
-                onShare={() =>
-                  run(async () => {
-                    // The ally's uid comes from the invitation response; the owner UI never types it.
-                    await api.command('POST', `cases/${caseId}/ally-grant`, {
-                      allyUid: allyUid ?? '',
-                      selectedEvidenceIds: preview.selectedEvidenceIds,
-                      expectedCaseVersion: preview.caseVersion,
-                      expectedPacketHash: preview.packetHash,
-                    });
-                  })
-                }
-              />
-            )}
+            <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)} title="What your ally would see">
+              {preview && (
+                <AllySharePreview
+                  allyName="your Safety Ally"
+                  packet={preview.packet}
+                  onNotNow={() => setPreview(null)}
+                  onShare={() =>
+                    run(async () => {
+                      // The ally's uid comes from the invitation response; the owner UI never types it.
+                      await api.command('POST', `cases/${caseId}/ally-grant`, {
+                        allyUid: allyUid ?? '',
+                        selectedEvidenceIds: preview.selectedEvidenceIds,
+                        expectedCaseVersion: preview.caseVersion,
+                        expectedPacketHash: preview.packetHash,
+                      });
+                    })
+                  }
+                />
+              )}
+            </Dialog>
           </>
         )}
 
@@ -416,7 +452,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             }
           />
         )}
+        </Card>
       </main>
+      </div>
     </div>
   );
 
