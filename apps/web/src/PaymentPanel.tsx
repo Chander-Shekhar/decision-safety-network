@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PaymentState } from '../../../packages/contracts/src/payment';
+import { ActionBar, Badge, Button, Card } from './ui';
 
 /** A minimal, already-trusted view of the case's open draft, for display only. */
 export interface PaymentPanelDraft {
@@ -84,50 +85,57 @@ export function PaymentPanel({ draft, paymentState, segmentIds = [], onSubmit, o
 
   return (
     <section aria-label="Transfer draft">
-      <h2>Transfer draft</h2>
-      <p>SIMULATED</p>
-      <p>No money moves in this prototype.</p>
+      <Card title="Transfer draft">
+        <p>
+          <Badge tone="simulated">SIMULATED</Badge>
+        </p>
+        <p className="text-sm text-text-muted">No money moves in this prototype.</p>
 
-      {draft ? (
-        <dl>
-          <dt>Beneficiary</dt>
-          <dd>
-            {draft.beneficiaryId} &middot; {draft.newPayee ? 'new payee' : 'known payee'}
-          </dd>
-          <dt>Amount</dt>
-          <dd>₹ {formatAmount(draft.amountMinor)}</dd>
-        </dl>
-      ) : (
-        <p>No transfer drafted yet.</p>
-      )}
+        {draft ? (
+          <dl className="grid grid-cols-[auto_1fr] gap-x-space-4 gap-y-space-1">
+            <dt className="text-sm text-text-muted">Beneficiary</dt>
+            <dd>
+              {draft.beneficiaryId} &middot; {draft.newPayee ? 'new payee' : 'known payee'}
+            </dd>
+            <dt className="text-sm text-text-muted">Amount</dt>
+            <dd>₹ {formatAmount(draft.amountMinor)}</dd>
+          </dl>
+        ) : (
+          <p>No transfer drafted yet.</p>
+        )}
 
-      {paymentState === 'pending' && recheckStatus === 'rechecking' && (
-        <div role="status">
-          <h3>Rechecking your updated transfer</h3>
-          <p>Your simulated transfer is still pending. We do not yet have a current, source-backed link to the caller&apos;s request.</p>
-        </div>
-      )}
-      {paymentState === 'pending' && recheckStatus === 'degraded' && (
-        <div role="status">
-          <h3>We cannot complete the AI check now</h3>
-          <p>We will not guess whether this transfer is safe. It remains pending until you choose an action.</p>
-        </div>
-      )}
-      {paymentState !== 'pending' && (
-        <div>
-          <p>Still checking the connection</p>
-          <p>No enhanced Pause from words alone.</p>
-        </div>
-      )}
+        {paymentState === 'pending' && recheckStatus === 'rechecking' && (
+          <div role="status" className="rounded-md border border-info bg-info-soft p-space-3">
+            <h3 className="font-semibold">Rechecking your updated transfer</h3>
+            <p>Your simulated transfer is still pending. We do not yet have a current, source-backed link to the caller&apos;s request.</p>
+          </div>
+        )}
+        {paymentState === 'pending' && recheckStatus === 'degraded' && (
+          <div role="status" className="rounded-md border border-border bg-surface-sunken p-space-3">
+            <h3 className="font-semibold">We cannot complete the AI check now</h3>
+            <p>We will not guess whether this transfer is safe. It remains pending until you choose an action.</p>
+          </div>
+        )}
+        {paymentState !== 'pending' && (
+          <div className="rounded-md border border-border bg-surface-sunken p-space-3">
+            <p>Still checking the connection</p>
+            <p>No enhanced Pause from words alone.</p>
+          </div>
+        )}
 
-      <button type="button" onClick={() => onSubmit?.()} disabled={!canSubmit}>
-        Submit intent
-      </button>
-      <p>This begins a pending human decision, not an authorized payment or real hold.</p>
+        <ActionBar>
+          <Button variant="primary" onClick={() => onSubmit?.()} disabled={!canSubmit}>
+            Submit intent
+          </Button>
+        </ActionBar>
+        <p className="text-sm text-text-muted">This begins a pending human decision, not an authorized payment or real hold.</p>
 
-      <button type="button" onClick={() => onAlreadyPaid?.()}>
-        I already paid &rarr; recovery in this case
-      </button>
+        <ActionBar>
+          <Button variant="ghost" onClick={() => onAlreadyPaid?.()}>
+            I already paid &rarr; recovery in this case
+          </Button>
+        </ActionBar>
+      </Card>
     </section>
   );
 }

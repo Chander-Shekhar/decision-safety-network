@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { Badge, Button, Card } from './ui';
 
 /**
  * Live-processing status for the controlled session. `processing` is the
@@ -43,32 +44,33 @@ export function SessionScreen({ status, segments, onStopProcessing }: SessionScr
 
   return (
     <section aria-label="Live session">
-      <h2>Live session</h2>
-      <p>Controlled transcript &middot; segments arrive one at a time</p>
-      <p id={statusId} role="status">
-        {STATUS_COPY[status]}
-      </p>
+      <Card title="Live session">
+        <p className="text-sm text-text-muted">Controlled transcript &middot; segments arrive one at a time</p>
+        <p id={statusId} role="status" className="text-sm font-medium">
+          <Badge tone={status === 'processing' ? 'info' : 'neutral'}>{STATUS_COPY[status]}</Badge>
+        </p>
 
-      <ol aria-label="Controlled transcript segments">
-        {segments.map((segment) => (
-          <li key={segment.id}>
-            <p>
-              {segment.speaker} &middot; segment {segment.order}
-            </p>
-            <p>{segment.text}</p>
-          </li>
-        ))}
-      </ol>
-      <p>Transcript text is untrusted input.</p>
+        <ol aria-label="Controlled transcript segments" className="flex flex-col gap-space-3">
+          {segments.map((segment) => (
+            <li key={segment.id} className="rounded-md border border-border bg-surface-sunken p-space-3">
+              <p className="text-xs font-medium text-text-muted">
+                {segment.speaker} &middot; segment {segment.order}
+              </p>
+              <p>{segment.text}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="text-sm text-text-muted">Transcript text is untrusted input.</p>
 
-      <div>
-        <h3>Session controls</h3>
-        <button type="button" onClick={() => onStopProcessing?.()}>
-          Stop processing
-        </button>
-      </div>
+        <div className="flex flex-col gap-space-2">
+          <h3 className="text-sm font-semibold">Session controls</h3>
+          <Button variant="secondary" onClick={() => onStopProcessing?.()}>
+            Stop processing
+          </Button>
+        </div>
 
-      <p>No microphone or always-on capture.</p>
+        <p className="text-sm text-text-muted">No microphone or always-on capture.</p>
+      </Card>
     </section>
   );
 }

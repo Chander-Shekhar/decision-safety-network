@@ -1,0 +1,56 @@
+/*
+ * Design tokens (decision 0008). Single source of truth; tailwind.config.js
+ * maps theme keys onto these variables. Contrast tuning is deferred to DSN-019.
+ * State must never rely on color alone — components add a label or shape.
+ */
+:root {
+  /* Neutral surface / text ramp */
+  --color-surface: #f8f9fb;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #eef0f4;
+  --color-border: #d5d9e0;
+  --color-text: #1c2230;
+  --color-text-muted: #525c70;
+
+  /* One calm primary */
+  --color-primary: #2f5d8a;
+  --color-primary-contrast: #ffffff;
+
+  /* Safety pause: prominent warm amber tone, deliberately not red */
+  --color-pause: #b45309;
+  --color-pause-soft: #fff4e0;
+
+  --color-safe: #1f7a4d;
+  --color-safe-soft: #e5f4ec;
+
+  --color-info: #3b63b8;
+  --color-info-soft: #e8eefb;
+
+  /* Persistent, muted "simulated" badge */
+  --color-simulated: #6b5b8a;
+  --color-simulated-soft: #efeaf6;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+
+  /* Radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.875rem;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgb(28 34 48 / 0.08);
+  --shadow-md: 0 4px 12px rgb(28 34 48 / 0.12);
+
+  /* System font stack only; no web fonts */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

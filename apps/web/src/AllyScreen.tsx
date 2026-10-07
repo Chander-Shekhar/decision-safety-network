@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AllyPacket } from '../../../packages/contracts/src/ally';
+import { ActionBar, Badge, Button, Callout, Card, Field } from './ui';
 
 export interface AllyScreenProps {
   /** The frozen packet from `GET /api/v1/ally/cases/:id`; the only case data this screen ever receives. */
@@ -25,16 +26,22 @@ export function AllyScreen({ packet, accessState = 'active', onContactRequest, o
   if (accessState === 'stale') {
     return (
       <section aria-label="Safety Ally review">
-        <h2>Safety Ally review</h2>
-        <p role="status">This case changed after it was shared, so it is hidden. Ask the owner to preview and share it again.</p>
+        <Card title="Safety Ally review">
+          <Callout kind="caution" role="status">
+            This case changed after it was shared, so it is hidden. Ask the owner to preview and share it again.
+          </Callout>
+        </Card>
       </section>
     );
   }
   if (accessState === 'revoked') {
     return (
       <section aria-label="Safety Ally review">
-        <h2>Safety Ally review</h2>
-        <p role="status">You no longer have access to this case.</p>
+        <Card title="Safety Ally review">
+          <Callout kind="info" role="status">
+            You no longer have access to this case.
+          </Callout>
+        </Card>
       </section>
     );
   }
@@ -50,47 +57,58 @@ export function AllyScreen({ packet, accessState = 'active', onContactRequest, o
 
   return (
     <section aria-label="Safety Ally review">
-      <h2>Safety Ally review</h2>
-      <p>SIMULATED</p>
-      <p>Your review is requested. Separate sign-in &middot; this case&apos;s grant only.</p>
+      <Card title="Safety Ally review">
+        <p>
+          <Badge tone="simulated">SIMULATED</Badge>
+        </p>
+        <p>Your review is requested. Separate sign-in &middot; this case&apos;s grant only.</p>
 
-      <h3>Minimum case packet</h3>
-      <dl>
-        <dt>Caller claimed</dt>
-        <dd>{packet.claim}</dd>
-        <dt>Proposed action</dt>
-        <dd>{packet.proposedAction}</dd>
-        <dt>Amount</dt>
-        <dd>{packet.amountMinor === null ? 'No amount proposed' : `₹ ${formatAmount(packet.amountMinor)}`}</dd>
-        <dt>Verification gap</dt>
-        <dd>{packet.verificationGap}</dd>
-      </dl>
-      <h4>Selected evidence</h4>
-      <ul>
-        {packet.selectedEvidence.map((item) => (
-          <li key={item.id}>
-            <blockquote>{item.excerpt}</blockquote>
-          </li>
-        ))}
-      </ul>
-      <p>No full transcript or unselected evidence is shared.</p>
+        <h3 className="text-base font-semibold">Minimum case packet</h3>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-space-4 gap-y-space-1">
+          <dt className="text-sm text-text-muted">Caller claimed</dt>
+          <dd>{packet.claim}</dd>
+          <dt className="text-sm text-text-muted">Proposed action</dt>
+          <dd>{packet.proposedAction}</dd>
+          <dt className="text-sm text-text-muted">Amount</dt>
+          <dd>{packet.amountMinor === null ? 'No amount proposed' : `₹ ${formatAmount(packet.amountMinor)}`}</dd>
+          <dt className="text-sm text-text-muted">Verification gap</dt>
+          <dd>{packet.verificationGap}</dd>
+        </dl>
+        <h4 className="text-sm font-semibold">Selected evidence</h4>
+        <ul className="flex flex-col gap-space-2">
+          {packet.selectedEvidence.map((item) => (
+            <li key={item.id}>
+              <blockquote className="rounded-md border-l-4 border-border bg-surface-sunken p-space-3">{item.excerpt}</blockquote>
+            </li>
+          ))}
+        </ul>
+        <p className="text-sm text-text-muted">No full transcript or unselected evidence is shared.</p>
 
-      <h3>Your response</h3>
-      <button type="button" onClick={() => onContactRequest?.()}>
-        Request contact
-      </button>
-      <button type="button" onClick={() => onPauseRecommendation?.()}>
-        Recommend pause
-      </button>
-      <div>
-        <label htmlFor="ally-checked-source">Independent source you checked</label>
-        <input id="ally-checked-source" type="text" value={source} maxLength={500} onChange={(event) => setSource(event.target.value)} />
-        <button type="button" onClick={submitSource}>
-          Record source
-        </button>
-      </div>
-      <p>You cannot control funds or certify the caller.</p>
-      <p>The owner can revoke this case grant at any time.</p>
+        <h3 className="text-base font-semibold">Your response</h3>
+        <ActionBar>
+          <Button onClick={() => onContactRequest?.()}>Request contact</Button>
+          <Button variant="pause" onClick={() => onPauseRecommendation?.()}>
+            Recommend pause
+          </Button>
+        </ActionBar>
+        <Field label="Independent source you checked" htmlFor="ally-checked-source">
+          <input
+            id="ally-checked-source"
+            type="text"
+            value={source}
+            maxLength={500}
+            onChange={(event) => setSource(event.target.value)}
+            className="rounded-md border border-border bg-surface-raised px-space-3 py-space-2 text-text"
+          />
+        </Field>
+        <ActionBar>
+          <Button variant="secondary" onClick={submitSource}>
+            Record source
+          </Button>
+        </ActionBar>
+        <p className="text-sm text-text-muted">You cannot control funds or certify the caller.</p>
+        <p className="text-sm text-text-muted">The owner can revoke this case grant at any time.</p>
+      </Card>
     </section>
   );
 }

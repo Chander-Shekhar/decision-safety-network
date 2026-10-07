@@ -1,4 +1,5 @@
 import type { AllyPacketContent } from '../../../packages/contracts/src/ally';
+import { ActionBar, Badge, Button, Callout, Card } from './ui';
 
 export interface AllySharePreviewProps {
   /** Display name of the accepted ally the owner would share with. */
@@ -24,49 +25,56 @@ const formatAmount = (amountMinor: number): string => (amountMinor / 100).toLoca
 export function AllySharePreview({ allyName, packet, stale = false, onShare, onNotNow, onRefresh }: AllySharePreviewProps): React.JSX.Element {
   return (
     <section aria-label="Ask my ally preview">
-      <h2>Share this case with {allyName}?</h2>
-      <p>SIMULATED</p>
-      <p>{allyName} accepted your invitation, but {allyName} cannot see this case yet.</p>
+      <Card title={<>Share this case with {allyName}?</>}>
+        <p>
+          <Badge tone="simulated">SIMULATED</Badge>
+        </p>
+        <p>{allyName} accepted your invitation, but {allyName} cannot see this case yet.</p>
 
-      <h3>Exact packet {allyName} will see</h3>
-      <dl>
-        <dt>Caller claimed</dt>
-        <dd>{packet.claim}</dd>
-        <dt>Proposed action</dt>
-        <dd>{packet.proposedAction}</dd>
-        <dt>Amount</dt>
-        <dd>{packet.amountMinor === null ? 'No amount proposed' : `₹ ${formatAmount(packet.amountMinor)}`}</dd>
-        <dt>Verification gap</dt>
-        <dd>{packet.verificationGap}</dd>
-      </dl>
+        <h3 className="text-base font-semibold">Exact packet {allyName} will see</h3>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-space-4 gap-y-space-1">
+          <dt className="text-sm text-text-muted">Caller claimed</dt>
+          <dd>{packet.claim}</dd>
+          <dt className="text-sm text-text-muted">Proposed action</dt>
+          <dd>{packet.proposedAction}</dd>
+          <dt className="text-sm text-text-muted">Amount</dt>
+          <dd>{packet.amountMinor === null ? 'No amount proposed' : `₹ ${formatAmount(packet.amountMinor)}`}</dd>
+          <dt className="text-sm text-text-muted">Verification gap</dt>
+          <dd>{packet.verificationGap}</dd>
+        </dl>
 
-      <h4>Selected evidence</h4>
-      <ul>
-        {packet.selectedEvidence.map((item) => (
-          <li key={item.id}>
-            <blockquote>{item.excerpt}</blockquote>
-          </li>
-        ))}
-      </ul>
-      <p>Full transcript and other evidence are not included.</p>
+        <h4 className="text-sm font-semibold">Selected evidence</h4>
+        <ul className="flex flex-col gap-space-2">
+          {packet.selectedEvidence.map((item) => (
+            <li key={item.id}>
+              <blockquote className="rounded-md border-l-4 border-border bg-surface-sunken p-space-3">{item.excerpt}</blockquote>
+            </li>
+          ))}
+        </ul>
+        <p className="text-sm text-text-muted">Full transcript and other evidence are not included.</p>
 
-      {stale && (
-        <div role="alert">
-          <p>This preview is out of date because the case changed. Refresh it to see the current packet.</p>
-          <button type="button" onClick={() => onRefresh?.()}>
-            Refresh preview
-          </button>
-        </div>
-      )}
+        {stale && (
+          <Callout kind="caution" role="alert">
+            <p>This preview is out of date because the case changed. Refresh it to see the current packet.</p>
+            <ActionBar>
+              <Button variant="secondary" onClick={() => onRefresh?.()}>
+                Refresh preview
+              </Button>
+            </ActionBar>
+          </Callout>
+        )}
 
-      <button type="button" disabled={stale} onClick={() => onShare?.()}>
-        Share this case with {allyName}
-      </button>
-      <button type="button" onClick={() => onNotNow?.()}>
-        Not now
-      </button>
-      <p>A case-specific grant is created only after you share.</p>
-      <p>Revoke this grant at any time; {allyName} loses access on the next request.</p>
+        <ActionBar>
+          <Button disabled={stale} onClick={() => onShare?.()}>
+            Share this case with {allyName}
+          </Button>
+          <Button variant="secondary" onClick={() => onNotNow?.()}>
+            Not now
+          </Button>
+        </ActionBar>
+        <p className="text-sm text-text-muted">A case-specific grant is created only after you share.</p>
+        <p className="text-sm text-text-muted">Revoke this grant at any time; {allyName} loses access on the next request.</p>
+      </Card>
     </section>
   );
 }

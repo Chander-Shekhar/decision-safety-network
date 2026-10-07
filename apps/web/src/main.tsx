@@ -1,3 +1,4 @@
+import './index.css';
 import { initializeApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, signInAnonymously } from 'firebase/auth';
 import { createRoot } from 'react-dom/client';
