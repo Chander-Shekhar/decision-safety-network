@@ -308,6 +308,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               <VerifyPanel
                 registry={registry}
                 result={verifyResult}
+                disabled={!verifyGate.allowed}
                 onVerify={() =>
                   run(async () => {
                     // Client-side gate: Observe has no Verify transition, so never issue the call.

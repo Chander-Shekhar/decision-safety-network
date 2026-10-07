@@ -56,6 +56,20 @@ describe('VerifyPanel', () => {
     expect(onVerify).toHaveBeenCalled();
   });
 
+  it('disables the verify trigger when the phase gate blocks verification (no silent click)', () => {
+    render(<VerifyPanel registry={registry} disabled />);
+    expect(screen.getByRole('button', { name: /verify with demo bank/i })).toBeDisabled();
+  });
+
+  it('fires no verification when disabled, so the blocked Observe phase never reaches the POST path', async () => {
+    const onVerify = vi.fn();
+    const user = userEvent.setup();
+    render(<VerifyPanel registry={registry} disabled onVerify={onVerify} />);
+
+    await user.click(screen.getByRole('button', { name: /verify with demo bank/i }));
+    expect(onVerify).not.toHaveBeenCalled();
+  });
+
   it('hides the verify trigger once a result is already recorded (one-shot workflow)', () => {
     render(<VerifyPanel registry={registry} result={result} />);
     expect(screen.queryByRole('button', { name: /verify with demo bank/i })).toBeNull();

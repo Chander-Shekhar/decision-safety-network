@@ -33,6 +33,13 @@ export interface VerifyPanelProps {
   registry: VerifyPanelRegistry;
   /** Absent until the one-shot `verifyWithDemoBank` workflow (DSN-010) has completed for this case. */
   result?: VerifyPanelResult;
+  /**
+   * When true, the "Verify with Demo Bank" affordance renders disabled. The owner
+   * cannot start official verification until the case has left `Observe` (the state
+   * machine has no `Observe → Verify` edge); the parent passes the phase gate here so
+   * the blocked state reads as blocked rather than silently rejecting a click.
+   */
+  disabled?: boolean;
   onVerify?: () => void;
   onCancel?: () => void;
 }
@@ -49,7 +56,7 @@ export interface VerifyPanelProps {
  * Labels the surface **Simulated** persistently, both before and after a
  * result is recorded.
  */
-export function VerifyPanel({ registry, result, onVerify, onCancel }: VerifyPanelProps): React.JSX.Element {
+export function VerifyPanel({ registry, result, disabled, onVerify, onCancel }: VerifyPanelProps): React.JSX.Element {
   return (
     <section aria-label="Demo Bank verification">
       <Card title="Demo Bank verification">
@@ -71,7 +78,9 @@ export function VerifyPanel({ registry, result, onVerify, onCancel }: VerifyPane
 
         {!result && (
           <ActionBar>
-            <Button onClick={() => onVerify?.()}>Verify with Demo Bank</Button>
+            <Button disabled={disabled} onClick={() => onVerify?.()}>
+              Verify with Demo Bank
+            </Button>
           </ActionBar>
         )}
 
