@@ -7,7 +7,7 @@
 **Date:** 28 September 2026  
 **Initial market:** India  
 **AI Builder Cup theme:** BFSI — Intelligent Risk, Fraud & Financial Experiences  
-**Initial surface:** Responsive consumer experience demonstrated through a controlled call and simulated payment journey  
+**Initial surface:** Native Android companion app hosting the responsive consumer experience, demonstrated through a controlled call, a consented on-device SMS signal, and a simulated payment journey; the responsive web surface remains for the Safety Ally and reviewers  
 **Long-term product form:** B2B2C decision-safety layer embedded with banks, payment providers, telecom operators, device makers, and safety partners, supported by a consumer companion application
 
 ---
@@ -105,7 +105,7 @@ These decisions replace the former founder-approval list and are settled for thi
 | **Institutions** | One fictional Demo Bank in a versioned mock registry and a simulated verification endpoint. Any real public helpline shown for educational context is cited but never made to return a fabricated response. |
 | **Recovery routes** | Demo Bank/provider and 1930 first; a reviewable, source-dated **NCRP field-aligned preview** follows. |
 | **Data** | Synthetic identities, conversation, account, transaction, and incident data for the public demo. |
-| **Deployment** | Functional web/mobile-responsive prototype using Gemini and Google Cloud/Firebase services. |
+| **Deployment** | Functional native Android companion app (React Native shell hosting the mobile-responsive web surface) plus the web surface for the ally and reviewers, using Gemini and Google Cloud/Firebase services. |
 
 ### What is live, controlled, simulated, and future
 
@@ -247,8 +247,8 @@ Conversation content is treated as untrusted data. It cannot issue system instru
 
 ### Prototype components
 
-1. **User experience:** responsive web/PWA surface for the Safe Session, Decision Map, action console, recovery, and evidence review.
-2. **Controlled interaction source:** incremental transcript emitter with explicit demo labeling; browser microphone/VoIP audio is stretch.
+1. **User experience:** a native Android companion app hosting the responsive web/PWA surface (Safe Session, Decision Map, action console, recovery, and evidence review); the same web surface serves the Safety Ally and reviewers.
+2. **Controlled interaction source:** incremental transcript emitter with explicit demo labeling; browser microphone/VoIP audio is stretch. The native companion also surfaces one consented, session-scoped on-device signal (an incoming SMS) correlated into the case — not always-on monitoring.
 3. **Gemini Decision Context Agent:** returns schema-constrained Safety Case updates with source-span references and uncertainty.
 4. **Safety Policy Engine:** deterministic state machine and versioned playbooks.
 5. **Payment simulator:** emits transfer intent and receives pause/cancel/defer/continue commands.
@@ -338,6 +338,7 @@ The core is Cup-ready only when:
 
 - Always-on monitoring of cellular calls, SMS, WhatsApp, screen content, or payments.
 - A claim that an ordinary Android application can capture both sides of every phone call.
+- Standalone call-audio recording by the companion app; production call capture is via OEM/dialer/carrier/partner integration, and the companion's only on-device signal is a consented, session-scoped incoming-SMS read.
 - Real bank blocking, freezing, cancellation, refund, restoration, or caller verification.
 - Direct unattended submission to banks, 1930, NCRP, Chakshu, police, telecom operators, or other authorities.
 - Publicly marking a phone number, account, or person as criminal.
@@ -760,7 +761,7 @@ The interface does not show a constantly fluctuating “scam score.” It update
 
 Every extracted claim, requested action, and tactic has a visible “That is not what happened” correction path. Corrections remain distinct from source evidence and are logged for evaluation.
 
-Future embedded versions may be triggered by a bank, wallet, default dialer, OEM, telecom provider, or device state. The PRD does not assume an ordinary third-party app can invisibly transcribe all cellular calls.
+Future embedded versions may be triggered by a bank, wallet, default dialer, OEM, telecom provider, or device state. The PRD does not assume an ordinary third-party app can invisibly transcribe all cellular calls. The near-term companion app therefore reads only a consented, session-scoped on-device signal (incoming SMS) and does not record calls.
 
 Whether a pressured user will voluntarily start Safe Session is a go/no-go assumption, not a secondary usability detail. Measure eligible-event coverage and activation. The production hypothesis should therefore migrate toward a bank new-payee trigger plus a lawful device/OEM signal rather than rely indefinitely on self-start.
 
