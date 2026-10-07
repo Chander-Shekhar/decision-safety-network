@@ -10,7 +10,7 @@
 - **Decision references:** 0001, 0007, 0008
 - **Started:** 2026-10-07
 - **Last updated:** 2026-10-07
-- **Status:** `in-progress` — implementation complete and whole-branch final review passed (ready to merge); integrator merge to local main pending.
+- **Status:** `done` — merged to local `main` via `--no-ff` (merge commit `d44f6be`); merged-result web suite 13/130 green and typecheck clean. Branch `task/DSN-018-frontend-styled-journey` deleted post-merge. Not pushed. Open founder follow-ups (non-blocking): visual walkthrough + ~440px responsive eyeball, and DSN-019 a11y.
 
 ## Outcome
 
