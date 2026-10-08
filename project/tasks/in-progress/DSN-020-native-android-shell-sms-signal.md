@@ -2,15 +2,15 @@
 
 - **Scope:** core (native surface + one on-device signal) — founder-authorized scope addition 2026-10-07
 - **Priority:** P1 (Cup-impact: live "the phone connected the dots" demo moment)
-- **Owner:** Unassigned (backlog)
-- **Branch/worktree:** TBD on claim
+- **Owner:** Integrator (Claude Code, subagent-driven execution)
+- **Branch/worktree:** `DSN-020-native-android-shell-sms-signal` in `.worktrees/DSN-020`
 - **Owned paths:** new `apps/android/**` (React Native shell + native `SmsSignalModule`); additive, feature-detected SMS listener in `apps/web/src/**`; serialized modify: root `package.json`/lockfile only if the RN track is added to the workspace; `docs/demo-runbook.md`; decision 0009
 - **Dependencies:** DSN-018 (styled web journey — reused 100% via WebView); DSN-014 (local e2e harness / hosted web surface the WebView loads)
 - **PRD references:** Initial surface (line 10), Deployment (108), Prototype components 1–2 (250–251), Explicit Cup non-goals (339–340), near-term companion note (763)
 - **Decision references:** 0009 (native Android companion shell), 0008 (styling stack), 0001 (architecture)
-- **Started:** —
-- **Last updated:** 2026-10-07
-- **Status:** `backlog` — spec approved; awaiting an implementation plan (writing-plans) and a claim.
+- **Started:** 2026-10-08
+- **Last updated:** 2026-10-08
+- **Status:** `in-progress` — plan written (`docs/superpowers/plans/2026-10-07-native-android-shell-sms-signal.md`); subagent-driven execution underway. Web half (Tasks 1–2) fully testable here; native half (Tasks 3–5) gated on DSN-021 local env (no Android SDK / RN on this machine 2026-10-08) and recorded blocked-not-inferred if unmet.
 
 ## Outcome
 
