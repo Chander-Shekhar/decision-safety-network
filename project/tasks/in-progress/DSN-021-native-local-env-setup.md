@@ -2,14 +2,14 @@
 
 - **Scope:** enabler / chore (developer environment) — not product-facing; no PRD behavior change
 - **Priority:** P1 (blocks the native build + smoke steps of DSN-020; the web half of DSN-020 does not need it)
-- **Owner:** Unassigned (backlog) — owned by whoever runs the DSN-020 native build on this machine
-- **Branch/worktree:** none required (local tooling only; no committed code beyond this record + any `apps/android/README.md` note)
+- **Owner:** Integrator (Claude Code) — running the install on this machine (2026-10-08)
+- **Branch/worktree:** none required (local tooling chore; only this record changes, serialized on `main`). Machine-specific paths stay shell-only, never committed.
 - **Owned paths:** none in product code. Documentation only. **No environment paths, SDK locations, or JDK paths are ever committed** — they are shell-only exports (hygiene rule).
 - **Dependencies:** none to write it down; DSN-020 Tasks 3–5 (native build + smoke) depend on it being satisfied
 - **Related:** DSN-020 (native companion), decision 0009, plan `docs/superpowers/plans/2026-10-07-native-android-shell-sms-signal.md`
-- **Started:** —
+- **Started:** 2026-10-08
 - **Last updated:** 2026-10-08
-- **Status:** `backlog` — environment is NOT yet set up on this machine (confirmed 2026-10-08: no Android SDK, no React Native; JDK 21 present but not on PATH in all terminals).
+- **Status:** `in-progress` — integrator installing the native toolchain on this machine (2026-10-08). Probe findings: Homebrew present; Node v24 (newer than RN's tested LTS — flagged); the only JDK found is a standalone **JDK 17** at a workplace path via a stale `JAVA_HOME` (not used/committed) — installing a clean Homebrew **openjdk@21** instead; no Android SDK / Android Studio / Watchman; arch **arm64** (Apple Silicon). Chosen compatible stack: Android Studio (latest stable, JBR 21) + openjdk@21 + Android SDK API 35 (build-tools 35, `arm64-v8a` image) with API 34 as a scaffold cushion + Watchman.
 
 ## Outcome
 
