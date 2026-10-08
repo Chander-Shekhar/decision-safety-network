@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DeviceSignalList } from './DeviceSignalList';
+import { parseSmsSignalMessage, ingestSmsSignal, type DeviceSignal } from './deviceSignals';
 import type { AllyPacket, AllyPacketContent } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
@@ -61,6 +63,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [recovery, setRecovery] = useState<RecoveryState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [planSavedFlag, setPlanSavedFlag] = useState(false);
+  const [deviceSignals, setDeviceSignals] = useState<DeviceSignal[]>([]);
   const stepInitialised = useRef(false);
 
   const run = useCallback(async (work: () => Promise<void>) => {
@@ -99,6 +102,16 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const verifyGate = canVerify(journeyState);
   // The ally still needs the Plan step to accept an invitation, so keep it reachable for that role.
   const railSteps = journeySteps(journeyState).map((s) => (role === 'ally' && s.step === 'Plan' ? { step: s.step, available: true } : s));
+
+  // DSN-020: consented on-device SMS signals (native shell only). Inert in a plain browser.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const sig = parseSmsSignalMessage(e.data);
+      if (sig) setDeviceSignals((prev) => ingestSmsSignal(prev, sig));
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
   // Deep-link / reload: load the case once the owner is signed in, so gating sees the real phase.
   useEffect(() => {
@@ -224,6 +237,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 })
               }
             />
+            <DeviceSignalList signals={deviceSignals} />
             <button type="button" onClick={() => run(playScenario)}>
               Play attack scenario
             </button>

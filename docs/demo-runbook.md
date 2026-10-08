@@ -51,6 +51,23 @@ Fully local: Firebase emulators + the deterministic fake Gemini (no real Gemini/
 
 Smoke check (with the dev servers up): `curl http://localhost:5173/healthz` → `{"status":"ok"}`; `curl http://localhost:5173/api/v1/cases/x` → `401 {"error":"UNAUTHENTICATED"}`. The automated two-browser Playwright journey (`apps/web/e2e/journey.spec.ts`) stays `test.skip` pending the Playwright dependency decision.
 
+## Native Android companion (DSN-020, optional demo add-on)
+
+A sideloaded **debug** Android app (`apps/android/`) hosts the same local web UI in a full-screen WebView and forwards consented, session-scoped incoming SMS into the Decision view as a message **claim** — never a verified fact or a completed payment. No backend/API/contract change; it points at the local web + API dev servers. Synthetic demo data only; call audio stays **Simulated** (the app never records calls). This is an add-on to the web demo, not a replacement.
+
+**Build and smoke are BLOCKED on DSN-021** (Android SDK, JDK 21 on PATH, React Native CLI) — none were present on the authoring machine, so the APK has not been built, installed, or smoke-tested, and nothing here is reported green. The bring-up runbook (scaffold via `react-native init`, package wiring, manifest, build, smoke) lives in `apps/android/README.md`.
+
+Once DSN-021 prerequisites are met (summary — full steps in `apps/android/README.md`):
+
+1. Start the local web + API dev servers (the "Run locally end-to-end" section above): Terminal A `npm run dev:api` (`:8787`), Terminal B `npm run dev:web` (`:5173`).
+2. Expose BOTH ports to the device/emulator — the WebView loads `:5173`, which proxies to the API on `:8787`:
+   ```bash
+   adb reverse tcp:5173 tcp:5173
+   adb reverse tcp:8787 tcp:8787
+   ```
+3. Launch the companion, tap **I consent - start session**, and grant the RECEIVE_SMS runtime permission. The honesty label ("Simulated call audio…") is persistent.
+4. Smoke (emulator): `adb emu sms send VM-DEMOBK "Your account is blocked. Pay Rs 50000 to keep funds safe."` → the SMS appears in the Decision view as a received-message **claim**. After **Withdraw consent / end session**, or with the app backgrounded, the same command produces no signal (listener is session- and foreground-scoped; SMS history is never read).
+
 ## Deploy steps (BLOCKED until founder cloud authorization)
 
 Validate `DSN_GCP_PROJECT`, `DSN_API_SA`, `DSN_SCHEDULER_SA`; enable only required services; set budget alert and max instances; build the Dockerfile and deploy to Cloud Run in `asia-south1`; deploy Hosting; create the Cloud Scheduler job calling `POST /internal/retention/sweep` with an OIDC token from `DSN_SCHEDULER_SA`; verify a user token and an unauthenticated call are denied; run `BASE_URL=... ID_TOKEN=... scripts/smoke.sh` and confirm a fresh live Gemini call for the run. Operational logs carry route template, status, and latency only.
