@@ -56,6 +56,8 @@ Signatures marked `verify against RN <version> on scaffold` in the sources must 
 
 - Call audio is **simulated** and labelled on every screen: "Simulated call audio - this demo does not record calls."
 - A received SMS is a message **claim**, not a verified fact, and never an actually-paid record.
-- Consent is explicit and the listener is **session-scoped**: never always-on, never in the background,
-  and **no SMS-history read** (only live `SMS_RECEIVED` broadcasts while listening).
+- Consent is explicit and the listener is **session-scoped AND foreground-scoped**: the native receiver is
+  registered only while the session is open and the app is active, and is unregistered on background or
+  session end — never always-on, never in the background, and **no SMS-history read** (only live
+  `SMS_RECEIVED` broadcasts while listening). A multi-part SMS is concatenated into one claim.
 - Simulated bank/authority/reporting/payment behaviour elsewhere in DSN remains labelled simulated.

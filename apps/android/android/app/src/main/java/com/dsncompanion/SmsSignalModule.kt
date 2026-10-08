@@ -12,7 +12,12 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 /**
  * DSN-020: consented, session-scoped SMS signal.
@@ -32,15 +37,16 @@ class SmsSignalModule(private val ctx: ReactApplicationContext) : ReactContextBa
     val r = object : BroadcastReceiver() {
       override fun onReceive(c: Context?, intent: Intent?) {
         if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-        for (msg in Telephony.Sms.Intents.getMessagesFromIntent(intent)) {
-          val payload = Arguments.createMap().apply {
-            putString("from", msg.originatingAddress ?: "unknown")
-            putString("body", msg.messageBody ?: "")
-            putString("receivedAt", java.time.Instant.now().toString())
-          }
-          ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            .emit("dsn:sms-signal", payload)
+        val parts = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
+        if (parts.isEmpty()) return
+        // A long SMS arrives as several PDU parts; concatenate into ONE message/claim so the
+        // web dedupe key (from, receivedAt) does not fragment it into multiple signals.
+        val payload = Arguments.createMap().apply {
+          putString("from", parts[0].originatingAddress ?: "unknown")
+          putString("body", parts.joinToString(separator = "") { it.messageBody ?: "" })
+          putString("receivedAt", nowIso())
         }
+        emitSignal(payload)
       }
     }
     // SMS_RECEIVED is a system broadcast: require the sender to hold BROADCAST_SMS; exported flag for API 33+.
@@ -71,5 +77,20 @@ class SmsSignalModule(private val ctx: ReactApplicationContext) : ReactContextBa
   private fun unregister() {
     receiver?.let { runCatching { ctx.unregisterReceiver(it) } }
     receiver = null
+  }
+
+  // ISO-8601 UTC without java.time, so it works below API 26 (minSdk) without desugaring.
+  private fun nowIso(): String {
+    val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+    fmt.timeZone = TimeZone.getTimeZone("UTC")
+    return fmt.format(Date())
+  }
+
+  // Emitting on an inactive catalyst/React instance throws; drop the signal safely if so.
+  private fun emitSignal(payload: WritableMap) {
+    runCatching {
+      ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+        .emit("dsn:sms-signal", payload)
+    }
   }
 }

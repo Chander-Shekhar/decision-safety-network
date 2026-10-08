@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, PermissionsAndroid, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Button, PermissionsAndroid, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { onSms, startListening, stopListening } from './src/SmsSignal';
 
@@ -15,20 +15,38 @@ export default function App(): React.JSX.Element {
   const [notice, setNotice] = useState<string | null>(null);
 
   const accept = useCallback(async () => {
-    const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
-    if (result !== PermissionsAndroid.RESULTS.GRANTED) {
-      setNotice('SMS permission was not granted. No messages will be observed.');
-      return;
+    try {
+      const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
+      if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+        setNotice('SMS permission was not granted. No messages will be observed.');
+        return;
+      }
+      setNotice(null);
+      setSessionOpen(true); // the lifecycle effect below registers the native receiver
+    } catch {
+      setNotice('Could not start the session. No messages are being observed.');
     }
-    await startListening();
-    setNotice(null);
-    setSessionOpen(true);
   }, []);
 
-  const withdraw = useCallback(async () => {
-    setSessionOpen(false);
-    await stopListening();
+  const withdraw = useCallback(() => {
+    setSessionOpen(false); // triggers the lifecycle effect cleanup, which unregisters the receiver
   }, []);
+
+  // Native listening is scoped to an open session AND the foreground. The receiver is registered
+  // only while the app is active and unregistered on background or session end, so the consent
+  // promise ("never listens in the background") stays literally true.
+  useEffect(() => {
+    if (!sessionOpen) return undefined;
+    if (AppState.currentState === 'active') void startListening();
+    const appSub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void startListening();
+      else void stopListening();
+    });
+    return () => {
+      appSub.remove();
+      void stopListening(); // session end / unmount: receiver is unregistered
+    };
+  }, [sessionOpen]);
 
   // Bridge: native event -> fixed envelope -> WebView. Subscribed only while a session is open.
   useEffect(() => {
@@ -37,10 +55,7 @@ export default function App(): React.JSX.Element {
       const envelope = JSON.stringify({ type: 'dsn:sms-signal', from, body, receivedAt });
       webViewRef.current?.injectJavaScript(`window.postMessage(${JSON.stringify(envelope)}, '*'); true;`);
     });
-    return () => {
-      sub.remove();
-      void stopListening(); // session end or unmount: receiver is unregistered
-    };
+    return () => sub.remove();
   }, [sessionOpen]);
 
   return (
@@ -61,9 +76,9 @@ export default function App(): React.JSX.Element {
           <Text style={styles.title}>Consent to observe incoming SMS</Text>
           <Text style={styles.body}>
             While this demo session is open, the app observes incoming SMS messages and shows them in the
-            Decision view as message claims (not verified facts). It never reads your SMS history, never
-            listens in the background, and stops when you end the session. Call audio is simulated; no
-            calls are recorded.
+            Decision view as message claims (not verified facts). It never reads your SMS history and
+            observes only while this session is open and the app is in the foreground — never in the
+            background — and stops when you end the session. Call audio is simulated; no calls are recorded.
           </Text>
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           <Button title="I consent - start session" onPress={accept} />
