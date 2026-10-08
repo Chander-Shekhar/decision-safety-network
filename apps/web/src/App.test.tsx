@@ -51,9 +51,15 @@ describe('App', () => {
     expect(await screen.findByText(/incoming sms/i)).toBeVisible();
   });
 
-  it('ignores a foreign window message (no device-signal UI appears)', async () => {
+  it('on the Decision step, ignores foreign and malformed messages (listener is mounted but rejects)', async () => {
+    window.history.pushState({}, '', '/cases/c1');
+    get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: {}, confirmed: {} });
     render(<App auth={auth} />);
+    await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Decision/ }));
+    // A foreign message and a malformed dsn envelope (missing `from`) must both be dropped.
     window.postMessage(JSON.stringify({ type: 'webpackHotUpdate' }), '*');
+    window.postMessage(JSON.stringify({ type: 'dsn:sms-signal', body: 'no sender', receivedAt: '2026-10-07T10:00:00.000Z' }), '*');
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByText(/incoming sms/i)).toBeNull();
   });
