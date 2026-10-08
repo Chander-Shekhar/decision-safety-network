@@ -17,6 +17,22 @@ Authored here:
 
 Signatures marked `verify against RN <version> on scaffold` in the sources must be checked against the scaffolded RN version.
 
+## Shell environment (local testing — export per new terminal)
+
+The toolchain is installed (DSN-021). `ANDROID_HOME` is persisted in the shell profile
+(`~/.zshrc`), and `JAVA_HOME` is the machine's existing global JDK (JDK 17; RN + AGP 8
+build fine on 17) — leave it as-is. The one thing to export in **each new terminal**
+before an Android build/smoke is the SDK tools on `PATH` (portable form; never commit a
+resolved absolute path):
+
+```sh
+# ANDROID_HOME is already in ~/.zshrc; JAVA_HOME is the existing global JDK — do not override it.
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+```
+
+(A clean Homebrew `openjdk@21` is also installed as a fallback; if a future RN/AGP version
+needs JDK 21, override `JAVA_HOME` **per-terminal only** with `export JAVA_HOME="$(brew --prefix openjdk@21)"` — do not change the global/zshrc value.)
+
 ## Bring-up on a real machine (after DSN-021 prerequisites are met)
 
 1. Scaffold (outside the npm web workspaces) with the app name `DsnCompanion` and package `com.dsncompanion`,
