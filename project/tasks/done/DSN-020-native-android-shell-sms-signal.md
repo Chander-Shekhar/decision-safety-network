@@ -10,7 +10,7 @@
 - **Decision references:** 0009 (native Android companion shell), 0008 (styling stack), 0001 (architecture)
 - **Started:** 2026-10-08
 - **Last updated:** 2026-10-08
-- **Status:** `in-progress` — all 5 plan tasks implemented, task-reviewed, and committed on the branch; whole-branch final review and integrator merge pending. Web half (Tasks 1–2) fully implemented and verified here (146 web tests pass, typecheck clean). Native half (Tasks 3–5) source authored and reviewed; build/APK/`adb` smoke are **BLOCKED-NOT-INFERRED on DSN-021** (no Android SDK / RN CLI on this machine 2026-10-08) — never reported green. Not yet merged (integrator merges after the final consolidated review).
+- **Status:** `done` (web half) with the native track **explicitly BLOCKED on DSN-021** — founder-authorized this disposition 2026-10-08 after reviewing the consolidated report. All 5 plan tasks implemented, task-reviewed, and committed; whole-branch final review (opus) returned APPROVE_WITH_FINDINGS (0 blocker, 0 major, 3 minor, 2 nit — all adjudicated ACCEPT, none load-bearing). Web half (Tasks 1–2) verified here (146 web tests pass, typecheck exit 0). Native half (Tasks 3–5) source authored + reviewed; build/APK/`adb` smoke are **BLOCKED-NOT-INFERRED on DSN-021** (no Android SDK / RN CLI 2026-10-08) — never reported green; resume via `apps/android/README.md` once DSN-021 prerequisites are met. Merged to local `main` by the integrator.
 
 ## Outcome
 
