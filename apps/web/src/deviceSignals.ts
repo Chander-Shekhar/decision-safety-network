@@ -30,9 +30,10 @@ export function parseSmsSignalMessage(data: unknown): DsnSmsSignal | null {
   return { type: 'dsn:sms-signal', from: o.from, body: o.body, receivedAt: o.receivedAt };
 }
 
-/** Append a validated signal, de-duplicating on (from, receivedAt). */
+/** Append a validated signal, de-duplicating on (from, receivedAt). The id is a
+ * JSON tuple so a field containing the separator cannot forge a collision. */
 export function ingestSmsSignal(current: DeviceSignal[], sig: DsnSmsSignal): DeviceSignal[] {
-  const id = `${sig.from}|${sig.receivedAt}`;
+  const id = JSON.stringify([sig.from, sig.receivedAt]);
   if (current.some((s) => s.id === id)) return current;
   return [...current, { id, from: sig.from, body: sig.body, receivedAt: sig.receivedAt }];
 }

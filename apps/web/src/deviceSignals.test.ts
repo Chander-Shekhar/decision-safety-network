@@ -18,10 +18,23 @@ describe('parseSmsSignalMessage', () => {
     expect(parseSmsSignalMessage(42)).toBeNull();
     expect(parseSmsSignalMessage(null)).toBeNull();
   });
-  it('rejects an envelope missing or mistyping required fields', () => {
+  it('rejects an envelope missing or mistyping any required field', () => {
     expect(parseSmsSignalMessage({ ...valid, from: undefined } as object)).toBeNull();
     expect(parseSmsSignalMessage({ ...valid, body: 123 } as object)).toBeNull();
+    expect(parseSmsSignalMessage({ ...valid, receivedAt: undefined } as object)).toBeNull();
     expect(parseSmsSignalMessage({ ...valid, from: '' })).toBeNull();
+    expect(parseSmsSignalMessage({ ...valid, receivedAt: '' })).toBeNull();
+  });
+  it('rejects array input and a __proto__-polluting payload without honoring injected keys', () => {
+    expect(parseSmsSignalMessage([valid])).toBeNull();
+    const polluted = parseSmsSignalMessage(JSON.stringify({ ...valid, __proto__: { injected: true } }));
+    expect(polluted).toEqual(valid);
+    expect(({} as Record<string, unknown>).injected).toBeUndefined();
+  });
+  it('strips extra fields, returning only the typed envelope', () => {
+    const parsed = parseSmsSignalMessage({ ...valid, extra: 'ignored', amountMinor: 5000000 });
+    expect(parsed).toEqual(valid);
+    expect(parsed).not.toHaveProperty('extra');
   });
 });
 
@@ -32,8 +45,19 @@ describe('ingestSmsSignal', () => {
     expect(out[0]).toMatchObject({ from: valid.from, body: valid.body, receivedAt: valid.receivedAt });
     expect(out[0].id).toBeTruthy();
   });
-  it('de-duplicates on (from, receivedAt)', () => {
+  it('de-duplicates on (from, receivedAt) without mutating the input array', () => {
     const once: DeviceSignal[] = ingestSmsSignal([], valid);
-    expect(ingestSmsSignal(once, valid)).toHaveLength(1);
+    const again = ingestSmsSignal(once, valid);
+    expect(again).toHaveLength(1);
+    expect(once).toHaveLength(1); // original not mutated
+  });
+  it('appends a signal that differs in from or receivedAt', () => {
+    const once = ingestSmsSignal([], valid);
+    expect(ingestSmsSignal(once, { ...valid, receivedAt: '2026-10-07T10:01:00.000Z' })).toHaveLength(2);
+    expect(ingestSmsSignal(once, { ...valid, from: 'OTHER' })).toHaveLength(2);
+  });
+  it('does not collide when a field contains the id separator character', () => {
+    const a = ingestSmsSignal([], { ...valid, from: 'a|b', receivedAt: 'c' });
+    expect(ingestSmsSignal(a, { ...valid, from: 'a', receivedAt: 'b|c' })).toHaveLength(2);
   });
 });
