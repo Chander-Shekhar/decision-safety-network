@@ -40,4 +40,21 @@ describe('App', () => {
     expect(await screen.findByText(/submit the simulated transfer/i)).toBeInTheDocument();
     expect(command).not.toHaveBeenCalledWith('POST', 'cases/c1/verify', expect.anything());
   });
+
+  it('ingests a dsn:sms-signal posted into the window and shows it in the decision view', async () => {
+    window.history.pushState({}, '', '/cases/c1');
+    get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: {}, confirmed: {} });
+    render(<App auth={auth} />);
+    await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Decision/ }));
+    window.postMessage(JSON.stringify({ type: 'dsn:sms-signal', from: 'VM-DEMOBK', body: 'blocked, call now', receivedAt: '2026-10-07T10:00:00.000Z' }), '*');
+    expect(await screen.findByText(/incoming sms/i)).toBeVisible();
+  });
+
+  it('ignores a foreign window message (no device-signal UI appears)', async () => {
+    render(<App auth={auth} />);
+    window.postMessage(JSON.stringify({ type: 'webpackHotUpdate' }), '*');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText(/incoming sms/i)).toBeNull();
+  });
 });
