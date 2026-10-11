@@ -24,8 +24,8 @@ export interface ApiClient {
   get<T>(path: string): Promise<T>;
   /** Sends a command with an `Idempotency-Key` header. Routes that also require `idempotencyKey` in the body take it from `withKey`. */
   command<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, idempotencyKey?: string): Promise<T>;
-  /** Downloads a binary response (evidence ZIP) with its server-suggested filename. */
-  download(method: 'POST', path: string, idempotencyKey?: string): Promise<{ blob: Blob; filename: string }>;
+  /** Downloads a binary/text response (evidence ZIP, report-draft form) with its server-suggested filename. */
+  download(method: 'GET' | 'POST', path: string, idempotencyKey?: string): Promise<{ blob: Blob; filename: string }>;
 }
 
 /** Adds a fresh idempotency key to a command body. Reuse the same key when retrying the same user action. */
@@ -65,10 +65,10 @@ export function createApiClient(getIdToken: GetIdToken, baseUrl = '/api/v1/'): A
     async command<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, idempotencyKey?: string) {
       return json<T>(await request(method, path, body, idempotencyKey));
     },
-    async download(method: 'POST', path: string, idempotencyKey?: string) {
+    async download(method: 'GET' | 'POST', path: string, idempotencyKey?: string) {
       const response = await request(method, path, undefined, idempotencyKey);
       const disposition = response.headers.get('content-disposition') ?? '';
-      const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'evidence.zip';
+      const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'download';
       return { blob: await response.blob(), filename };
     },
   };

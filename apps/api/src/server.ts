@@ -13,6 +13,7 @@ import { createGeminiPort } from './gemini.js';
 import { createPaymentRoutes } from './payment-routes.js';
 import { planRoutes } from './plan-routes.js';
 import { createRecoveryRoutes } from './recovery-routes.js';
+import { createReportRoutes } from './report-routes.js';
 import { createScreeningRoutes } from './screening-routes.js';
 import { createRetentionRoutes, type OidcKeySource, type SchedulerIdentityConfig } from './retention-routes.js';
 import { sessionRoutes } from './session-routes.js';
@@ -56,6 +57,7 @@ export function buildServer(
     createVerificationRoutes(),
     createAllyRoutes(),
     createRecoveryRoutes(),
+    createReportRoutes(),
     createScreeningRoutes(),
     createEvidenceRoutes(),
     createRetentionRoutes(schedulerConfig),

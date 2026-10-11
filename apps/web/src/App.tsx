@@ -8,12 +8,13 @@ import type { Plan } from '../../../packages/contracts/src/plan';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
 import type { RecoveryState } from '../../../packages/contracts/src/recovery';
 import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
+import type { ReportDraft, ReportHandoffResult } from '../../../packages/contracts/src/report';
 import { ActionConsole } from './ActionConsole';
 import { AllyScreen } from './AllyScreen';
 import { AllySharePreview } from './AllySharePreview';
 import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken } from './api-client';
 import { DecisionMap } from './DecisionMap';
-import { EvidenceScreen } from './EvidenceScreen';
+import { EvidenceScreen, type ReportDraftView } from './EvidenceScreen';
 import { HomeScreen } from './HomeScreen';
 import { ConfirmFraudPanel, IncomingCallScreen } from './ScreeningScreen';
 import type { ScreeningVerdict } from '../../../packages/contracts/src/screening';
@@ -72,6 +73,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [whatsappSummary, setWhatsappSummary] = useState<AllyWhatsAppSummary | undefined>();
   const [callerContact, setCallerContact] = useState<AllyCallerContact | undefined>();
   const [allyAccess, setAllyAccess] = useState<'active' | 'stale' | 'revoked'>('active');
+  // DSN-028: pre-filled 1930/NCRP report draft + the user-opens-it-themselves handoff.
+  const [reportDraft, setReportDraft] = useState<ReportDraftView | undefined>();
+  const [reportChannelUrl, setReportChannelUrl] = useState('');
+  const [reportHandedOff, setReportHandedOff] = useState(false);
   const [recovery, setRecovery] = useState<RecoveryState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [planSavedFlag, setPlanSavedFlag] = useState(false);
@@ -244,6 +249,27 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   useEffect(() => {
     if (screenedNumber) setWebCheckNumber(screenedNumber);
   }, [screenedNumber]);
+
+  // DSN-028: load the pre-filled report draft when the owner is on the Evidence step (and when the case changes there).
+  useEffect(() => {
+    if (!(owner && caseId && step === 'Evidence')) return;
+    void run(async () => {
+      const draft = await api.get<ReportDraft>(`cases/${caseId}/report-draft`);
+      setReportChannelUrl(draft.handoff.channelUrl);
+      setReportDraft({
+        label: draft.label,
+        sourceDate: draft.sourceDate,
+        fields: draft.fields.map((f) => ({
+          ncrpField: f.ncrpField,
+          value: f.value,
+          blank: f.blank,
+          provenanceLabel: f.provenance?.provenanceLabel ?? '',
+        })),
+        recoveryScamWarning: draft.recoveryScamWarning,
+        channelLabel: draft.handoff.channelLabel,
+      });
+    });
+  }, [owner, caseId, step, version, api, run]);
 
   // Pick the starting step once, after the case (if any) has loaded. Pure client state; no API call.
   useEffect(() => {
@@ -715,6 +741,30 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 link.download = filename;
                 link.click();
                 URL.revokeObjectURL(link.href);
+              })
+            }
+            // DSN-028: pre-filled report draft; the user downloads/opens the official channel themselves.
+            reportDraft={reportDraft}
+            handoffAllowed={caseView?.phase === 'Recover'}
+            handedOff={reportHandedOff}
+            onDownloadReportDraft={() =>
+              run(async () => {
+                const { blob, filename } = await api.download('GET', `cases/${caseId}/report-draft/download`);
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(link.href);
+              })
+            }
+            onOpenOfficialChannel={(callerNumber) =>
+              run(async () => {
+                const body: { idempotencyKey: string; callerNumber?: string } = { idempotencyKey: newIdempotencyKey() };
+                if (callerNumber) body.callerNumber = callerNumber;
+                // Records the handoff + authority-report list entry server-side, THEN the human opens the channel.
+                await api.command<ReportHandoffResult>('POST', `cases/${caseId}/report-handoff`, body);
+                setReportHandedOff(true);
+                window.open(reportChannelUrl, '_blank', 'noopener');
               })
             }
           />
