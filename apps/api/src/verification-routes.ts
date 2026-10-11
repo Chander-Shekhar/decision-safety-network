@@ -4,6 +4,8 @@ import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
 import { verifyWithDemoBank } from './verification.js';
 import { DEMO_BANK_REGISTRY } from './demo-bank-registry.js';
+import { createWebVerificationRoutes } from './web-verification-routes.js';
+import type { WebVerificationAdapter } from './web-verification-adapter.js';
 
 /**
  * Deliberately an empty, strict schema: `verifyWithDemoBank` takes no body
@@ -48,8 +50,13 @@ function replyOrRethrow(reply: FastifyReply, error: unknown): undefined {
  * / DSN-014, per the plan's file map); tests build an isolated app via
  * `buildApi([createVerificationRoutes()], deps)`.
  */
-export function createVerificationRoutes(): RouteInstaller {
+export function createVerificationRoutes(webAdapter?: WebVerificationAdapter): RouteInstaller {
   return (app, deps: ApiDeps) => {
+    // DSN-026: separate, untrusted supporting-evidence routes. They share no
+    // code path with `verifyWithDemoBank`; mounted here so the composition
+    // root needs no change.
+    createWebVerificationRoutes(webAdapter)(app, deps);
+
     app.post('/api/v1/cases/:id/verify', async (request, reply) => {
       const uid = await requireUser(request, deps.auth);
       const { id: caseId } = request.params as { id: string };
