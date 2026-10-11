@@ -1,4 +1,42 @@
+import type { WebEvidenceStance, WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
 import { ActionBar, Button, Card } from './ui';
+
+const STANCE_LABEL: Record<WebEvidenceStance, string> = {
+  corroborates: 'Fits public listing',
+  contradicts: 'Contradicts public listing',
+  inconclusive: 'No public match',
+};
+// Distinguished by glyph and label, never color alone.
+const STANCE_GLYPH: Record<WebEvidenceStance, string> = { corroborates: '✓', contradicts: '✕', inconclusive: '?' };
+
+/**
+ * Quiet, labeled supporting evidence from public web sources (DSN-026). It is
+ * untrusted by label: it can fit or contradict a claim but is never the
+ * route to use and never says the caller is genuine. Renders nothing when
+ * there is no evidence.
+ */
+export function WebEvidenceList({ evidence }: { evidence?: readonly WebVerificationEvidence[] }): React.JSX.Element | null {
+  if (!evidence || evidence.length === 0) {
+    return null;
+  }
+  return (
+    <section aria-label="Public web evidence" className="flex flex-col gap-space-2">
+      <h3 className="text-sm font-medium text-text-muted">Public web evidence · not verified</h3>
+      <ul className="flex flex-col gap-space-2">
+        {evidence.map((item, index) => (
+          <li key={`${item.checkedAt}-${index}`} className="flex flex-col gap-space-1">
+            <span className="inline-flex w-fit items-center gap-space-1 rounded-pill bg-surface-sunken px-space-2 text-xs text-text-muted">
+              <span aria-hidden="true">{STANCE_GLYPH[item.stance]}</span>
+              {STANCE_LABEL[item.stance]}
+            </span>
+            <p className="text-sm">{item.headline}</p>
+            <p className="text-xs text-text-muted">{item.detail}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /**
  * The display shape this panel reads from the versioned registry record
@@ -40,6 +78,8 @@ export interface VerifyPanelProps {
    * the blocked state reads as blocked rather than silently rejecting a click.
    */
   disabled?: boolean;
+  /** Untrusted public-web supporting evidence (DSN-026). Never changes the route above. */
+  webEvidence?: readonly WebVerificationEvidence[];
   onVerify?: () => void;
   onCancel?: () => void;
 }
@@ -56,7 +96,7 @@ export interface VerifyPanelProps {
  * Labels the surface **Simulated** persistently, both before and after a
  * result is recorded.
  */
-export function VerifyPanel({ registry, result, disabled, onVerify, onCancel }: VerifyPanelProps): React.JSX.Element {
+export function VerifyPanel({ registry, result, disabled, webEvidence, onVerify, onCancel }: VerifyPanelProps): React.JSX.Element {
   return (
     <section aria-label="Demo Bank verification">
       <Card title="Demo Bank verification">
@@ -69,6 +109,7 @@ export function VerifyPanel({ registry, result, disabled, onVerify, onCancel }: 
           <dd>{registry.reviewedAt}</dd>
         </dl>
         <p className="text-sm text-text-muted">This route came from our registry, not from the caller.</p>
+        <WebEvidenceList evidence={webEvidence} />
 
         {!result && (
           <ActionBar>

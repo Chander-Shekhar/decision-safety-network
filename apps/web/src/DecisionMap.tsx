@@ -1,5 +1,7 @@
 import { useId, useState } from 'react';
 import type { Fact, FactOrigin } from '../../../packages/contracts/src/facts';
+import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
+import { WebEvidenceList } from './VerifyPanel';
 import { ActionBar, Button, Card, Field } from './ui';
 
 /**
@@ -76,6 +78,8 @@ export interface DecisionMapProps {
    * excerpt can no longer be viewed.
    */
   sourceRetained?: boolean;
+  /** Untrusted public-web evidence about the claimed identity (DSN-026); shown under that fact only. */
+  webEvidence?: readonly WebVerificationEvidence[];
   onViewSource?: (field: string, sourceSegmentIds: string[]) => void;
   onCorrect?: (field: string, value: string) => void;
   onConfirm?: (field: string) => void;
@@ -93,6 +97,7 @@ export function DecisionMap({
   status = 'live',
   facts,
   sourceRetained = true,
+  webEvidence,
   onViewSource,
   onCorrect,
   onConfirm,
@@ -110,6 +115,7 @@ export function DecisionMap({
               <FactCard
                 fact={fact}
                 sourceRetained={sourceRetained}
+                webEvidence={fact.field === 'claimedIdentity' ? webEvidence : undefined}
                 onViewSource={onViewSource}
                 onCorrect={onCorrect}
                 onConfirm={onConfirm}
@@ -125,12 +131,13 @@ export function DecisionMap({
 interface FactCardProps {
   fact: Fact;
   sourceRetained: boolean;
+  webEvidence?: readonly WebVerificationEvidence[];
   onViewSource?: (field: string, sourceSegmentIds: string[]) => void;
   onCorrect?: (field: string, value: string) => void;
   onConfirm?: (field: string) => void;
 }
 
-function FactCard({ fact, sourceRetained, onViewSource, onCorrect, onConfirm }: FactCardProps): React.JSX.Element {
+function FactCard({ fact, sourceRetained, webEvidence, onViewSource, onCorrect, onConfirm }: FactCardProps): React.JSX.Element {
   const [draft, setDraft] = useState('');
   const correctionInputId = useId();
   const isUnknown = fact.value === 'unknown';
@@ -161,6 +168,7 @@ function FactCard({ fact, sourceRetained, onViewSource, onCorrect, onConfirm }: 
         </p>
       )}
       <p className="text-base font-medium">{isUnknown ? 'Unknown' : fact.value}</p>
+      <WebEvidenceList evidence={webEvidence} />
 
       <ActionBar>
         {hasSource ? (
