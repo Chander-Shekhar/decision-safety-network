@@ -2,14 +2,14 @@
 
 - **Scope:** core
 - **Priority:** P1
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed (expected: `apps/android/**`, session API in `apps/api/src/session*`, `apps/web/src/**` for the labeled fallback)
-- **Dependencies:** DSN-021 (native toolchain), DSN-024 (screening); pairs with DSN-024
+- **Owner:** Orchestrator (subagent-driven implementer under integrator)
+- **Branch/worktree:** `task/DSN-025-live-call-capture` (isolated worktree)
+- **Owned paths:** `apps/android/**` (native mic-capture + on-device transcription module, consent/prototype-label UI), `apps/web/src/**` (transcript-segment bridge listener + prototype-capture label + controlled-transcript fallback). Session API `apps/api/src/session*` only if strictly needed — prefer the DSN-020 WebView bridge pattern (no downstream contract change). Serialized/not owned: no fact/policy/state-machine change.
+- **Dependencies:** DSN-021 (native toolchain — done), DSN-024 (screening — done), DSN-023 (`callListening` gate — done). Pairs with DSN-024.
 - **PRD references:** Part I — Decision 15; C2; Fixed scope (Interaction); live/simulated table; Prototype components (Interaction source); non-goals (consented, labeled, not covert)
-- **Decision references:** 0009, 0010
-- **Started:** Not started
-- **Last updated:** 2026-10-11
+- **Decision references:** 0009, 0010, **0012** (mic-during-speakerphone prototype capture; reconciles 0009's "never records" label)
+- **Started:** 2026-10-12
+- **Last updated:** 2026-10-12
 
 ## Outcome
 
