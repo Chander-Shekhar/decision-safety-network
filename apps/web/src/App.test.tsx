@@ -71,6 +71,52 @@ describe('App', () => {
   });
 });
 
+describe('App · live transcript bridge (DSN-025)', () => {
+  const seg = (text: string, at: string) => JSON.stringify({ type: 'dsn:transcript-segment', text, at });
+
+  async function openSession() {
+    window.history.pushState({}, '', '/cases/c1');
+    get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: {}, confirmed: {} });
+    command.mockResolvedValue({});
+    render(<App auth={auth} />);
+    await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Session/ }));
+  }
+
+  it('ingests a dsn:transcript-segment through the same segment API and then extracts', async () => {
+    await openSession();
+    window.postMessage(seg('Move 50,000 to the safe account now', '2026-10-12T10:00:00.000Z'), '*');
+    expect(await screen.findByText('Move 50,000 to the safe account now')).toBeVisible();
+    await waitFor(() => expect(command).toHaveBeenCalledWith('POST', 'cases/c1/segments', { id: 'seg-1', order: 1, speaker: 'caller', text: 'Move 50,000 to the safe account now' }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith('POST', 'cases/c1/facts/extract', expect.anything()));
+  });
+
+  it('shows the prototype-capture label only after native reports capture active', async () => {
+    await openSession();
+    expect(screen.queryByText(/prototype capture/i)).toBeNull();
+    window.postMessage(JSON.stringify({ type: 'dsn:capture-status', active: true }), '*');
+    expect(await screen.findByText(/prototype capture/i)).toBeVisible();
+    window.postMessage(JSON.stringify({ type: 'dsn:capture-status', active: false }), '*');
+    await waitFor(() => expect(screen.queryByText(/prototype capture/i)).toBeNull());
+  });
+
+  it('ignores malformed/foreign envelopes and does nothing without an open case', async () => {
+    await openSession();
+    window.postMessage(JSON.stringify({ type: 'webpackHotUpdate' }), '*');
+    window.postMessage(JSON.stringify({ type: 'dsn:transcript-segment', at: '2026-10-12T10:00:00.000Z' }), '*');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(command).not.toHaveBeenCalledWith('POST', 'cases/c1/segments', expect.anything());
+  });
+
+  it('is inert before a case exists (plain browser / no session)', async () => {
+    window.history.pushState({}, '', '/');
+    render(<App auth={auth} />);
+    window.postMessage(seg('hello', '2026-10-12T10:00:00.000Z'), '*');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(command).not.toHaveBeenCalledWith('POST', expect.stringContaining('/segments'), expect.anything());
+  });
+});
+
 describe('App · first-run setup (DSN-023)', () => {
   const configuredPlan = {
     callListening: 'per-call',

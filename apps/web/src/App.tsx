@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceSignalList } from './DeviceSignalList';
+import { nextLiveSegment, parseCaptureStatusMessage, parseTranscriptSegmentMessage } from './liveTranscript';
 import { parseSmsSignalMessage, ingestSmsSignal, type DeviceSignal } from './deviceSignals';
 import type { AllyPacket, AllyPacketContent } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
@@ -80,6 +81,12 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [incomingCall, setIncomingCall] = useState(false);
   const [screenedNumber, setScreenedNumber] = useState('');
   const stepInitialised = useRef(false);
+  const [captureActive, setCaptureActive] = useState(false);
+  const caseIdRef = useRef(caseId);
+  caseIdRef.current = caseId;
+  const segmentsRef = useRef<SessionSegmentView[]>(segments);
+  segmentsRef.current = segments;
+  const seenLiveRef = useRef(new Set<string>());
 
   const run = useCallback(async (work: () => Promise<void>) => {
     setError(null);
@@ -130,6 +137,46 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, []);
+
+  // DSN-025: labeled prototype capture. The native shell sends final STT text segments (never audio)
+  // and a capture-status flag. Segments join the SAME segment API + extraction pass as the controlled
+  // transcript; nothing downstream changes. Inert in a plain browser and until a case is open.
+  useEffect(() => {
+    let queue: Promise<void> = Promise.resolve();
+    const onMessage = (e: MessageEvent) => {
+      const status = parseCaptureStatusMessage(e.data);
+      if (status) {
+        setCaptureActive(status.active);
+        return;
+      }
+      const sig = parseTranscriptSegmentMessage(e.data);
+      const id = caseIdRef.current;
+      if (!sig || !id) return;
+      const segment = nextLiveSegment(segmentsRef.current, seenLiveRef.current, sig);
+      if (!segment) return;
+      segmentsRef.current = [...segmentsRef.current, segment];
+      setSegments(segmentsRef.current);
+      // Serialized so orders stay gap-free and in order on the server.
+      queue = queue.then(() =>
+        run(async () => {
+          try {
+            await api.command('POST', `cases/${id}/segments`, segment);
+          } catch (err) {
+            // Not accepted (e.g. processing revoked): drop it locally so the view never shows unaccepted text.
+            segmentsRef.current = segmentsRef.current.filter((s) => s.id !== segment.id);
+            setSegments(segmentsRef.current);
+            throw err;
+          }
+          await refreshCase(id);
+          const latest = await api.get<CaseView>(`cases/${id}`);
+          await api.command('POST', `cases/${id}/facts/extract`, { expectedVersion: latest.version });
+          await refreshCase(id);
+        }),
+      );
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [api, run, refreshCase]);
 
   // Load the owner's plan once signed in; a missing plan (404) simply means a fresh user.
   useEffect(() => {
@@ -313,6 +360,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               <SessionScreen
                 status="processing"
                 segments={segments}
+                captureActive={captureActive}
                 onStopProcessing={() => run(async () => void (await api.command('POST', `cases/${caseId}/processing/revoke`)))}
               />
             )}

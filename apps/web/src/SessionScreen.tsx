@@ -24,6 +24,8 @@ export interface SessionScreenProps {
   status: SessionStatus;
   segments: SessionSegmentView[];
   onStopProcessing?: () => void;
+  /** DSN-025: true only while the native companion reports it is capturing via the microphone. */
+  captureActive?: boolean;
 }
 
 const STATUS_COPY: Record<SessionStatus, string> = {
@@ -39,18 +41,25 @@ const STATUS_COPY: Record<SessionStatus, string> = {
  * screens composed alongside this one later - this component's scope is
  * only the controlled transcript intake and its live-processing status.
  */
-export function SessionScreen({ status, segments, onStopProcessing }: SessionScreenProps): React.JSX.Element {
+export function SessionScreen({ status, segments, onStopProcessing, captureActive = false }: SessionScreenProps): React.JSX.Element {
   const statusId = useId();
 
   return (
     <section aria-label="Live session">
       <Card title="Live session">
-        <p className="text-sm text-text-muted">Controlled transcript &middot; segments arrive one at a time</p>
+        {captureActive ? (
+          <p role="note" className="text-sm font-medium">
+            Prototype capture &mdash; recording this call&apos;s audio via the microphone on speakerphone, with your consent.
+            Speech is transcribed on the device; the audio is not uploaded.
+          </p>
+        ) : (
+          <p className="text-sm text-text-muted">Controlled transcript &middot; segments arrive one at a time</p>
+        )}
         <p id={statusId} role="status" className="text-sm font-medium">
           <Badge tone={status === 'processing' ? 'info' : 'neutral'}>{STATUS_COPY[status]}</Badge>
         </p>
 
-        <ol aria-label="Controlled transcript segments" className="flex flex-col gap-space-3">
+        <ol aria-label={captureActive ? 'Live transcript segments' : 'Controlled transcript segments'} className="flex flex-col gap-space-3">
           {segments.map((segment) => (
             <li key={segment.id} className="rounded-md border border-border bg-surface-sunken p-space-3">
               <p className="text-xs font-medium text-text-muted">
