@@ -7,6 +7,7 @@ import type { Fact } from '../../../packages/contracts/src/facts';
 import type { Plan } from '../../../packages/contracts/src/plan';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
 import type { RecoveryState } from '../../../packages/contracts/src/recovery';
+import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
 import { ActionConsole } from './ActionConsole';
 import { AllyScreen } from './AllyScreen';
 import { AllySharePreview } from './AllySharePreview';
@@ -80,6 +81,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [deviceSignals, setDeviceSignals] = useState<DeviceSignal[]>([]);
   const [incomingCall, setIncomingCall] = useState(false);
   const [screenedNumber, setScreenedNumber] = useState('');
+  // DSN-026: untrusted public-web supporting evidence about the claimed identity, and the number to check.
+  const [webEvidence, setWebEvidence] = useState<readonly WebVerificationEvidence[]>([]);
+  const [webCheckNumber, setWebCheckNumber] = useState('');
   const stepInitialised = useRef(false);
   const [captureActive, setCaptureActive] = useState(false);
   // Processing revoked / segment refused for this case: tell native to stop the mic (allowed:false).
@@ -107,10 +111,21 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     [api],
   );
 
+  // DSN-026: fetch the case's stored untrusted web evidence. Supporting evidence only; never the official route.
+  const loadWebEvidence = useCallback(
+    async (id: string) => {
+      const res = await api.get<{ evidence: WebVerificationEvidence[] }>(`cases/${id}/web-verification`);
+      setWebEvidence(res.evidence);
+    },
+    [api],
+  );
+
   const version = caseView?.version ?? 0;
   const facts = Object.keys({ ...caseView?.facts, ...caseView?.confirmed }).map(
     (field) => (caseView?.confirmed?.[field] ?? caseView?.facts?.[field]) as Fact,
   );
+  // The caller's claimed identity, as currently displayed; drives the public-web lookup.
+  const claimedIdentity = (caseView?.confirmed?.claimedIdentity ?? caseView?.facts?.claimedIdentity)?.value;
   const owner = role === 'owner';
   const configured = !!plan?.setupCompletedAt;
   // A fresh owner (no completed setup, not deep-linked into a case) is routed into guided setup.
@@ -216,6 +231,14 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   useEffect(() => {
     if (owner && caseId) void run(() => refreshCase(caseId));
   }, [owner, caseId, run, refreshCase]);
+
+  // DSN-026: load any stored web evidence when the case opens; default the lookup number to the screened one.
+  useEffect(() => {
+    if (owner && caseId) void run(() => loadWebEvidence(caseId));
+  }, [owner, caseId, run, loadWebEvidence]);
+  useEffect(() => {
+    if (screenedNumber) setWebCheckNumber(screenedNumber);
+  }, [screenedNumber]);
 
   // Pick the starting step once, after the case (if any) has loaded. Pure client state; no API call.
   useEffect(() => {
@@ -390,6 +413,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
           <>
             <DecisionMap
               facts={facts}
+              webEvidence={webEvidence}
               onConfirm={(field) =>
                 run(async () => {
                   await api.command('POST', `cases/${caseId}/facts/${field}/confirm`, { expectedVersion: version });
@@ -403,6 +427,30 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 })
               }
             />
+            {/* DSN-026: untrusted public-web check of the claimed identity. Supporting evidence only; never the official route. */}
+            <form
+              aria-label="Check public listings"
+              className="flex flex-wrap items-end gap-space-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!claimedIdentity || !webCheckNumber) return;
+                run(async () => {
+                  await api.command('POST', `cases/${caseId}/web-verification`, {
+                    claimedIdentity,
+                    callerNumber: webCheckNumber,
+                  });
+                  await loadWebEvidence(caseId);
+                });
+              }}
+            >
+              <label>
+                Number the caller is using
+                <input inputMode="tel" value={webCheckNumber} onChange={(e) => setWebCheckNumber(e.target.value)} />
+              </label>
+              <Button type="submit" variant="secondary" disabled={!claimedIdentity || !webCheckNumber}>
+                Check public listings
+              </Button>
+            </form>
             <DeviceSignalList signals={deviceSignals} />
             <ConfirmFraudPanel
               initialNumber={screenedNumber}
@@ -497,6 +545,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 registry={registry}
                 result={verifyResult}
                 disabled={!verifyGate.allowed}
+                webEvidence={webEvidence}
                 onVerify={() =>
                   run(async () => {
                     // Client-side gate: Observe has no Verify transition, so never issue the call.
