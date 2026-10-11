@@ -5,7 +5,7 @@
 // authority report the case has already recorded). Nothing derived from a
 // raw caller-ID / web signal can reach it.
 
-import { createHash } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { FraudListBasis, FraudListEntry } from '../../../packages/contracts/src/screening.js';
 
@@ -23,8 +23,17 @@ export function maskNumber(normalized: string): string {
   return `${normalized.slice(0, 3)} ••••• ••${normalized.slice(-3)}`;
 }
 
-function identifierId(normalized: string): string {
-  return createHash('sha256').update(normalized).digest('hex');
+/**
+ * DEV-ONLY default key. Obviously non-production and NOT a secret: real
+ * deployments must set FRAUD_LIST_HMAC_SECRET (decision 0011). Without it the
+ * stored key is only as private as this public constant.
+ */
+export const DEV_ONLY_FRAUD_LIST_HMAC_SECRET = 'dev-only-not-a-secret-fraud-list-key';
+
+/** Keyed, deterministic, non-reversible-without-the-secret identifier for a normalized number. */
+export function identifierId(normalized: string): string {
+  const secret = process.env.FRAUD_LIST_HMAC_SECRET || DEV_ONLY_FRAUD_LIST_HMAC_SECRET;
+  return createHmac('sha256', secret).update(normalized).digest('hex');
 }
 
 function entries(db: Firestore, ownerUid: string) {
@@ -72,4 +81,29 @@ export async function addConfirmedFraud(
   };
   await ref.set(entry);
   return entry;
+}
+
+/** Owner's own entries (masked display only). */
+export async function listFraudEntries(db: Firestore, ownerUid: string): Promise<FraudListEntry[]> {
+  const snap = await entries(db, ownerUid).get();
+  return snap.docs.map((d) => d.data() as FraudListEntry);
+}
+
+/**
+ * Owner forget path (decision 0011). The list is deliberately durable across
+ * cases but always owner-removable. Scoped by `ownerUid`, so one user can never
+ * touch another's entries. Throws NOT_FOUND if the entry is not on the owner's list.
+ */
+export async function removeFraudEntry(db: Firestore, ownerUid: string, id: string): Promise<void> {
+  const ref = entries(db, ownerUid).doc(id);
+  if (!(await ref.get()).exists) {
+    throw new Error('NOT_FOUND');
+  }
+  await ref.delete();
+}
+
+export async function clearFraudList(db: Firestore, ownerUid: string): Promise<number> {
+  const snap = await entries(db, ownerUid).get();
+  await Promise.all(snap.docs.map((d) => d.ref.delete()));
+  return snap.size;
 }

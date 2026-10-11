@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
-import { addConfirmedFraud, maskNumber, normalizeNumber } from './fraud-list.js';
+import { addConfirmedFraud, clearFraudList, listFraudEntries, maskNumber, normalizeNumber, removeFraudEntry } from './fraud-list.js';
 import { screenCall } from './screening.js';
 import { createSimulatedCallerIdAdapter, type CallerIdAdapter } from './screening-adapter.js';
 
@@ -64,6 +64,24 @@ export function createScreeningRoutes(adapter: CallerIdAdapter = createSimulated
       } catch (error) {
         return replyOrRethrow(reply, error);
       }
+    });
+
+    // Owner forget path (decision 0011): the list is durable across cases but always owner-removable.
+    app.get('/api/v1/fraud-list', async (request) => {
+      const uid = await requireUser(request, deps.auth);
+      return { entries: await listFraudEntries(deps.db, uid) };
+    });
+
+    app.delete('/api/v1/fraud-list/entries/:entryId', async (request, reply) => {
+      const uid = await requireUser(request, deps.auth);
+      const { entryId } = request.params as { entryId: string };
+      await removeFraudEntry(deps.db, uid, entryId);
+      reply.code(204).send();
+    });
+
+    app.delete('/api/v1/fraud-list', async (request) => {
+      const uid = await requireUser(request, deps.auth);
+      return { removed: await clearFraudList(deps.db, uid) };
     });
   };
 }
