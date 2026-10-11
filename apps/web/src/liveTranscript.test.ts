@@ -1,4 +1,4 @@
-import { nextLiveSegment, parseCaptureStatusMessage, parseTranscriptSegmentMessage } from './liveTranscript';
+import { announceCapturePolicy, nextLiveSegment, parseCaptureStatusMessage, parseTranscriptSegmentMessage } from './liveTranscript';
 
 const ok = { type: 'dsn:transcript-segment', text: ' move it now ', at: '2026-10-12T10:00:00.000Z' };
 
@@ -23,6 +23,22 @@ describe('parseCaptureStatusMessage', () => {
     expect(parseCaptureStatusMessage({ type: 'dsn:capture-status', active: true })?.active).toBe(true);
     expect(parseCaptureStatusMessage({ type: 'dsn:capture-status', active: 'yes' })).toBeNull();
     expect(parseCaptureStatusMessage(ok)).toBeNull();
+  });
+});
+
+describe('announceCapturePolicy', () => {
+  const plan = { callListening: 'per-call', processingConsent: true, setupCompletedAt: '2026-10-12T00:00:00.000Z' };
+  it('is inert without a native bridge', () => {
+    expect(() => announceCapturePolicy(plan, undefined)).not.toThrow();
+  });
+  it('allows capture only for a completed plan with processing consent and a listening preference', () => {
+    const post = vi.fn();
+    announceCapturePolicy(plan, { postMessage: post });
+    expect(JSON.parse(post.mock.calls[0][0])).toEqual({ type: 'dsn:capture-policy', allowed: true, callListening: 'per-call' });
+    announceCapturePolicy({ ...plan, processingConsent: false }, { postMessage: post });
+    expect(JSON.parse(post.mock.calls[1][0]).allowed).toBe(false);
+    announceCapturePolicy(null, { postMessage: post });
+    expect(JSON.parse(post.mock.calls[2][0])).toEqual({ type: 'dsn:capture-policy', allowed: false, callListening: null });
   });
 });
 

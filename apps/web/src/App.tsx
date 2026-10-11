@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceSignalList } from './DeviceSignalList';
-import { nextLiveSegment, parseCaptureStatusMessage, parseTranscriptSegmentMessage } from './liveTranscript';
+import { announceCapturePolicy, nextLiveSegment, parseCaptureStatusMessage, parseTranscriptSegmentMessage } from './liveTranscript';
 import { parseSmsSignalMessage, ingestSmsSignal, type DeviceSignal } from './deviceSignals';
 import type { AllyPacket, AllyPacketContent } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
@@ -177,6 +177,11 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, [api, run, refreshCase]);
+
+  // DSN-025: relay the saved call-listening preference to the native shell so capture is gated on it.
+  useEffect(() => {
+    announceCapturePolicy(plan);
+  }, [plan]);
 
   // Load the owner's plan once signed in; a missing plan (404) simply means a fresh user.
   useEffect(() => {

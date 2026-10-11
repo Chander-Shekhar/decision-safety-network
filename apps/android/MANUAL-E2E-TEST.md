@@ -170,7 +170,7 @@ adb shell pm grant com.dsncompanion android.permission.RECEIVE_SMS
 
 | Step | Action | Expected (mobile view) |
 |------|--------|------------------------|
-| A1 | Launch the app. | **Consent screen.** Yellow honesty strip at the very top: "Simulated call audio — this demo does not record calls." Title "Consent to observe incoming SMS", copy explaining session-only + foreground-only + no history read, and an **I CONSENT – START SESSION** button. |
+| A1 | Launch the app. | **Consent screen.** Yellow honesty strip at the very top: "Not capturing call audio — controlled transcript only. Prototype call capture is off." (DSN-025 replaced the old "Simulated call audio" strip; see section 7a.) Title "Consent to observe incoming SMS", copy explaining session-only + foreground-only + no history read, and an **I CONSENT – START SESSION** button. |
 | A2 | Tap **I CONSENT – START SESSION**. | The WebView loads the DSN web app. Footer shows **"Listening for incoming SMS (this session only)"** and a **WITHDRAW CONSENT / END SESSION** bar. Landing shows the Simulated banner and **Create synthetic user** / **Create synthetic ally**. |
 | A3 | Tap **Create synthetic user**. | No error. The journey rail appears: **1. Plan** (active), 2. Session (unlocks after you save a plan), 3. Decision (locked). *If you see "Something went wrong" — the `:9099` reverse is missing; fix it (step 3) and retry.* |
 | A4 | On **Plan**, scroll to the bottom of "My saved Safety Plan" and tap **Save Safety Plan** (defaults are fine). | No error. **2. Session** unlocks in the rail. |
@@ -205,6 +205,43 @@ with the honesty line present.
 
 ---
 
+## 7a. Test D — DSN-025 prototype call capture (FOUNDER, physical Android device)
+
+**Labeled prototype (decision 0012).** The app records via the **microphone** while a call is on
+**speakerphone** and transcribes **on the device** (Android `SpeechRecognizer`); it does **not** tap the
+carrier/telephony audio and only recognised **text** reaches the web app. Pending founder verification on
+real hardware — it has not been exercised on a device by the implementer.
+
+Preconditions: the physical device has a SIM/second phone able to place a call, and its speech recognition
+service is installed (Settings > Google > ... or "Speech Recognition & Synthesis"); an offline speech pack
+for the call language is recommended (capture asks for offline recognition). Do bring-up per sections 0-4
+with the device attached over USB, then **also** do these one-time edits to the scaffold (never committed):
+
+- `AndroidManifest.xml`: add `<uses-permission android:name="android.permission.RECORD_AUDIO" />`, and
+  `<queries><intent><action android:name="android.speech.RecognitionService" /></intent></queries>` inside
+  `<manifest>` (needed on Android 11+ for `isRecognitionAvailable`).
+- `MainApplication.kt`: already covered — `SmsSignalPackage` now also registers `CallCaptureModule`.
+
+| Step | Action | Expected |
+|------|--------|----------|
+| D1 | Launch the app. Tap **I CONSENT – START SESSION** (grant RECEIVE_SMS). | Strip reads "Not capturing call audio — controlled transcript only. Prototype call capture is off." Consent copy says call audio is NOT captured unless you separately opt in. |
+| D2 | In the WebView: **Create synthetic user**; complete first-run setup (pick any call-listening option, **turn processing consent ON**, add a demo account); then **2. Session -> Start controlled session**. | Session screen shows "Controlled transcript · segments arrive one at a time". Bottom bar shows "Prototype call capture (call-listening: <your choice>) ..." and **I CONSENT – START PROTOTYPE CALL CAPTURE**. *(If processing consent is off, the bar instead says capture is unavailable — that is the gate working.)* |
+| D3 | Tap **I CONSENT – START PROTOTYPE CALL CAPTURE**; grant the **microphone** permission. | Strip turns to **"Prototype capture — recording this call's audio via the microphone on speakerphone, with your consent."**; Session card shows the same prototype-capture note; button changes to **STOP PROTOTYPE CALL CAPTURE**. Android's mic-in-use indicator is visible. |
+| D4 | From another phone, call this device (or place a call from it), answer, and switch the call to **SPEAKERPHONE**. Have the far party say a scripted line, e.g. "This is the Demo Bank fraud team, move fifty thousand to the safe account now." Keep the DSN app in the foreground. | Within a few seconds, recognised text appears as numbered segments (speaker "caller") in the Session card's **Live transcript segments** list, in order. |
+| D5 | Tap **3. Decision**. | Facts extracted from the live transcript appear in the Decision Map (same pipeline as the controlled transcript). Simulated Demo Bank behaviour elsewhere stays labeled simulated. |
+| D6 | **Negative — stop/withdraw:** tap **STOP PROTOTYPE CALL CAPTURE** (or **WITHDRAW CONSENT / END SESSION**), then speak on the speakerphone again. | Strip returns to "Not capturing call audio ..."; mic indicator disappears; no new segments appear. |
+| D7 | **Negative — background:** restart capture (D3), press Home, speak on speakerphone, then return to the app. | Mic indicator disappears while backgrounded; nothing spoken meanwhile is transcribed; capture resumes on return (strip flips back to the prototype label). |
+| D8 | **Negative — mic permission denied:** revoke the microphone permission in Settings, restart capture and deny. | Notice "Microphone permission was not granted. Not capturing." Strip stays on the not-capturing label. |
+| D9 | **Fallback:** on any device without working on-device recognition, capture fails with "...unavailable... use the controlled transcript"; **Play attack scenario** on the Decision step still drives the pipeline unchanged. | Controlled-transcript path works as before. |
+
+**D passes if:** D4/D5 show real call speech becoming live segments and extracted facts, and D6-D8 show no
+capture without consent/foreground/permission. Record device model, Android version, and recognition
+language/engine in the task record. Known, labeled limitations: speakerphone is required (the far party is
+only audible to the mic that way); recognition quality and offline-pack availability vary by device; the
+engine may beep/pause between utterances.
+
+---
+
 ## 8. Teardown
 
 ```sh
@@ -232,7 +269,9 @@ The scaffold under `~/dsn-native-build/` is disposable — delete it any time; r
 
 ## Honesty invariants (must hold on every screen)
 
-- Call audio is **simulated** and the label is always visible.
+- The honesty strip is always visible and tells the truth: "Not capturing call audio ..." by default;
+  the "Prototype capture — recording this call's audio via the microphone on speakerphone, with your
+  consent." label only while the native layer reports the microphone is live (DSN-025, decision 0012).
 - A received SMS is a message **claim** — never shown as a verified fact or an actually-paid transfer.
 - The listener is consented, **session-scoped AND foreground-scoped**, reads no SMS history, and observes
   only live `SMS_RECEIVED` broadcasts while listening. Multi-part SMS are concatenated into one claim.

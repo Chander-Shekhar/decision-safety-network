@@ -22,6 +22,9 @@ Authored here:
 - `App.tsx` - WebView host, consent gate, SMS-to-WebView bridge, persistent honesty label
 - `src/SmsSignal.ts` - JS wrapper over the native module
 - `android/app/src/main/java/com/dsncompanion/SmsSignalModule.kt`, `SmsSignalPackage.kt`
+- DSN-025 (labeled prototype call capture, **not yet built/verified on a device**): `src/CallCapture.ts`,
+  `CallCaptureModule.kt` (registered in `SmsSignalPackage`). Envelopes to the web app: `dsn:transcript-segment`
+  `{text, at}` and `dsn:capture-status` `{active}`; web -> native: `dsn:capture-policy` `{allowed, callListening}`.
 
 Signatures marked `verify against RN <version> on scaffold` in the sources must be checked against the scaffolded RN version.
 
@@ -64,6 +67,9 @@ are in [`MANUAL-E2E-TEST.md`](./MANUAL-E2E-TEST.md).
    ```xml
    <uses-permission android:name="android.permission.RECEIVE_SMS" />
    ```
+   For DSN-025 prototype call capture also add `<uses-permission android:name="android.permission.RECORD_AUDIO" />`
+   and `<queries><intent><action android:name="android.speech.RecognitionService" /></intent></queries>`.
+   Do **NOT** add any manifest service/receiver for capture: the mic is started only from the foreground session.
    Do **NOT** add a manifest `<receiver>` for SMS: registration is programmatic and session-scoped.
    The debug build must allow cleartext to `localhost` (the RN debug template does via `usesCleartextTraffic`; confirm).
 6. Start the web app and API (repo root), then expose every port the device needs:
@@ -86,7 +92,12 @@ are in [`MANUAL-E2E-TEST.md`](./MANUAL-E2E-TEST.md).
 
 ## Honesty invariants
 
-- Call audio is **simulated** and labelled on every screen: "Simulated call audio - this demo does not record calls."
+- Call audio is **not captured by default**; the strip reads "Not capturing call audio — controlled transcript only."
+  Only after a separate in-app opt-in (and the saved call-listening preference / processing consent allow it)
+  does DSN-025's **labeled prototype capture** record via the **microphone while the call is on speakerphone**
+  (on-device `SpeechRecognizer`; only text is sent to the web app; the carrier/telephony stream is NOT tapped).
+  The strip then reads "Prototype capture — recording this call's audio via the microphone on speakerphone,
+  with your consent." Foreground- and session-scoped; stops on background, stop, or withdrawal. See decision 0012.
 - A received SMS is a message **claim**, not a verified fact, and never an actually-paid record.
 - Consent is explicit and the listener is **session-scoped AND foreground-scoped**: the native receiver is
   registered only while the session is open and the app is active, and is unregistered on background or

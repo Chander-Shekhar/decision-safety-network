@@ -39,6 +39,17 @@ export function parseCaptureStatusMessage(data: unknown): DsnCaptureStatus | nul
   return { type: 'dsn:capture-status', active: o.active };
 }
 
+/** Tell the native shell (if any) the owner's saved call-listening preference, so capture can be
+ * gated on it. Inert in a plain browser (no `ReactNativeWebView`). Carries no call content. */
+export function announceCapturePolicy(
+  plan: { callListening?: string; processingConsent?: boolean; setupCompletedAt?: string } | null,
+  target: { postMessage(m: string): void } | undefined = (window as unknown as { ReactNativeWebView?: { postMessage(m: string): void } }).ReactNativeWebView,
+): void {
+  if (!target) return;
+  const allowed = !!plan?.setupCompletedAt && !!plan.callListening && plan.processingConsent === true;
+  target.postMessage(JSON.stringify({ type: 'dsn:capture-policy', allowed, callListening: plan?.callListening ?? null }));
+}
+
 /** Build the next gap-free, in-order segment of the same pipeline the controlled transcript
  * uses. Returns null for a duplicate (same `at` + text). `seen` carries accepted keys. */
 export function nextLiveSegment(
