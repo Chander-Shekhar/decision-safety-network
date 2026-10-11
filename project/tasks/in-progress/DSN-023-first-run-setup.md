@@ -2,13 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P1
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed (expected: `apps/web/src/**`, plan API in `apps/api/src/plan*`, `packages/contracts/src/plan.ts`)
-- **Dependencies:** DSN-022 (design system)
+- **Owner:** Orchestrator (subagent-driven implementer under integrator)
+- **Branch/worktree:** `task/DSN-023-first-run-setup` (isolated worktree)
+- **Owned paths:** `apps/web/src/**`, `apps/api/src/plan*`, `packages/contracts/src/plan.ts`. Serialized/not owned: no session/screening/recovery/ally modules.
+- **Dependencies:** DSN-022 (design system) — integrated at `1bfd4d2`.
 - **PRD references:** Part I — C1 Decision Safety Plan; Fixed scope; three-minute demo beat 0:00
 - **Decision references:** 0010
-- **Started:** Not started
+- **Started:** 2026-10-11
 - **Last updated:** 2026-10-11
 
 ## Outcome
