@@ -1,4 +1,4 @@
-import type { AllyPacketContent } from '../../../packages/contracts/src/ally';
+import type { AllyPacketContent, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally';
 import { ActionBar, Button, Callout, Card } from './ui';
 
 export interface AllySharePreviewProps {
@@ -11,6 +11,10 @@ export interface AllySharePreviewProps {
   onShare?: () => void;
   onNotNow?: () => void;
   onRefresh?: () => void;
+  /** DSN-027: owner asks the API for the WhatsApp summary (only meaningful after Share). */
+  onPrepareWhatsApp?: () => void;
+  /** DSN-027: the API-built summary (minimum packet only); the link is opened by the human. */
+  whatsappSummary?: AllyWhatsAppSummary;
 }
 
 const formatAmount = (amountMinor: number): string => (amountMinor / 100).toLocaleString('en-IN');
@@ -22,7 +26,7 @@ const formatAmount = (amountMinor: number): string => (amountMinor / 100).toLoca
  * access denied. Presentational only - the authenticated API owns the
  * preview, the grant, and every data read.
  */
-export function AllySharePreview({ allyName, packet, stale = false, onShare, onNotNow, onRefresh }: AllySharePreviewProps): React.JSX.Element {
+export function AllySharePreview({ allyName, packet, stale = false, onShare, onNotNow, onRefresh, onPrepareWhatsApp, whatsappSummary }: AllySharePreviewProps): React.JSX.Element {
   return (
     <section aria-label="Ask my ally preview">
       <Card title={<>Share this case with {allyName}?</>}>
@@ -69,6 +73,33 @@ export function AllySharePreview({ allyName, packet, stale = false, onShare, onN
             Not now
           </Button>
         </ActionBar>
+        {(whatsappSummary || onPrepareWhatsApp) && (
+          <section aria-label="WhatsApp summary" className="flex flex-col gap-space-2">
+            <h3 className="text-base font-semibold">Reach {allyName} on WhatsApp</h3>
+            {whatsappSummary ? (
+              <>
+                <p className="text-sm text-text-muted">Only the packet above, as text. Nothing is sent until you tap and send it in WhatsApp.</p>
+                <pre className="whitespace-pre-wrap rounded-md bg-surface-sunken p-space-3 font-sans text-sm">{whatsappSummary.text}</pre>
+                <ActionBar>
+                  <a
+                    href={whatsappSummary.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center rounded-md border border-border bg-surface-raised px-space-4 py-space-2 font-medium underline"
+                  >
+                    Open WhatsApp to send summary
+                  </a>
+                </ActionBar>
+              </>
+            ) : (
+              <ActionBar>
+                <Button variant="secondary" onClick={() => onPrepareWhatsApp?.()}>
+                  Prepare WhatsApp summary
+                </Button>
+              </ActionBar>
+            )}
+          </section>
+        )}
         <p className="text-sm text-text-muted">A case-specific grant is created only after you share.</p>
         <p className="text-sm text-text-muted">Revoke this grant at any time; {allyName} loses access on the next request.</p>
       </Card>

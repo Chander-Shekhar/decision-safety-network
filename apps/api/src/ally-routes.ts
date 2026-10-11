@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
+import { assertCaseOwner, buildWhatsAppSummary, prepareCallerContact } from './ally-reach.js';
 import { createAllyGrant, previewAllyPacket, readAllyPacket, respondAsAlly, revokeGrant } from './ally.js';
 
 const SelectionSchema = z.array(z.string().min(1)).min(1).max(10);
@@ -15,6 +16,7 @@ const GrantBodySchema = z
   })
   .strict();
 const RevokeQuerySchema = z.object({ allyUid: z.string().min(1) });
+const ContactCallerBodySchema = z.object({ idempotencyKey: z.uuid() }).strict();
 
 /**
  * Domain errors `ally.ts` throws that are not in the shared `app.ts` error
@@ -106,6 +108,55 @@ export function createAllyRoutes(): RouteInstaller {
         const packet = await readAllyPacket(deps.db, uid, caseId, deps.now);
         reply.header('cache-control', 'no-store');
         return packet;
+      } catch (error) {
+        return replyOrRethrow(reply, error);
+      }
+    });
+
+    // DSN-027. The owner shares the summary with their ally; the link is opened
+    // by the human, nothing is sent here. Derived only from the granted packet.
+    app.get('/api/v1/cases/:id/ally-whatsapp-summary', async (request, reply) => {
+      const uid = await requireUser(request, deps.auth);
+      const { id: caseId } = request.params as { id: string };
+      const parsed = RevokeQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        reply.code(400).send({ error: 'INVALID_QUERY' });
+        return undefined;
+      }
+      try {
+        await assertCaseOwner(deps.db, uid, caseId);
+        const summary = await buildWhatsAppSummary(deps.db, parsed.data.allyUid, caseId, deps.now);
+        reply.header('cache-control', 'no-store');
+        return summary;
+      } catch (error) {
+        return replyOrRethrow(reply, error);
+      }
+    });
+
+    app.get('/api/v1/ally/cases/:id/whatsapp-summary', async (request, reply) => {
+      const uid = await requireUser(request, deps.auth);
+      const { id: caseId } = request.params as { id: string };
+      try {
+        const summary = await buildWhatsAppSummary(deps.db, uid, caseId, deps.now);
+        reply.header('cache-control', 'no-store');
+        return summary;
+      } catch (error) {
+        return replyOrRethrow(reply, error);
+      }
+    });
+
+    app.post('/api/v1/ally/cases/:id/contact-caller', async (request, reply) => {
+      const uid = await requireUser(request, deps.auth);
+      const { id: caseId } = request.params as { id: string };
+      const parsed = ContactCallerBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        reply.code(400).send({ error: 'INVALID_BODY' });
+        return undefined;
+      }
+      try {
+        const contact = await prepareCallerContact(deps.db, uid, caseId, parsed.data.idempotencyKey, deps.now);
+        reply.header('cache-control', 'no-store');
+        return contact;
       } catch (error) {
         return replyOrRethrow(reply, error);
       }

@@ -80,6 +80,30 @@ export interface RecoveryState {
   bankAction: BankAction;
   helpline1930Action: Helpline1930Action;
   acknowledgement: RecoveryAcknowledgement | null;
+  /** DSN-027, additive: guided (not real) protection for the affected account. */
+  guidedFreeze?: GuidedFreeze;
+}
+
+/**
+ * DSN-027 guided account protection for the AFFECTED account only. This is
+ * instructions plus a curated helpline plus a case-filled script - never a
+ * real freeze. `realFreeze` is typed `false` so no consumer can mistake it for
+ * an action that was performed. The helpline comes from the curated Demo Bank
+ * registry (`source`), never from caller or transcript data.
+ */
+export interface GuidedFreeze {
+  guided: true;
+  realFreeze: false;
+  scope: 'affected-account-only';
+  helpline: {
+    institution: 'Demo Bank';
+    number: string;
+    source: 'demo-bank-registry';
+    registryVersion: string;
+    simulated: true;
+  };
+  /** Case-filled "what to say" script, plain text. */
+  script: string;
 }
 
 /**
