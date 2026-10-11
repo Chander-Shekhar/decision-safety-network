@@ -44,8 +44,15 @@ Not applicable.
 
 ## Deferred (non-blocking) review nits
 
-- Handoff is not idempotency-replay-tested at the integration layer (the body carries `idempotencyKey`, but no test asserts a replayed key is a no-op for the acknowledgement + list entry).
-- NCRP field-map version/source is a curated constant; a real deployment needs the authoritative current field set and a resolving official-channel endpoint in place of `SIMULATED_NCRP_CHANNEL_URL`.
+Independent reviewer (`dsn028-review`) returned READY against branch `b92fb5f`; integration wiring (`71a0a42`, `5f2486f`) resolved its only pre-integration concern (unmounted `server.ts` routes + unwired `App.tsx`). Remaining non-blocking nits to defer:
+
+1. `report.ts` `recordReportHandoff`: the acknowledgement is written before `addConfirmedFraud`. If the add fails (e.g. a Firestore error) the acknowledgement persists without the list entry; a same-key retry is safe, but this partial-failure path has no test.
+2. No test covers a handoff replay — same `idempotencyKey`, or the same key with a different `callerNumber`. The body carries `idempotencyKey` but replay idempotency of the acknowledgement + list entry is unexercised.
+3. `report-routes.ts`: 403/401 ownership tests exist only for the draft GET; the download GET and the POST handoff share the same `requireUser`/`readCase` path but have no dedicated ownership test.
+4. `EvidenceScreen.tsx`: the caller-number input has no client-side validation, so a bad number only surfaces as a server 400. **Resolved at the wiring layer:** App.tsx `run()` catches `ApiError` and surfaces `Request failed (INVALID_BODY). Nothing was changed.`; because the throw lands on the `await api.command` line, `setReportHandedOff(true)` and `window.open` are both skipped (no handoff recorded, no channel opened on failure).
+5. The draft label string is hard-coded in `EvidenceScreen.tsx` and also lives as `REPORT_DRAFT_LABEL` in the contract (the web screen deliberately does not import API types); the two could drift.
+6. `normalizeConfirmed` can read the `evidence` subcollection for pre-close cases, so the draft GET does one extra read (no write).
+7. NCRP field-map version/source is a curated, source-dated constant; a real deployment needs the authoritative current field set and a resolving official-channel endpoint in place of `SIMULATED_NCRP_CHANNEL_URL`.
 
 ## Handoff
 
