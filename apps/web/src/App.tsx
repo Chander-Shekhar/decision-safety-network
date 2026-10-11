@@ -13,6 +13,8 @@ import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken 
 import { DecisionMap } from './DecisionMap';
 import { EvidenceScreen } from './EvidenceScreen';
 import { HomeScreen } from './HomeScreen';
+import { ConfirmFraudPanel, IncomingCallScreen } from './ScreeningScreen';
+import type { ScreeningVerdict } from '../../../packages/contracts/src/screening';
 import { canVerify, initialStep, journeySteps, STEPS, type JourneyState, type Step } from './journey';
 import { PaymentPanel } from './PaymentPanel';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
@@ -75,6 +77,8 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [editingPlan, setEditingPlan] = useState(false);
   const [savingSetup, setSavingSetup] = useState(false);
   const [deviceSignals, setDeviceSignals] = useState<DeviceSignal[]>([]);
+  const [incomingCall, setIncomingCall] = useState(false);
+  const [screenedNumber, setScreenedNumber] = useState('');
   const stepInitialised = useRef(false);
 
   const run = useCallback(async (work: () => Promise<void>) => {
@@ -238,12 +242,25 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
           />
         )}
 
-        {owner && !needsSetup && configured && plan && step === 'Plan' && !editingPlan && (
+        {owner && !needsSetup && configured && plan && step === 'Plan' && !editingPlan && !incomingCall && (
           <HomeScreen
             plan={plan}
             allyStatus={allyStatus}
             onStartSession={() => setStep('Session')}
             onEditPlan={() => setEditingPlan(true)}
+            onIncomingCall={() => setIncomingCall(true)}
+          />
+        )}
+
+        {owner && !needsSetup && configured && step === 'Plan' && incomingCall && (
+          <IncomingCallScreen
+            onScreen={(number) => api.command<ScreeningVerdict>('POST', 'screening/check', { number })}
+            onAnswer={(number) => {
+              setScreenedNumber(number);
+              setIncomingCall(false);
+              setStep('Session');
+            }}
+            onDecline={() => setIncomingCall(false)}
           />
         )}
 
@@ -320,6 +337,16 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               }
             />
             <DeviceSignalList signals={deviceSignals} />
+            <ConfirmFraudPanel
+              initialNumber={screenedNumber}
+              onConfirm={async (callerNumber) => {
+                const res = await api.command<{ maskedNumber: string }>('POST', `cases/${caseId}/fraud-confirmation`, {
+                  callerNumber,
+                  basis: 'user-confirmed',
+                });
+                return res.maskedNumber;
+              }}
+            />
             <div><Button variant="secondary" onClick={() => run(playScenario)}>
               Play attack scenario
             </Button></div>
