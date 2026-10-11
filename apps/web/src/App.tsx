@@ -3,6 +3,7 @@ import { DeviceSignalList } from './DeviceSignalList';
 import { parseSmsSignalMessage, ingestSmsSignal, type DeviceSignal } from './deviceSignals';
 import type { AllyPacket, AllyPacketContent } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
+import type { Plan } from '../../../packages/contracts/src/plan';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
 import type { RecoveryState } from '../../../packages/contracts/src/recovery';
 import { ActionConsole } from './ActionConsole';
@@ -11,10 +12,12 @@ import { AllySharePreview } from './AllySharePreview';
 import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken } from './api-client';
 import { DecisionMap } from './DecisionMap';
 import { EvidenceScreen } from './EvidenceScreen';
+import { HomeScreen } from './HomeScreen';
 import { canVerify, initialStep, journeySteps, STEPS, type JourneyState, type Step } from './journey';
 import { PaymentPanel } from './PaymentPanel';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
 import { RecoveryScreen } from './RecoveryScreen';
+import { SetupScreen, type SetupValues } from './SetupScreen';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
 import { Button, Callout, Dialog, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
@@ -63,6 +66,11 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [recovery, setRecovery] = useState<RecoveryState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [planSavedFlag, setPlanSavedFlag] = useState(false);
+  // DSN-023: the owner's saved plan (null = none yet). `planLoaded` gates first-run routing.
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [planLoaded, setPlanLoaded] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(false);
+  const [savingSetup, setSavingSetup] = useState(false);
   const [deviceSignals, setDeviceSignals] = useState<DeviceSignal[]>([]);
   const stepInitialised = useRef(false);
 
@@ -87,10 +95,13 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     (field) => (caseView?.confirmed?.[field] ?? caseView?.facts?.[field]) as Fact,
   );
   const owner = role === 'owner';
+  const configured = !!plan?.setupCompletedAt;
+  // A fresh owner (no completed setup, not deep-linked into a case) is routed into guided setup.
+  const needsSetup = owner && planLoaded && !configured && !caseId;
 
   const journeyState: JourneyState = {
     role,
-    planSaved: planSavedFlag || !!caseView,
+    planSaved: planSavedFlag || !!caseView || !!plan?.setupCompletedAt,
     caseId,
     phase: caseView?.phase,
     factsExtracted: facts.length > 0,
@@ -113,6 +124,22 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
+  // Load the owner's plan once signed in; a missing plan (404) simply means a fresh user.
+  useEffect(() => {
+    if (!owner) return;
+    let live = true;
+    api
+      .get<Plan>('plan')
+      .then((loaded) => live && setPlan(loaded))
+      .catch((e: unknown) => {
+        if (live && !(e instanceof ApiError && e.status === 404)) setError('Could not load your Safety Plan.');
+      })
+      .finally(() => live && setPlanLoaded(true));
+    return () => {
+      live = false;
+    };
+  }, [owner, api]);
+
   // Deep-link / reload: load the case once the owner is signed in, so gating sees the real phase.
   useEffect(() => {
     if (owner && caseId) void run(() => refreshCase(caseId));
@@ -122,10 +149,12 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   useEffect(() => {
     if (!role || stepInitialised.current) return;
     if (role === 'owner' && caseId && !caseView) return;
+    if (role === 'owner' && !caseId && !planLoaded) return;
     stepInitialised.current = true;
-    setStep(initialStep(journeyState));
+    // A configured owner with no open case lands on Home (the Plan step); everyone else follows the journey.
+    setStep(role === 'owner' && configured && !caseId ? 'Plan' : initialStep(journeyState));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, caseId, caseView]);
+  }, [role, caseId, caseView, planLoaded]);
 
   return (
     <div className="min-h-screen bg-surface text-text">
@@ -152,14 +181,55 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
       </header>
 
       <div className="mx-auto flex max-w-5xl flex-col gap-space-4 p-space-4 md:flex-row">
-        {role && (
+        {role && !needsSetup && (
           <aside className="md:w-56">
             <StepRail steps={railSteps} current={step} onSelect={setStep} />
           </aside>
         )}
 
       <main className="flex min-w-0 flex-1 flex-col gap-space-5">
-        {role && step === 'Plan' && (
+        {needsSetup && (
+          <SetupScreen
+            initial={plan ?? undefined}
+            saving={savingSetup}
+            onComplete={({ allyPairingCode, ...setup }: SetupValues) =>
+              run(async () => {
+                setSavingSetup(true);
+                try {
+                  const saved = await api.command<Plan>('PUT', 'plan', {
+                    thresholdMinor: plan?.thresholdMinor ?? 500_000,
+                    bankId: 'demo-bank',
+                    retentionMode: plan?.retentionMode ?? 'facts-24h',
+                    exportConsent: plan?.exportConsent ?? false,
+                    ...setup,
+                    completeSetup: true,
+                  });
+                  setPlan(saved);
+                  setPlanSavedFlag(true);
+                  setStep('Plan');
+                  if (allyPairingCode) {
+                    const invitation = await api.command<{ allyUid: string }>('POST', 'ally-invitations', { pairingCode: allyPairingCode });
+                    setAllyUid(invitation.allyUid);
+                    setAllyStatus('invited');
+                  }
+                } finally {
+                  setSavingSetup(false);
+                }
+              })
+            }
+          />
+        )}
+
+        {owner && !needsSetup && configured && plan && step === 'Plan' && !editingPlan && (
+          <HomeScreen
+            plan={plan}
+            allyStatus={allyStatus}
+            onStartSession={() => setStep('Session')}
+            onEditPlan={() => setEditingPlan(true)}
+          />
+        )}
+
+        {role && !needsSetup && step === 'Plan' && !(owner && configured && plan && !editingPlan) && (
           <PlanScreen
             role={role}
             allyStatus={allyStatus}
@@ -171,10 +241,11 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               })
             }
             onAcceptInvitation={() => run(async () => setAllyStatus('ready'))}
-            onSavePlan={({ allyPairingCode, ...plan }) =>
+            onSavePlan={({ allyPairingCode, ...savedPlan }) =>
               run(async () => {
-                await api.command('PUT', 'plan', plan);
+                setPlan(await api.command<Plan>('PUT', 'plan', savedPlan));
                 setPlanSavedFlag(true);
+                setEditingPlan(false);
                 if (allyPairingCode) {
                   const invitation = await api.command<{ allyUid: string }>('POST', 'ally-invitations', { pairingCode: allyPairingCode });
                   setAllyUid(invitation.allyUid);
