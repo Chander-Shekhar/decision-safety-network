@@ -2,13 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P0
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed (expected: `apps/web/src/**`, `apps/web/src/ui/**`, `apps/web/src/index.css`, `apps/web/src/ui/tokens.css`)
+- **Owner:** Orchestrator (subagent-driven implementer under integrator)
+- **Branch/worktree:** `task/DSN-022-ui-polish-declutter` (isolated worktree)
+- **Owned paths:** `apps/web/src/**` (all screens, `ui/**`, `index.css`, `ui/tokens.css`). Serialized/not owned: no `apps/api/**`, no `packages/contracts/**`.
 - **Dependencies:** None (operates on existing screens); coordinates with DSN-019 (a11y)
 - **PRD references:** Part I — UX & Solution Design scorecard; Trust/safety/privacy gates (consolidated simulation disclosure); Core quality bar
 - **Decision references:** 0008, 0010
-- **Started:** Not started
+- **Started:** 2026-10-11
 - **Last updated:** 2026-10-11
 
 ## Outcome
