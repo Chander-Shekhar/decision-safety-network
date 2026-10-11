@@ -72,4 +72,29 @@ export interface AllyGrant {
 export type AllyResponse =
   | { idempotencyKey: string; kind: 'contact-request' }
   | { idempotencyKey: string; kind: 'pause-recommendation' }
+  | { idempotencyKey: string; kind: 'contact-caller' }
   | { idempotencyKey: string; kind: 'checked-source'; source: string };
+
+/**
+ * DSN-027: a WhatsApp share built ONLY from the already-granted minimum
+ * packet. `url` is a `https://wa.me/?text=` link the human opens; nothing is
+ * sent server-side.
+ */
+export interface AllyWhatsAppSummary {
+  caseId: string;
+  text: string;
+  url: string;
+  expiresAt: string;
+}
+
+/**
+ * DSN-027: the ally's "contact the caller on the owner's behalf" preparation.
+ * It records an advisory response and returns a script; it never dials,
+ * grants fund control, or certifies the caller.
+ */
+export interface AllyCallerContact {
+  caseId: string;
+  script: string;
+  canControlFunds: false;
+  canCertifyCaller: false;
+}

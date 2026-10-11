@@ -250,6 +250,7 @@ export async function readAllyPacket(db: Firestore, allyUid: string, caseId: str
 const ResponseSchema = z.discriminatedUnion('kind', [
   z.object({ idempotencyKey: z.uuid(), kind: z.literal('contact-request') }).strict(),
   z.object({ idempotencyKey: z.uuid(), kind: z.literal('pause-recommendation') }).strict(),
+  z.object({ idempotencyKey: z.uuid(), kind: z.literal('contact-caller') }).strict(),
   z
     .object({ idempotencyKey: z.uuid(), kind: z.literal('checked-source'), source: z.string().trim().min(1).max(500) })
     .strict(),

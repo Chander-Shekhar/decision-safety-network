@@ -26,6 +26,7 @@ import type {
 } from '../../../packages/contracts/src/recovery.js';
 import { commitCaseCommand, readCase } from './case-store.js';
 import { transition } from './transitions.js';
+import { buildGuidedFreeze } from './recovery-freeze.js';
 
 const PAID_FIELDS: readonly PaidField[] = ['paidPayee', 'paidAmountMinor', 'transactionTime', 'paymentRail', 'referenceId'];
 const KNOWN_FACT_FIELDS = ['claimedIdentity', 'centralClaim', 'requestedAction', 'payee', 'amount', 'deadline'] as const;
@@ -200,10 +201,13 @@ async function readKnown(db: Firestore, current: RecoveryProjection): Promise<Re
 async function buildState(db: Firestore, current: RecoveryProjection): Promise<RecoveryState> {
   const paidPayment = readPaidPayment(current);
   const missing = PAID_FIELDS.filter((field) => paidPayment?.[field] == null);
+  const known = await readKnown(db, current);
+  const proposedPayment = computePrefill(current);
   return {
     caseId: current.id,
-    known: await readKnown(db, current),
-    proposedPayment: computePrefill(current),
+    known,
+    guidedFreeze: buildGuidedFreeze({ known, paidPayment, proposed: proposedPayment }),
+    proposedPayment,
     paidPayment,
     missing,
     bankAction: BANK_ACTION,
