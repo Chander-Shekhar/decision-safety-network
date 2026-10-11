@@ -5,15 +5,15 @@
  */
 :root {
   /* Neutral surface / text ramp */
-  --color-surface: #f8f9fb;
+  --color-surface: #f4f6fa;
   --color-surface-raised: #ffffff;
   --color-surface-sunken: #eef0f4;
-  --color-border: #d5d9e0;
+  --color-border: #dde1e8;
   --color-text: #1c2230;
   --color-text-muted: #525c70;
 
   /* One calm primary */
-  --color-primary: #2f5d8a;
+  --color-primary: #1f4e8c;
   --color-primary-contrast: #ffffff;
 
   /* Safety pause: prominent warm amber tone, deliberately not red */
@@ -43,11 +43,11 @@
   /* Radii */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
-  --radius-lg: 0.875rem;
+  --radius-lg: 1rem;
   --radius-pill: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgb(28 34 48 / 0.08);
+  --shadow-sm: 0 1px 2px rgb(28 34 48 / 0.06), 0 1px 3px rgb(28 34 48 / 0.04);
   --shadow-md: 0 4px 12px rgb(28 34 48 / 0.12);
 
   /* System font stack only; no web fonts */

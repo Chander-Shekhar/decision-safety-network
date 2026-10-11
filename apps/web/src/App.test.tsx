@@ -19,6 +19,12 @@ beforeEach(() => {
 });
 
 describe('App', () => {
+  it('shows exactly one consolidated simulation disclosure in the header', () => {
+    render(<App auth={auth} />);
+    expect(screen.getAllByText(/simulated/i)).toHaveLength(1);
+    expect(screen.getByText(/Prototype.*Demo Bank and the transfer are simulated; all data is synthetic/i)).toBeVisible();
+  });
+
   it('fetches the case once the owner is signed in and the URL carries a caseId', async () => {
     window.history.pushState({}, '', '/cases/c1');
     get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: {}, confirmed: {} });
@@ -37,7 +43,7 @@ describe('App', () => {
     render(<App auth={auth} />);
     await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
     await userEvent.click(await screen.findByRole('button', { name: /^Verify/ })); // step nav (no API call)
-    expect(await screen.findByText(/submit the simulated transfer/i)).toBeInTheDocument();
+    expect(await screen.findByText(/submit the transfer/i)).toBeInTheDocument();
     expect(command).not.toHaveBeenCalledWith('POST', 'cases/c1/verify', expect.anything());
   });
 

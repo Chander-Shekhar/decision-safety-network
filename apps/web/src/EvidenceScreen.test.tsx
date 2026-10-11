@@ -26,7 +26,7 @@ describe('EvidenceScreen (literal plan Task 11 snippet)', () => {
     );
 
     expect(screen.getByText(/source not retained/i)).toBeVisible();
-    expect(screen.getByText(/not submitted or accepted/i)).toBeVisible();
+    expect(screen.getByText(/draft for your review.*not submitted/i)).toBeVisible();
     expect(screen.getByRole('button', { name: /download evidence/i })).toBeDisabled();
   });
 });
@@ -96,8 +96,9 @@ describe('EvidenceScreen safety constraints', () => {
     expect(screen.queryByText(/vulnerable/i)).toBeNull();
   });
 
-  it('persistently labels the surface Simulated', () => {
+  it('drops the per-panel Simulated badge but keeps the not-submitted label', () => {
     render(<EvidenceScreen timeline={mixedTimeline} exportAllowed retentionMode="selected-7d" />);
-    expect(screen.getAllByText(/simulated/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/simulated/i)).toBeNull();
+    expect(screen.getByText(/not submitted/i)).toBeVisible();
   });
 });

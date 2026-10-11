@@ -22,10 +22,10 @@ describe('AllySharePreview', () => {
     expect(screen.getByText(/full transcript and other evidence are not included/i)).toBeVisible();
   });
 
-  it('says the ally cannot see the case yet and that Simulated behavior is labeled', () => {
+  it('says the ally cannot see the case yet without a per-panel simulated stamp', () => {
     render(<AllySharePreview allyName="Alex" packet={packet} />);
     expect(screen.getByText(/alex cannot see this case yet/i)).toBeVisible();
-    expect(screen.getAllByText(/simulated/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/simulated/i)).toBeNull();
   });
 
   it('requires an explicit Share click; rendering alone shares nothing', async () => {

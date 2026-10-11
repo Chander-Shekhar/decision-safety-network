@@ -29,10 +29,10 @@ describe('DecisionMap', () => {
     expect(screen.getByText(/degraded/i)).toBeVisible();
   });
 
-  it('frames a model-extracted fact as a caller claim, not independently verified', () => {
+  it('frames a model-extracted fact as a caller claim via an inline provenance tag', () => {
     render(<DecisionMap facts={[claimedPayee]} />);
     expect(screen.getByText(/caller claimed/i)).toBeVisible();
-    expect(screen.getByText(/not independently verified/i)).toBeVisible();
+    expect(screen.queryByText(/not independently verified/i)).toBeNull();
     expect(screen.getByText('safe-new')).toBeVisible();
   });
 
@@ -53,9 +53,8 @@ describe('DecisionMap', () => {
     expect(onViewSource).toHaveBeenCalledWith('payee', ['s1']);
   });
 
-  it('shows "Source not retained" instead of a source link once source has expired', () => {
+  it('drops the source link once source has expired', () => {
     render(<DecisionMap facts={[claimedPayee]} sourceRetained={false} />);
-    expect(screen.getByText(/source not retained/i)).toBeVisible();
     expect(screen.queryByRole('button', { name: /view source/i })).toBeNull();
   });
 

@@ -30,10 +30,10 @@ describe('AllyScreen', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it('labels the surface as a separate ally session and Simulated', () => {
+  it('labels the surface as a separate ally session', () => {
     render(<AllyScreen packet={packet} />);
     expect(screen.getByText(/safety ally/i)).toBeVisible();
-    expect(screen.getAllByText(/simulated/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/simulated/i)).toBeNull();
   });
 
   it('lets the ally request contact', async () => {

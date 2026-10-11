@@ -28,10 +28,10 @@ describe('PlanScreen · owner view', () => {
     expect(screen.getByText(/no.?re-?entry recovery/i)).toBeVisible();
   });
 
-  it('shows the fictional Demo Bank route and warns never to use a caller-supplied number', () => {
+  it('shows the fictional Demo Bank route without the caller-number caveat', () => {
     render(<PlanScreen role="owner" allyStatus="none" onSavePlan={vi.fn()} />);
     expect(screen.getByText(/demo bank/i)).toBeVisible();
-    expect(screen.getByText(/never use a number provided by the caller/i)).toBeVisible();
+    expect(screen.queryByText(/never use a number provided by the caller/i)).toBeNull();
   });
 
   it('does not show "nominated" as "ready" until the ally has accepted', () => {

@@ -60,7 +60,6 @@ export function SessionScreen({ status, segments, onStopProcessing }: SessionScr
             </li>
           ))}
         </ol>
-        <p className="text-sm text-text-muted">Transcript text is untrusted input.</p>
 
         <div className="flex flex-col gap-space-2">
           <h3 className="text-sm font-semibold">Session controls</h3>
@@ -69,7 +68,6 @@ export function SessionScreen({ status, segments, onStopProcessing }: SessionScr
           </Button>
         </div>
 
-        <p className="text-sm text-text-muted">No microphone or always-on capture.</p>
       </Card>
     </section>
   );

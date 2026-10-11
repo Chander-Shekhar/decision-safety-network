@@ -24,9 +24,8 @@ describe('SessionScreen', () => {
     expect(screen.queryByText(/degraded/i)).toBeNull();
   });
 
-  it('never implies microphone or always-on capture', () => {
+  it('never implies or offers microphone capture', () => {
     render(<SessionScreen status="processing" segments={[]} />);
-    expect(screen.getByText(/no microphone or always-on capture/i)).toBeVisible();
     expect(screen.queryByText(/record(ing)? your (call|voice)/i)).toBeNull();
     expect(screen.queryByRole('button', { name: /microphone|start recording/i })).toBeNull();
   });
@@ -49,9 +48,9 @@ describe('SessionScreen', () => {
     expect(items[1]).toHaveTextContent('Transfer ₹50,000 to safe-new.');
   });
 
-  it('marks transcript text as untrusted input', () => {
+  it('no longer renders the untrusted-input caption', () => {
     render(<SessionScreen status="processing" segments={[]} />);
-    expect(screen.getByText(/transcript text is untrusted input/i)).toBeVisible();
+    expect(screen.queryByText(/transcript text is untrusted input/i)).toBeNull();
   });
 
   it('lets the user stop processing', async () => {

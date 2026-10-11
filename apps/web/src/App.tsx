@@ -16,7 +16,7 @@ import { PaymentPanel } from './PaymentPanel';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
 import { RecoveryScreen } from './RecoveryScreen';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
-import { Button, Callout, Card, Dialog, StepRail } from './ui';
+import { Button, Callout, Dialog, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /**
@@ -129,18 +129,13 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
   return (
     <div className="min-h-screen bg-surface text-text">
-      <header role="banner" className="border-b border-border bg-surface-raised px-space-4 py-space-4">
-        <h1 className="text-xl font-semibold">Decision Safety Network</h1>
-        <p>
-          <strong>Simulated</strong> &mdash; Demo Bank, the transfer, and local acknowledgements are simulated and
-          fictional. Synthetic data only. Controlled transcript input.
-        </p>
-        <p>
-          Pause happens <strong>before you enter an OTP</strong>. The 1930 helpline and cybercrime.gov.in are real
-          official routes; this app does not file reports for you.
+      <header role="banner" className="border-b border-border bg-surface-raised px-space-4 py-space-3">
+        <h1 className="text-xl font-semibold tracking-tight">Decision Safety Network</h1>
+        <p role="note" className="text-sm text-text-muted">
+          Prototype &mdash; Demo Bank and the transfer are simulated; all data is synthetic.
         </p>
         {!role && (
-          <p className="flex gap-space-2">
+          <p className="mt-space-3 flex flex-wrap gap-space-2">
             <Button onClick={() => run(async () => { await auth.signInSynthetic('owner'); setRole('owner'); })}>
               Create synthetic user
             </Button>
@@ -163,8 +158,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
           </aside>
         )}
 
-      <main className="flex-1">
-        <Card>
+      <main className="flex min-w-0 flex-1 flex-col gap-space-5">
         {role && step === 'Plan' && (
           <PlanScreen
             role={role}
@@ -194,8 +188,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
         {owner && step === 'Session' && (
           <section aria-label="Controlled session">
             {!caseId ? (
-              <button
-                type="button"
+              <Button
                 onClick={() =>
                   run(async () => {
                     const created = await api.command<CaseView>('POST', 'cases');
@@ -206,7 +199,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 }
               >
                 Start controlled session
-              </button>
+              </Button>
             ) : (
               <p>Case {caseId}</p>
             )}
@@ -238,11 +231,12 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               }
             />
             <DeviceSignalList signals={deviceSignals} />
-            <button type="button" onClick={() => run(playScenario)}>
+            <div><Button variant="secondary" onClick={() => run(playScenario)}>
               Play attack scenario
-            </button>
+            </Button></div>
             <form
-              aria-label="Simulated transfer draft"
+              aria-label="Draft a transfer"
+              className="flex flex-wrap items-end gap-space-3"
               onSubmit={(e) => {
                 e.preventDefault();
                 run(async () => {
@@ -266,7 +260,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 Amount
                 <input inputMode="numeric" value={draftAmount} onChange={(e) => setDraftAmount(e.target.value)} />
               </label>
-              <button type="submit">Save simulated transfer draft</button>
+              <Button type="submit" variant="secondary">Save transfer draft</Button>
             </form>
             <PaymentPanel
               draft={caseView?.paymentDraft}
@@ -311,12 +305,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
           <>
             {!verifyGate.allowed && <Callout kind="info">{verifyGate.reason}</Callout>}
             {!registry && (
-              <button
-                type="button"
-                onClick={() => run(async () => setRegistry(await api.get<VerifyPanelRegistry>('registry/demo-bank')))}
-              >
+              <div><Button onClick={() => run(async () => setRegistry(await api.get<VerifyPanelRegistry>('registry/demo-bank')))}>
                 Load Demo Bank registry
-              </button>
+              </Button></div>
             )}
             {registry && (
               <VerifyPanel
@@ -342,8 +333,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
         {owner && caseId && step === 'Ally' && (
           <>
-            <button
-              type="button"
+            <div><Button
               onClick={() =>
                 run(async () => {
                   const selectedEvidenceIds = segments.map((s) => s.id);
@@ -357,7 +347,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               }
             >
               Preview what my ally would see
-            </button>
+            </Button></div>
             <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)} title="What your ally would see">
               {preview && (
                 <AllySharePreview
@@ -387,9 +377,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               Case ID
               <input value={caseId} onChange={(e) => setCaseId(e.target.value)} />
             </label>
-            <button type="button" onClick={() => run(async () => setAllyPacket(await api.get<AllyPacket>(`ally/cases/${caseId}`)))}>
+            <div><Button onClick={() => run(async () => setAllyPacket(await api.get<AllyPacket>(`ally/cases/${caseId}`)))}>
               Open shared case
-            </button>
+            </Button></div>
             {allyPacket && (
               <AllyScreen
                 packet={allyPacket}
@@ -404,14 +394,13 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
         {owner && caseId && step === 'Recovery' && (
           <>
             {!recovery && (
-              <button
-                type="button"
+              <div><Button
                 onClick={() =>
                   run(async () => setRecovery(await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/enter`, withKey({}))))
                 }
               >
                 I already paid
-              </button>
+              </Button></div>
             )}
             {recovery && (
               <RecoveryScreen
@@ -467,7 +456,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             }
           />
         )}
-        </Card>
       </main>
       </div>
     </div>

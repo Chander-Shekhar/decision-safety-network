@@ -31,14 +31,13 @@ const result = {
 describe('VerifyPanel', () => {
   it('shows the versioned fictional registry provenance before any result, never a real-bank claim', () => {
     render(<VerifyPanel registry={registry} />);
-    expect(screen.getByText(/fictional demo bank/i)).toBeVisible();
-    expect(screen.getByText(/cup-1/i)).toBeVisible();
-    expect(screen.getByText(/caller-provided phone numbers are never used/i)).toBeVisible();
+    expect(screen.getByText(/local fictional registry/i)).toBeVisible();
+    expect(screen.getByText(/came from our registry, not from the caller/i)).toBeVisible();
   });
 
-  it('persistently labels the surface Simulated before a result exists', () => {
+  it('carries the registry route label before a result exists', () => {
     render(<VerifyPanel registry={registry} />);
-    expect(screen.getAllByText(/simulated/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/demo bank verification \(simulated\)/i)).toBeVisible();
   });
 
   it('offers only the registry route - no free-text contact field of any kind', () => {
@@ -75,9 +74,9 @@ describe('VerifyPanel', () => {
     expect(screen.queryByRole('button', { name: /verify with demo bank/i })).toBeNull();
   });
 
-  it('shows the completed result with provenance and persistent Simulated labeling at least twice', () => {
+  it('shows the completed result as one quiet result line without Simulated badges', () => {
     render(<VerifyPanel registry={registry} result={result} />);
-    expect(screen.getAllByText(/Simulated/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText('Simulated')).toBeNull();
     expect(screen.getByText(/no outbound fraud call/i)).toBeVisible();
     expect(screen.queryByText('9999999999')).toBeNull();
   });
@@ -86,15 +85,14 @@ describe('VerifyPanel', () => {
     render(<VerifyPanel registry={registry} result={result} />);
     expect(screen.getByText(/claim not supported/i)).toBeVisible();
     expect(screen.getByText(/versioned-demo-registry/i)).toBeVisible();
-    expect(screen.getAllByText(/cup-1/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows that no protected-account transfer was requested in the simulation', () => {
+  it('shows that no protected-account transfer was requested', () => {
     render(<VerifyPanel registry={registry} result={result} />);
-    expect(screen.getByText(/no protected-account transfer/i)).toBeVisible();
+    expect(screen.getByText(/protected-account transfer request/i)).toBeVisible();
   });
 
-  it('offers Cancel for the simulated transfer once a result is recorded', async () => {
+  it('offers Cancel for the transfer once a result is recorded', async () => {
     const onCancel = vi.fn();
     const user = userEvent.setup();
     render(<VerifyPanel registry={registry} result={result} onCancel={onCancel} />);
@@ -108,9 +106,9 @@ describe('VerifyPanel', () => {
     expect(screen.queryByRole('button', { name: /defer/i })).toBeNull();
   });
 
-  it('frames Cancel as ending the simulated transfer, cancelled not just hidden', () => {
+  it('offers a plainly worded Cancel without simulated action labels', () => {
     render(<VerifyPanel registry={registry} result={result} />);
-    expect(screen.getByText(/cancelled, not just hidden/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: /^cancel the transfer$/i })).toBeVisible();
   });
 
   it('never renders a caller-supplied contact value, since there is no such prop at all', () => {

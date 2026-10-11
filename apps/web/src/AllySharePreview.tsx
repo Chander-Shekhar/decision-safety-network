@@ -1,5 +1,5 @@
 import type { AllyPacketContent } from '../../../packages/contracts/src/ally';
-import { ActionBar, Badge, Button, Callout, Card } from './ui';
+import { ActionBar, Button, Callout, Card } from './ui';
 
 export interface AllySharePreviewProps {
   /** Display name of the accepted ally the owner would share with. */
@@ -26,9 +26,6 @@ export function AllySharePreview({ allyName, packet, stale = false, onShare, onN
   return (
     <section aria-label="Ask my ally preview">
       <Card title={<>Share this case with {allyName}?</>}>
-        <p>
-          <Badge tone="simulated">SIMULATED</Badge>
-        </p>
         <p>{allyName} accepted your invitation, but {allyName} cannot see this case yet.</p>
 
         <h3 className="text-base font-semibold">Exact packet {allyName} will see</h3>

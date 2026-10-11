@@ -17,7 +17,7 @@ export interface JourneyState {
 
 export interface StepStatus { step: Step; available: boolean; reason?: string }
 
-const VERIFY_GUIDANCE = 'Submit the simulated transfer to enable official verification.';
+const VERIFY_GUIDANCE = 'Submit the transfer to enable official verification.';
 
 export function canVerify(s: JourneyState): { allowed: boolean; reason?: string } {
   if (s.hasVerification || s.phase === 'Check' || s.phase === 'Pause') return { allowed: true };

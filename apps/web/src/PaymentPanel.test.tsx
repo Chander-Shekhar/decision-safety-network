@@ -6,14 +6,11 @@ import { PaymentPanel } from './PaymentPanel';
 const draft = { beneficiaryId: 'safe-new', amountMinor: 50_000, newPayee: true, version: 1 };
 
 describe('PaymentPanel', () => {
-  it('persistently labels the surface Simulated, before and after submit', () => {
+  it('carries no per-panel simulated stamp, before or after submit (header disclosure covers it)', () => {
     const { rerender } = render(<PaymentPanel draft={draft} paymentState="draft" />);
-    expect(screen.getByText(/simulated/i)).toBeVisible();
-    expect(screen.getByText(/no money moves in this prototype/i)).toBeVisible();
-
+    expect(screen.queryByText(/simulated/i)).toBeNull();
     rerender(<PaymentPanel draft={draft} paymentState="pending" />);
-    expect(screen.getByText(/simulated/i)).toBeVisible();
-    expect(screen.getByText(/no money moves in this prototype/i)).toBeVisible();
+    expect(screen.queryByText(/simulated/i)).toBeNull();
   });
 
   it('shows the beneficiary and amount from the draft, including new-payee', () => {
@@ -23,9 +20,9 @@ describe('PaymentPanel', () => {
     expect(screen.getByText(/500/)).toBeVisible();
   });
 
-  it('shows a persistent reassurance before submission that words/amount alone never trigger an enhanced Pause', () => {
+  it('does not render the removed connection/Pause reassurance clutter', () => {
     render(<PaymentPanel draft={draft} paymentState="draft" />);
-    expect(screen.getByText(/no enhanced pause from words alone/i)).toBeVisible();
+    expect(screen.queryByText(/no enhanced pause from words alone|still checking the connection/i)).toBeNull();
   });
 
   it('lets the owner submit the draft', async () => {
@@ -37,10 +34,10 @@ describe('PaymentPanel', () => {
     expect(onSubmit).toHaveBeenCalled();
   });
 
-  it('frames submit as a pending human decision, never an authorized payment or real hold', () => {
+  it('offers a single Submit intent action and never claims an authorized payment', () => {
     render(<PaymentPanel draft={draft} paymentState="draft" />);
-    expect(screen.getByText(/pending human decision/i)).toBeVisible();
-    expect(screen.getByText(/not an authorized payment or real hold/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: /submit intent/i })).toBeEnabled();
+    expect(screen.queryByText(/authorized payment|real hold/i)).toBeNull();
   });
 
   it('disables submit when there is no draft yet', () => {
@@ -111,8 +108,7 @@ describe('PaymentPanel', () => {
     const onAlreadyPaid = vi.fn();
     render(<PaymentPanel draft={draft} paymentState="pending" segmentIds={['s1']} onRecheck={onRecheck} onAlreadyPaid={onAlreadyPaid} />);
 
-    await waitFor(() => expect(screen.getByText(/we cannot complete the ai check now/i)).toBeVisible());
-    expect(screen.getByText(/it remains pending until you choose an action/i)).toBeVisible();
+    await waitFor(() => expect(screen.getByText(/safety check unavailable.*choose an action/i)).toBeVisible());
     expect(screen.getByRole('button', { name: /i already paid/i })).toBeEnabled();
   });
 
