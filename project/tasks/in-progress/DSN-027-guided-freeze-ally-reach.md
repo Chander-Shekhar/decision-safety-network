@@ -2,14 +2,14 @@
 
 - **Scope:** core
 - **Priority:** P1
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed (expected: `apps/api/src/{recovery,ally}*`, `packages/contracts/src/{recovery,ally}.ts`, `apps/web/src/{RecoveryScreen,AllyScreen,AllySharePreview}.tsx`)
-- **Dependencies:** DSN-022
+- **Owner:** Orchestrator (subagent-driven implementer under integrator)
+- **Branch/worktree:** `task/DSN-027-guided-freeze-ally-reach` (isolated worktree)
+- **Owned paths:** `apps/api/src/{recovery,ally}*` (+ their tests), additive `packages/contracts/src/{recovery,ally}.ts`, `apps/web/src/{RecoveryScreen,AllyScreen,AllySharePreview}.tsx` (+ their tests). Serialized/not owned: no state-machine/policy/payment/screening/verification/plan change.
+- **Dependencies:** DSN-022 (done); builds on existing `recovery`/`ally` modules.
 - **PRD references:** Part I — Decisions 17 & 20; C8 (WhatsApp + contact caller); C10 (guided freeze); non-goal (no real freeze); gates (minimum ally packet, revocation)
 - **Decision references:** 0010
-- **Started:** Not started
-- **Last updated:** 2026-10-11
+- **Started:** 2026-10-12
+- **Last updated:** 2026-10-12
 
 ## Outcome
 
