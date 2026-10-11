@@ -2,14 +2,14 @@
 
 - **Scope:** core
 - **Priority:** P1
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed (expected: `apps/api/src/{export,recovery}*`, `packages/contracts/src/**`, `apps/web/src/EvidenceScreen.tsx`)
-- **Dependencies:** DSN-022
+- **Owner:** Orchestrator (subagent-driven implementer under integrator)
+- **Branch/worktree:** `task/DSN-028-user-submitted-prefilled-report` (isolated worktree)
+- **Owned paths:** `apps/api/src/{export,recovery}*` + a new report module + their tests, additive `packages/contracts/src/**` (new report contract), `apps/web/src/EvidenceScreen.tsx` (+ its tests). Serialized/not owned: no state-machine/policy/payment/verification/plan/ally change; the DSN-024 `authority-report` fraud-list basis is wired via the existing `fraud-confirmation` route (do not rewrite `fraud-list.ts`/`screening*`).
+- **Dependencies:** DSN-022 (done); DSN-024 (fraud-list `authority-report` basis — done, server-side).
 - **PRD references:** Part I — Decision 18; C11; Trust gate (NCRP field-map, label until submitted); non-goal (no unattended submission)
 - **Decision references:** 0005, 0010
-- **Started:** Not started
-- **Last updated:** 2026-10-11
+- **Started:** 2026-10-12
+- **Last updated:** 2026-10-12
 
 ## Outcome
 
