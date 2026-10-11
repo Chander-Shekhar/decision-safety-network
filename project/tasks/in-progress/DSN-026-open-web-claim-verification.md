@@ -2,14 +2,14 @@
 
 - **Scope:** core
 - **Priority:** P1
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed (expected: `apps/api/src/verification*`, `packages/contracts/src/**`, `apps/web/src/VerifyPanel.tsx`/`DecisionMap.tsx`)
-- **Dependencies:** DSN-022
+- **Owner:** Orchestrator (subagent-driven implementer under integrator)
+- **Branch/worktree:** `task/DSN-026-open-web-claim-verification` (isolated worktree)
+- **Owned paths:** `apps/api/src/verification*` (+ `apps/api/test/**` for it), additive `packages/contracts/src/verification` or `facts`/`session` evidence field (additive only), `apps/web/src/{VerifyPanel.tsx,DecisionMap.tsx}` (+ their tests). Serialized/not owned: no state-machine/policy change, no screening/recovery/ally/plan modules.
+- **Dependencies:** DSN-022 (done). Builds on the existing `apps/api/src/verification.ts`/`verification-routes.ts`.
 - **PRD references:** Part I — Decision 19; C7 (web lookups as labeled untrusted evidence); Responsibility boundary; Trust gate (actionable route still from curated records)
-- **Decision references:** 0010
-- **Started:** Not started
-- **Last updated:** 2026-10-11
+- **Decision references:** 0010 (+ a verification-mechanism decision to be recorded at integration)
+- **Started:** 2026-10-12
+- **Last updated:** 2026-10-12
 
 ## Outcome
 
