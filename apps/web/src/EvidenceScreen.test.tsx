@@ -102,3 +102,60 @@ describe('EvidenceScreen safety constraints', () => {
     expect(screen.getByText(/not submitted/i)).toBeVisible();
   });
 });
+
+const reportDraft = {
+  label: 'Draft for your review — not submitted',
+  sourceDate: '2026-10-02',
+  fields: [
+    { ncrpField: "Caller's claimed identity", value: 'Bank fraud desk', blank: false, provenanceLabel: 'source not retained' },
+    { ncrpField: 'Complainant name', value: '', blank: true, provenanceLabel: '' },
+  ],
+  recoveryScamWarning: 'Beware of recovery scams: do not trust anyone offering to recover your money.',
+  channelLabel: 'Simulated official 1930/NCRP channel',
+};
+
+describe('EvidenceScreen pre-filled report (DSN-028)', () => {
+  it('shows a source-dated, not-submitted draft with confirmed values, blanks marked, provenance, and the recovery-scam warning', () => {
+    render(<EvidenceScreen timeline={[]} exportAllowed retentionMode="facts-24h" reportDraft={reportDraft} onOpenOfficialChannel={vi.fn()} />);
+
+    expect(screen.getByText('Bank fraud desk')).toBeVisible();
+    expect(screen.getByText(/source not retained/i)).toBeVisible();
+    expect(screen.getByText(/2026-10-02/)).toBeVisible();
+    expect(screen.getByText('(left blank)')).toBeVisible();
+    expect(screen.getByRole('alert', { name: /recovery scam/i })).toBeVisible();
+    expect(screen.getByText(/draft for your review.*not submitted/i)).toBeVisible();
+    expect(screen.queryByText(/\b(filed|accepted)\b/i)).toBeNull();
+  });
+
+  it('does nothing until the user clicks, then hands off with the typed caller number; wording never claims filed/accepted', async () => {
+    const onOpen = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(<EvidenceScreen timeline={[]} exportAllowed retentionMode="facts-24h" reportDraft={reportDraft} onOpenOfficialChannel={onOpen} />);
+    expect(onOpen).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText(/caller.s number/i), '+91 98765 43210');
+    await user.click(screen.getByRole('button', { name: /open official channel/i }));
+    expect(onOpen).toHaveBeenCalledWith('+91 98765 43210');
+
+    rerender(<EvidenceScreen timeline={[]} exportAllowed retentionMode="facts-24h" reportDraft={reportDraft} onOpenOfficialChannel={onOpen} handedOff />);
+    expect(screen.getByText(/you opened the official channel/i)).toBeVisible();
+    expect(screen.getByText(/has not filed/i)).toBeVisible();
+    expect(screen.queryByText(/draft for your review.*not submitted/i)).toBeNull();
+    expect(screen.queryByText(/report (was|has been) (filed|submitted|accepted)/i)).toBeNull();
+  });
+
+  it('omits a blank caller number, offers download only on click, and disables handoff when not allowed', async () => {
+    const onOpen = vi.fn();
+    const onDownload = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(<EvidenceScreen timeline={[]} exportAllowed retentionMode="facts-24h" reportDraft={reportDraft} onOpenOfficialChannel={onOpen} onDownloadReportDraft={onDownload} />);
+    expect(onDownload).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /download pre-filled form/i }));
+    expect(onDownload).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: /open official channel/i }));
+    expect(onOpen).toHaveBeenCalledWith(undefined);
+
+    rerender(<EvidenceScreen timeline={[]} exportAllowed retentionMode="facts-24h" reportDraft={reportDraft} onOpenOfficialChannel={onOpen} handoffAllowed={false} />);
+    expect(screen.getByRole('button', { name: /open official channel/i })).toBeDisabled();
+  });
+});
