@@ -44,6 +44,8 @@ Recovery offers guided protection for the affected account — bank helpline num
 - Nit 2 (test strength): the least-privilege test's payment-route assertion hits `/api/v1/ally/cases/:id/payment/continue`, which does not exist, so its 404 proves nothing. The real owner-scoped routes (`/payment/draft|submit|recheck`, `/actions/*`) deny the ally by construction (`case-store.ts` ownerUid checks) but no test proves it. Strengthen the assertion to hit a real route.
 - Nit 3 (test strength): the helpline-injection test puts the number in `claimedIdentity`, which the script never reads; a number in `centralClaim` would reach the script text (never the helpline field). Move the injected number into `centralClaim` for a meaningful assertion.
 - Cleanup: fold `DEMO_BANK_HELPLINE_NUMBER` into `demo-bank-registry.ts` so the registry is the single source (was outside the implementer's owned paths).
+- Nit 4 (test coverage): no replay test for `contact-caller` with a repeated `idempotencyKey`; behavior is covered by the existing `respondAsAlly` `allyResponses` transaction but untested for this kind.
+- Nit 5 (future-hardening): `RecoveryScreen.tsx` builds the `tel:` href by stripping whitespace; fine for the demo number, but a real number would need E.164 handling.
 
 ## Blocker or deferral
 
