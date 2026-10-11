@@ -6,6 +6,8 @@ export interface HomeScreenProps {
   allyStatus: 'none' | 'invited' | 'ready';
   onStartSession: () => void;
   onEditPlan: () => void;
+  /** Opens the pre-pickup screening screen (DSN-024). */
+  onIncomingCall?: () => void;
 }
 
 const LISTENING_LABEL: Record<Plan['callListening'], string> = {
@@ -21,7 +23,7 @@ const ALLY_LABEL: Record<HomeScreenProps['allyStatus'], string> = {
 };
 
 /** The configured landing: what is on, and one dominant way forward. */
-export function HomeScreen({ plan, allyStatus, onStartSession, onEditPlan }: HomeScreenProps): React.JSX.Element {
+export function HomeScreen({ plan, allyStatus, onStartSession, onEditPlan, onIncomingCall }: HomeScreenProps): React.JSX.Element {
   return (
     <section aria-label="Home">
       <Card
@@ -31,6 +33,11 @@ export function HomeScreen({ plan, allyStatus, onStartSession, onEditPlan }: Hom
             <Button size="lg" onClick={onStartSession}>
               Start a protected session
             </Button>
+            {onIncomingCall && (
+              <Button variant="secondary" onClick={onIncomingCall}>
+                Try an incoming call
+              </Button>
+            )}
             <Button variant="ghost" onClick={onEditPlan}>
               Edit Safety Plan
             </Button>
