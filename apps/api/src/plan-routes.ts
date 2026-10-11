@@ -2,8 +2,9 @@ import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
+import { ALLY_SHARE_FIELDS, CALL_LISTENING_MODES } from '../../../packages/contracts/src/plan.js';
 import { issuePairingCode } from './ally-pairing.js';
-import { acceptInvitation, createInvitation, revokeInvitation, savePlan } from './plan.js';
+import { acceptInvitation, createInvitation, getPlan, revokeInvitation, savePlan } from './plan.js';
 
 const RetentionModeSchema = z.enum(['delete-on-close', 'facts-24h', 'selected-7d']);
 
@@ -14,6 +15,20 @@ const PutPlanSchema = z.object({
   retentionMode: RetentionModeSchema,
   allySharingConsent: z.boolean(),
   exportConsent: z.boolean(),
+  // DSN-023 (plan contract v2) - all optional so v1 clients keep working.
+  callListening: z.enum(CALL_LISTENING_MODES as [string, ...string[]]).optional(),
+  allyShareFields: z.array(z.enum(ALLY_SHARE_FIELDS as [string, ...string[]])).max(ALLY_SHARE_FIELDS.length).optional(),
+  bankAccounts: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(64),
+        label: z.string().trim().min(1).max(60),
+        last4: z.string().regex(/^\d{4}$/),
+      }),
+    )
+    .max(5)
+    .optional(),
+  completeSetup: z.boolean().optional(),
 });
 
 const CreateInvitationSchema = z.object({
@@ -44,6 +59,15 @@ function replyOrRethrow(reply: FastifyReply, error: unknown): void {
  * this installer into the public app without editing it.
  */
 export const planRoutes: RouteInstaller = (app, deps: ApiDeps) => {
+  app.get('/api/v1/plan', async (request) => {
+    const uid = await requireUser(request, deps.auth);
+    const plan = await getPlan(deps.db, uid);
+    if (!plan) {
+      throw new Error('NOT_FOUND');
+    }
+    return plan;
+  });
+
   app.put('/api/v1/plan', async (request, reply) => {
     const uid = await requireUser(request, deps.auth);
     const parsed = PutPlanSchema.safeParse(request.body);
@@ -51,7 +75,7 @@ export const planRoutes: RouteInstaller = (app, deps: ApiDeps) => {
       reply.code(400).send({ error: 'INVALID_PLAN' });
       return undefined;
     }
-    return savePlan(deps.db, uid, parsed.data);
+    return savePlan(deps.db, uid, parsed.data as Parameters<typeof savePlan>[2]);
   });
 
   app.post('/api/v1/ally-pairing-code', async (request) => {

@@ -1,9 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
-import { createPlan, type AllyInvitation, type CreatePlanInput, type Plan } from '../../../packages/contracts/src/plan.js';
+import { createPlan, normalizePlan, type AllyInvitation, type CreatePlanInput, type Plan } from '../../../packages/contracts/src/plan.js';
 import { consumePairingCode } from './ally-pairing.js';
 
-type SavePlanInput = Omit<CreatePlanInput, 'ownerUid' | 'version' | 'nominatedAllyUid'>;
+type SavePlanInput = Omit<CreatePlanInput, 'ownerUid' | 'version' | 'nominatedAllyUid' | 'setupCompletedAt'> & {
+  /** Marks first-run setup complete; the server stamps `setupCompletedAt` (kept once set). */
+  completeSetup?: boolean;
+};
+
+/** Reads the owner's plan normalized to the current contract (v1 documents get v2 defaults), or null if none. */
+export async function getPlan(db: Firestore, ownerUid: string): Promise<Plan | null> {
+  const snap = await db.collection('plans').doc(ownerUid).get();
+  return snap.exists ? normalizePlan(snap.data() as Plan) : null;
+}
 
 /**
  * Saves (creates or fully replaces) the owner's Safety Plan: threshold,
@@ -21,8 +30,16 @@ export async function savePlan(db: Firestore, ownerUid: string, input: SavePlanI
   // the merge-write below is then a no-op for that field) so a plan-details
   // save never appears, to its own caller, to have dropped the nomination.
   const existingNominatedAllyUid = existing.exists ? (existing.get('nominatedAllyUid') as string | undefined) : undefined;
+  // v2 fields omitted by the caller (e.g. the legacy plan-edit form) keep their stored values.
+  const prior = existing.exists ? normalizePlan(existing.data() as Plan) : undefined;
+  const { completeSetup, ...fields } = input;
+  const setupCompletedAt = prior?.setupCompletedAt ?? (completeSetup ? new Date().toISOString() : undefined);
   const plan = createPlan({
-    ...input,
+    ...fields,
+    callListening: fields.callListening ?? prior?.callListening,
+    allyShareFields: fields.allyShareFields ?? prior?.allyShareFields,
+    bankAccounts: fields.bankAccounts ?? prior?.bankAccounts,
+    ...(setupCompletedAt !== undefined ? { setupCompletedAt } : {}),
     ownerUid,
     version: nextVersion,
     ...(existingNominatedAllyUid !== undefined ? { nominatedAllyUid: existingNominatedAllyUid } : {}),

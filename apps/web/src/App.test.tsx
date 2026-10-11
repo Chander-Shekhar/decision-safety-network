@@ -70,3 +70,58 @@ describe('App', () => {
     expect(screen.queryByText(/incoming sms/i)).toBeNull();
   });
 });
+
+describe('App · first-run setup (DSN-023)', () => {
+  const configuredPlan = {
+    callListening: 'per-call',
+    processingConsent: false,
+    bankAccounts: [{ id: 'a1', label: 'Demo Savings', last4: '4821' }],
+    thresholdMinor: 500000,
+    retentionMode: 'facts-24h',
+    exportConsent: false,
+    setupCompletedAt: '2026-10-11T00:00:00.000Z',
+  };
+
+  it('routes a fresh owner (no plan) into setup, and completing it persists the plan and lands on home', async () => {
+    const { ApiError } = await import('./api-client');
+    get.mockRejectedValue(new ApiError(404, 'NOT_FOUND'));
+    command.mockImplementation(async (_m: string, _p: string, body: object) => ({ ...configuredPlan, ...body }));
+    render(<App auth={auth} />);
+    await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
+
+    expect(await screen.findByRole('region', { name: 'First-run setup' })).toBeVisible();
+    expect(screen.queryByRole('navigation', { name: 'Journey' })).toBeNull();
+
+    await userEvent.click(screen.getByRole('radio', { name: /unverified numbers only/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Finish setup' }));
+
+    expect(await screen.findByRole('region', { name: 'Home' })).toBeVisible();
+    expect(command).toHaveBeenCalledWith(
+      'PUT',
+      'plan',
+      expect.objectContaining({ callListening: 'unverified-only', completeSetup: true, bankId: 'demo-bank' }),
+    );
+    expect(screen.queryByRole('region', { name: 'First-run setup' })).toBeNull();
+  });
+
+  it('on a non-404 plan load failure shows a retry instead of setup, and retry recovers', async () => {
+    const { ApiError } = await import('./api-client');
+    get.mockRejectedValueOnce(new ApiError(500, 'API_500')).mockResolvedValue(configuredPlan);
+    render(<App auth={auth} />);
+    await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
+    expect(await screen.findByText(/couldn.t load your safety plan/i)).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'First-run setup' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('region', { name: 'Home' })).toBeVisible();
+  });
+
+  it('lands an already-configured owner directly on home, skipping setup', async () => {
+    get.mockResolvedValue(configuredPlan);
+    render(<App auth={auth} />);
+    await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
+    expect(await screen.findByRole('region', { name: 'Home' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'First-run setup' })).toBeNull();
+  });
+});
