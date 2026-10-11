@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceSignalList } from './DeviceSignalList';
 import { announceCapturePolicy, nextLiveSegment, parseCaptureStatusMessage, parseTranscriptSegmentMessage } from './liveTranscript';
 import { parseSmsSignalMessage, ingestSmsSignal, type DeviceSignal } from './deviceSignals';
-import type { AllyPacket, AllyPacketContent } from '../../../packages/contracts/src/ally';
+import type { AllyCallerContact, AllyPacket, AllyPacketContent, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
 import type { Plan } from '../../../packages/contracts/src/plan';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
@@ -67,6 +67,11 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [verifyResult, setVerifyResult] = useState<VerifyPanelResult | undefined>();
   const [preview, setPreview] = useState<AllyPreview | null>(null);
   const [allyPacket, setAllyPacket] = useState<AllyPacket | null>(null);
+  // DSN-027: owner-side WhatsApp summary (minimum packet only) + ally-side contact-caller script.
+  const [allyShared, setAllyShared] = useState(false);
+  const [whatsappSummary, setWhatsappSummary] = useState<AllyWhatsAppSummary | undefined>();
+  const [callerContact, setCallerContact] = useState<AllyCallerContact | undefined>();
+  const [allyAccess, setAllyAccess] = useState<'active' | 'stale' | 'revoked'>('active');
   const [recovery, setRecovery] = useState<RecoveryState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [planSavedFlag, setPlanSavedFlag] = useState(false);
@@ -595,8 +600,21 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                         expectedCaseVersion: preview.caseVersion,
                         expectedPacketHash: preview.packetHash,
                       });
+                      setAllyShared(true); // DSN-027: a grant now exists, so the WhatsApp summary is meaningful.
                     })
                   }
+                  // DSN-027: only offered after a grant exists; builds the minimum-packet summary server-side.
+                  onPrepareWhatsApp={
+                    allyShared
+                      ? () =>
+                          run(async () =>
+                            setWhatsappSummary(
+                              await api.get<AllyWhatsAppSummary>(`cases/${caseId}/ally-whatsapp-summary?allyUid=${allyUid ?? ''}`),
+                            ),
+                          )
+                      : undefined
+                  }
+                  whatsappSummary={whatsappSummary}
                 />
               )}
             </Dialog>
@@ -615,9 +633,22 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             {allyPacket && (
               <AllyScreen
                 packet={allyPacket}
+                accessState={allyAccess}
                 onContactRequest={() => respond({ kind: 'contact-request' })}
                 onPauseRecommendation={() => respond({ kind: 'pause-recommendation' })}
                 onCheckedSource={(source) => respond({ kind: 'checked-source', source })}
+                // DSN-027: advisory script only; a revoked grant denies here and flips the view to revoked.
+                onContactCaller={() =>
+                  run(async () => {
+                    try {
+                      setCallerContact(await api.command<AllyCallerContact>('POST', `ally/cases/${caseId}/contact-caller`, withKey({})));
+                    } catch (e) {
+                      if (e instanceof ApiError && e.status === 403) setAllyAccess('revoked');
+                      throw e;
+                    }
+                  })
+                }
+                callerContact={callerContact}
               />
             )}
           </>
