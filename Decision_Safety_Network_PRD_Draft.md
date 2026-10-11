@@ -90,6 +90,15 @@ These decisions replace the former founder-approval list and are settled for thi
 13. **A bank or payment provider remains the preferred first production partner** because it can alter the irreversible financial action.
 14. **Google AI and Google Cloud deployment are mandatory Cup choices.** Exact model selection may be finalized during implementation without changing product scope.
 
+**Scope amendments — founder-authorized 2026-10-11** (see `docs/founder-demo-vision.md`). Decisions 15–20 extend the Cup build; load-bearing honesty (no real freeze, no unattended submission, private-not-public lists, labeled untrusted evidence, labeled prototype capture) is preserved:
+
+15. **Prototype call capture is demonstrated, honestly labeled.** The Cup build shows live call acquisition and full-call transcription as a prototype capability via an OEM/accessibility/dialer-integrated path on a controlled device, labeled a prototype capture path rather than a store-distributable claim. The controlled-transcript fixture remains available as a reproducible evaluation fallback.
+16. **A private confirmed-fraud identifier list exists.** A caller identifier is added only after the user confirms the case as fraudulent or reports it to the authority. The list is private, warns future recipients of a matching caller before pickup, and never publicly attributes crime.
+17. **Account protection is guided, not executed.** The product never performs a real freeze; for the affected account it shows the bank helpline number and a prepared script of what to say so the bank can freeze it.
+18. **Authority reporting is user-submitted and pre-filled.** The product pre-fills the official 1930/NCRP form for the user to review and submit themselves; it never submits unattended.
+19. **External caller-ID and open-web claim verification are inputs, not authority.** A third-party caller-ID/reputation signal (e.g. Truecaller) and grounded open-web lookups of claimed identities and official numbers are shown as labeled, untrusted supporting evidence; they never become the official route or self-certify a caller.
+20. **The Safety Ally can be reached off-app and may act toward the caller.** Ally notification may use WhatsApp and the ally may contact the caller on the user's behalf; the ally still cannot control funds or certify the caller as genuine.
+
 ## Cup scope and proof boundary
 
 ### Fixed scope
@@ -98,10 +107,11 @@ These decisions replace the former founder-approval list and are settled for thi
 |---|---|
 | **Primary user** | India-based adult making a bank/UPI transfer under live social-engineering pressure. |
 | **Incident** | Caller impersonates the fraud team of a clearly fictional **Demo Bank**, claims funds are at risk, demands secrecy, and instructs a transfer to a new “safe” beneficiary. No real bank brand is used to fabricate a response. |
-| **Interaction** | Incrementally streamed controlled transcript with visible consent. Browser microphone/VoIP audio is attempted only after the transcript path is stable. |
+| **Interaction** | Live call acquisition and full-call transcription demonstrated as a labeled prototype capture path (OEM/accessibility/dialer-integrated on a controlled device), with the incrementally streamed controlled transcript retained as a reproducible fallback. Visible consent throughout; call capture is user-configured (all calls, unverified numbers only, or per-call at pickup). |
+| **External signals** | A third-party caller-ID/reputation signal (e.g. Truecaller) and grounded open-web lookups of claimed identities and official numbers, shown as labeled, untrusted supporting evidence. |
 | **Financial action** | One synthetic new-payee transfer above a precommitted threshold. |
 | **Language** | English acceptance path. Hindi/Hinglish is stretch and requires its own evaluation. |
-| **Human support** | One pre-authorized Safety Ally on a second lightweight surface. |
+| **Human support** | One pre-authorized Safety Ally on a second lightweight surface, reachable via WhatsApp and able to contact the caller on the user's behalf; the ally cannot control funds or certify the caller. |
 | **Institutions** | One fictional Demo Bank in a versioned mock registry and a simulated verification endpoint. Any real public helpline shown for educational context is cited but never made to return a fabricated response. |
 | **Recovery routes** | Demo Bank/provider and 1930 first; a reviewable, source-dated **NCRP field-aligned preview** follows. |
 | **Data** | Synthetic identities, conversation, account, transaction, and incident data for the public demo. |
@@ -111,10 +121,10 @@ These decisions replace the former founder-approval list and are settled for thi
 
 | Classification | Included behavior |
 |---|---|
-| **Live in the prototype** | Incremental transcript processing; Gemini structured extraction and updates; source-linked Decision Map; deterministic state transitions; user corrections and consent; action controls; ally response; evidence timeline and export generation. |
+| **Live in the prototype** | Live call capture and full-call transcription on a controlled device (labeled prototype path); incremental transcript processing; Gemini structured extraction and updates; source-linked Decision Map; third-party caller-ID screening and grounded open-web claim-verification signals; deterministic state transitions; user corrections and consent; action controls; ally response; evidence timeline and export generation. |
 | **Controlled input** | The scripted call and legitimate control scenario. They are repeatable for evaluation but processed afresh on every run; model outputs are not pre-baked. |
 | **Simulated integration** | Payment initiation/pause/cancel state, bank outbound-call verification response, 1930 acknowledgement, NCRP preview, and any partner case status. Every such surface carries a persistent “Simulated” badge. |
-| **Future partner capability** | Real cellular call acquisition, bank-grade transaction holds, verified institution callbacks, direct 1930/NCRP/Chakshu submission, and cross-institution intelligence exchange. |
+| **Future partner capability** | Store-distributable/production-grade call acquisition across devices, bank-grade transaction holds, verified institution callbacks, direct unattended 1930/NCRP/Chakshu submission, and cross-institution intelligence exchange. |
 
 ### What the prototype proves—and does not prove
 
@@ -129,17 +139,18 @@ Every item below is required. This is intentionally more than a classifier, chat
 | ID | Core capability | Acceptance outcome |
 |---|---|---|
 | **C1** | **Decision Safety Plan** | The user explicitly configures one context-aware policy—“protect a large new-payee transfer when someone is directing me live and their claim is still unverified”—selects the Demo Bank route, nominates one consenting ally, and chooses processing, retention, sharing, and export preferences. Conversation alone and an ordinary transfer alone do not produce the enhanced intervention. |
-| **C2** | **Live controlled Safe Session** | The product incrementally processes streamed transcript segments rather than revealing a precomputed result. The UI identifies the input as controlled and shows when live processing is active, unavailable, or degraded. Audio acquisition is not required for core acceptance. |
+| **C2** | **Live Safe Session with pre-pickup screening** | Before pickup, the product screens the caller using a third-party caller-ID/reputation signal and the private confirmed-fraud list (C13), warning the user when a number is unverified or previously confirmed fraudulent. On pickup it captures and transcribes the live call (labeled prototype path) or plays the controlled transcript fallback, processing segments incrementally rather than revealing a precomputed result, and shows when live processing is active, unavailable, or degraded. |
 | **C3** | **Gemini Living Safety Case** | Gemini maintains structured fields for claimed identity, central claim or threat, requested action, amount, payee, deadline, observed tactics, verification status, uncertainty, and missing information. Every displayed fact links to its supporting utterance and can be corrected by the user. |
 | **C4** | **Conversation-to-payment binding** | The simulated payment surface emits beneficiary, amount, new-payee, and submit-intent events. The system joins them to the active Safety Case and records that manipulation context and financial consequence have converged. This cross-context binding is the central innovation. |
 | **C5** | **Stateful intervention orchestrator** | The canonical Cup state machine advances through **Observe → Check → Pause → Verify or Recover → Resolve**, including correction rollbacks and direct recovery entry. Gemini supplies structured context; a deterministic, versioned policy selects the allowed intervention. Internal state/debug detail is presenter-only; the pressured user sees the reason and next action, not machinery. |
 | **C6** | **Explainable action console** | At the decisive moment, the user sees no more than three source-supported reasons and direct actions: **Pause/Cancel**, **Verify Officially**, **Ask My Ally**, and an honest **Continue after acknowledgment** path. Selecting Pause or Cancel changes the simulated transfer state; it is not merely an alert dismissal. |
-| **C7** | **Completed simulated institution-verification workflow** | The workflow launches from the versioned Demo Bank registry, never caller-supplied data. The clearly labeled simulated endpoint reports whether Demo Bank has an outbound fraud call or protected-account transfer request. Registry version, method, time, simulation status, and result are written back to the case. |
-| **C8** | **Safety Ally live review** | A second authenticated browser session receives only the claim, proposed action, amount, verification gap, and selected evidence—not the full transcript by default. The ally can contact the user, recommend pause, and record the independent source checked. They cannot control funds or mark the caller verified. Real push/SMS delivery is not a core dependency. |
+| **C7** | **Completed simulated institution-verification workflow** | The workflow launches from the versioned Demo Bank registry, never caller-supplied data. The clearly labeled simulated endpoint reports whether Demo Bank has an outbound fraud call or protected-account transfer request. Registry version, method, time, simulation status, and result are written back to the case. In addition, grounded open-web lookups of the claimed identity and the institution's official contact numbers are shown as labeled, untrusted supporting evidence that corroborates or contradicts the caller's claim but never becomes the official route or certifies the caller. |
+| **C8** | **Safety Ally live review** | A second authenticated session, with an off-app WhatsApp summary, receives only the claim, proposed action, amount, verification gap, and selected evidence—not the full transcript by default. The ally can contact the user, contact the caller on the user's behalf, recommend pause, and record the independent source checked. They cannot control funds or mark the caller verified. |
 | **C9** | **Resolved prevention outcome** | The primary path ends with the **simulated Demo Bank response** rejecting the claim and the **simulated transfer** cancelled/deferred. The case records exactly that outcome and preserved user agency; it does not say a real payment was prevented. A separate legitimate high-pressure control scenario must remain quiet or use only proportionate verification. |
-| **C10** | **Instant “I already paid” recovery** | From any relevant state, the user can select “I already paid.” The same case reuses the caller, claim, payee, amount, transaction time, and evidence; asks only harm-routing questions that remain unknown; then puts bank/provider and 1930 actions first and in parallel. |
-| **C11** | **Evidence timeline and emergency handoff** | The product separates source artifacts from AI summaries, builds a correction-preserving event timeline, identifies missing fields, and produces a user-reviewable human brief plus a source-dated NCRP field-aligned preview. It records simulated acknowledgements and warns about recovery scams; it never claims form acceptance or that a real report was filed. |
+| **C10** | **Instant “I already paid” recovery** | From any relevant state, the user can select “I already paid.” The same case reuses the caller, claim, payee, amount, transaction time, and evidence; asks only harm-routing questions that remain unknown; then puts bank/provider and 1930 actions first and in parallel. For the affected account it offers guided protection—the bank helpline number plus a prepared script of exactly what to say so the bank can freeze that account—rather than performing any real freeze. |
+| **C11** | **Evidence timeline and emergency handoff** | The product separates source artifacts from AI summaries, builds a correction-preserving event timeline, identifies missing fields, and produces a user-reviewable human brief plus a source-dated, pre-filled official 1930/NCRP form the user reviews and submits themselves through the official channel. It records simulated acknowledgements and warns about recovery scams; it never submits on the user's behalf and never claims a report was accepted. |
 | **C12** | **Consent, provenance, audit, and failure controls** | Separate consent exists for processing, retention, ally sharing, and export. If retention is declined, source links expire after the session and recovery uses only labeled, user-confirmed structured facts. If accepted, the user promotes selected excerpts into evidence before raw content expires. Corrections append superseding events; deletion removes the artifact/PII and leaves only a minimal tombstone audit fact. If AI inference fails, deterministic pause, verification, and recovery paths remain available. |
+| **C13** | **Private confirmed-fraud memory** | When the user confirms a case as fraudulent or reports it to the authority, the caller identifier is added to a private list that warns future recipients of a matching caller before pickup. The list is private, scoped to suspected identifiers and evidence, consent-governed, and never publicly attributes crime. |
 
 ### Causal acceptance matrix
 
@@ -193,10 +204,10 @@ Stretch work begins only after all core acceptance tests pass, the deployed core
 | **S4** | **Mock bank review/temporary defer contract** | A richer simulated bank adapter accepts the case, places the transfer in manual review, and returns a signed, time-bounded status. |
 | **S5** | **Second incident archetype** | Remote-support/remote-access fraud, with its own containment action and legitimate control—not merely a reskinned script. |
 | **S6** | **Fraud-specialist escalation** | Extend the ally pattern to a simulated bank fraud queue that accepts the minimal case and returns case ownership/status. |
-| **S7** | **Private identifier intelligence graph** | Correlate phone number, UPI ID, URL, account, and related consented cases while keeping suspicion, provenance, corroboration, expiry, and appeal explicit. |
+| **S7** | **Private identifier intelligence graph** | Extend the core private confirmed-fraud list (C13) into a correlated graph across phone number, UPI ID, URL, account, and related consented cases while keeping suspicion, provenance, corroboration, expiry, and appeal explicit. |
 | **S8** | **Chakshu/no-loss reporting package** | Generate a reviewable suspected-communication package when no money was lost, without unattended submission or public accusation. |
 | **S9** | **Personalized post-incident rehearsal** | After urgent work is complete, generate a short, source-dated exercise from the tactics encountered; education never interrupts containment. |
-| **S10** | **Experiment and operations dashboard** | Display outcome, latency, correction, false-intervention, and recovery-handoff measures for the evaluation corpus. |
+| **S10** | **Case record, metrics & intelligence dashboard** | Keep a persistent record of every handled/saved case and build a dashboard and analytics on top—outcomes, amount saved, cases shared with authorities, and area/attack-type threat intelligence used to proactively educate users—with every impact claim bounded to the recorded evidence. Also displays the evaluation-corpus latency, correction, false-intervention, and recovery-handoff measures. |
 | **S11** | **Advanced resilience and inclusion** | Add offline recovery, audio alternatives, additional assistive-technology/device coverage, and broader localization. Basic keyboard, screen-reader, text-scaling, target-size, and contrast smoke tests remain core. |
 
 Deepfake detection, antivirus, identity/dark-web monitoring, public blacklists, autonomous complaints, real payment blocking, crypto tracing, multiple countries, and an open scam-content feed are **not stretch goals**. They are outside the Cup product.
@@ -243,16 +254,16 @@ GenAI is not used merely to produce educational copy or decorate a deterministic
 | Grounded explanation and evidence-field drafting | Consent, retention, sharing, and export enforcement |
 | Structured recovery-field suggestions, with unknowns preserved | Bank/1930/NCRP routing and simulation labels |
 
-Conversation content is treated as untrusted data. It cannot issue system instructions, change tools, supply an “official” contact, alter the policy, or mark itself verified.
+Conversation content is treated as untrusted data. It cannot issue system instructions, change tools, supply an “official” contact, alter the policy, or mark itself verified. The same applies to third-party caller-ID and open-web lookup results: they are untrusted supporting evidence that can corroborate or contradict a claim but cannot supply the official route, alter policy, or certify a caller.
 
 ### Prototype components
 
 1. **User experience:** a native Android companion app hosting the responsive web/PWA surface (Safe Session, Decision Map, action console, recovery, and evidence review); the same web surface serves the Safety Ally and reviewers.
-2. **Controlled interaction source:** incremental transcript emitter with explicit demo labeling; browser microphone/VoIP audio is stretch. The native companion also surfaces one consented, session-scoped on-device signal (an incoming SMS) correlated into the case — not always-on monitoring.
+2. **Interaction source:** user-configured, consented call capture with full-call transcription on a controlled device (labeled prototype path), with the incremental transcript emitter as a reproducible fallback; and a pre-pickup caller-ID/reputation screen (third-party signal plus the private confirmed-fraud list). The native companion also surfaces consented, session-scoped on-device signals (e.g. an incoming SMS) correlated into the case — not covert always-on monitoring.
 3. **Gemini Decision Context Agent:** returns schema-constrained Safety Case updates with source-span references and uncertainty.
 4. **Safety Policy Engine:** deterministic state machine and versioned playbooks.
 5. **Payment simulator:** emits transfer intent and receives pause/cancel/defer/continue commands.
-6. **Verification adapter:** retrieves the versioned fictional Demo Bank route and returns a visibly simulated, unbranded partner result.
+6. **Verification adapter:** retrieves the versioned fictional Demo Bank route and returns a visibly simulated, unbranded partner result; it also runs grounded open-web lookups of claimed identities and official numbers, returned as labeled, untrusted supporting evidence.
 7. **Safety Ally client:** second authenticated lightweight surface with minimum necessary disclosure, revocable access, and server-enforced field filtering.
 8. **Recovery orchestrator:** bank/1930 first-hour plan, harm routing, progress, and secondary-scam protection.
 9. **Evidence service:** source/summary separation, timeline, provenance manifest, review preview, and export.
@@ -325,8 +336,8 @@ The core is Cup-ready only when:
 - Default raw conversation content to ephemeral processing. If retention is declined, source links expire and retained structured facts are labeled “source not retained”; if accepted, promote only user-selected excerpts into the Evidence Vault.
 - Show the user the transcript excerpt supporting each claim and allow correction or deletion. Corrections append a superseding event; deletion removes the artifact/PII and leaves only a minimal audit tombstone.
 - Preserve unknown values as unknown; never invent dates, amounts, identifiers, official responses, or filing status.
-- Retrieve routes only from curated, versioned records with source and last-reviewed date. The Cup's interactive endpoint is fictional Demo Bank; a cited real public helpline may be displayed only as context and never made to return a fabricated response.
-- Store the NCRP field-map source and review date, leave unsupported fields blank, and label the output “field-aligned preview—not submitted or accepted.”
+- Retrieve routes only from curated, versioned records with source and last-reviewed date. The Cup's interactive endpoint is fictional Demo Bank; a cited real public helpline may be displayed only as context and never made to return a fabricated response. Open-web lookups of claimed identities and official numbers may be shown as labeled, dated supporting evidence, but the actionable verification route still comes only from curated, versioned records.
+- Store the NCRP field-map source and review date, leave unsupported fields blank, and pre-fill the official form for the user to review and submit themselves through the official channel; never submit on the user's behalf and never claim the report was accepted.
 - Minimize the ally packet and keep the full transcript private unless the user deliberately shares it. Enforce this server-side and test direct API denial, cross-case isolation, and immediate revocation—not only hidden UI fields.
 - Do not expose a scam probability, emotion label, competence assessment, guilt attribution, or public blacklist entry.
 - Keep “continue” available without manipulative UX, but state the consequence plainly.
@@ -336,12 +347,12 @@ The core is Cup-ready only when:
 
 ## Explicit Cup non-goals
 
-- Always-on monitoring of cellular calls, SMS, WhatsApp, screen content, or payments.
-- A claim that an ordinary Android application can capture both sides of every phone call.
-- Standalone call-audio recording by the companion app; production call capture is via OEM/dialer/carrier/partner integration, and the companion's only on-device signal is a consented, session-scoped incoming-SMS read.
+- Covert, always-on background monitoring of SMS, WhatsApp, screen content, or payments. (Call capture is user-configured and consented—all calls, unverified numbers only, or per-call at pickup—not covert surveillance.)
+- A claim that a store-distributed app captures calls on every device; the Cup demonstrates call capture as a labeled prototype path on a controlled device.
+- Covert or unlabeled call recording; the prototype's call capture is consented, user-configured, and clearly labeled.
 - Real bank blocking, freezing, cancellation, refund, restoration, or caller verification.
-- Direct unattended submission to banks, 1930, NCRP, Chakshu, police, telecom operators, or other authorities.
-- Publicly marking a phone number, account, or person as criminal.
+- Direct unattended submission to banks, 1930, NCRP, Chakshu, police, telecom operators, or other authorities. (The product may pre-fill an official form for the user to review and submit themselves; it never submits unattended.)
+- Publicly marking a phone number, account, or person as criminal. (A private, consent-governed confirmed-fraud list that warns the user is permitted; public accusation is not.)
 - Emotion, stress, deception, cognitive-capacity, or mental-state detection.
 - Deepfake detection as a verdict, identity monitoring, credit monitoring, antivirus, device cleaning, crypto tracing, or fund-recovery services.
 - Autonomous legal advice, police narrative, or complaint represented as verified fact.
