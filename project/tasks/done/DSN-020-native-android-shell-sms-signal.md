@@ -9,8 +9,8 @@
 - **PRD references:** Initial surface (line 10), Deployment (108), Prototype components 1–2 (250–251), Explicit Cup non-goals (339–340), near-term companion note (763)
 - **Decision references:** 0009 (native Android companion shell), 0008 (styling stack), 0001 (architecture)
 - **Started:** 2026-10-08
-- **Last updated:** 2026-10-08
-- **Status:** `done` (web half) with the native track **explicitly BLOCKED on DSN-021** — founder-authorized this disposition 2026-10-08 after reviewing the consolidated report. All 5 plan tasks implemented, task-reviewed, and committed; whole-branch final review (opus) returned APPROVE_WITH_FINDINGS (0 blocker, 0 major, 3 minor, 2 nit — all adjudicated ACCEPT, none load-bearing). Web half (Tasks 1–2) verified here (146 web tests pass, typecheck exit 0). Native half (Tasks 3–5) source authored + reviewed; build/APK/`adb` smoke are **BLOCKED-NOT-INFERRED on DSN-021** (no Android SDK / RN CLI 2026-10-08) — never reported green; resume via `apps/android/README.md` once DSN-021 prerequisites are met. Merged to local `main` by the integrator.
+- **Last updated:** 2026-10-11
+- **Status:** `done` — **fully verified, both halves.** Web half (Tasks 1–2) verified 2026-10-08 (146 web tests pass, typecheck exit 0). Native half (Tasks 3–5) was authored + reviewed then held **BLOCKED-NOT-INFERRED on DSN-021** (founder-authorized disposition 2026-10-08); DSN-021 is now `done`, and on **2026-10-11 the native track was built and smoke-tested on an emulator** (`dsn_api35`, API 35) — debug APK boots to the Web-View'd DSN web app; a consented, session- + foreground-scoped incoming SMS renders in the Decision view as a message *claim* (positive case), and an SMS received after Withdraw consent is not captured (negative case). All 5 plan tasks implemented, task-reviewed, committed; whole-branch final review (opus) returned APPROVE_WITH_FINDINGS (0 blocker, 0 major, 3 minor, 2 nit — all adjudicated ACCEPT). Merged to local `main` by the integrator; native verification + docs pushed to origin at `7cc4d34`.
 
 ## Outcome
 
@@ -36,18 +36,18 @@ overclaim of call-audio capture.
 
 ## Acceptance checks
 
-- [ ] **BLOCKED on DSN-021 (not inferred):** RN Android shell builds a debug APK that boots to the DSN-018 web UI in a WebView; full journey runs unchanged inside it. — WebView host authored (`apps/android/App.tsx`, `source={{ uri: 'http://localhost:5173' }}`); no RN CLI / Android SDK here, so no `react-native init` scaffold, `assembleDebug`, or boot smoke was run. Bring-up runbook in `apps/android/README.md`.
-- [~] `SmsSignalModule` reads an incoming SMS **only** after in-app consent **and** only while a Safe Session is open; receiver unregisters on session close/withdrawal; no SMS-history read; no background listening (respects PRD non-goal line 339). — **Code-complete and reviewed:** programmatic `SMS_RECEIVED` receiver registered only between `startListening`/`stopListening`, gated by consent + open session **and** app foreground (AppState), unregistered on background/withdrawal/invalidate; no manifest `<receiver>`; no history read. **Runtime verification BLOCKED on DSN-021** (needs a device/emulator).
-- [ ] **BLOCKED on DSN-021 (not inferred):** a real/emulated incoming SMS (`adb emu sms send`) appears in the Decision Map as evidence with provenance "Message received on device" + sender + timestamp, correlated with the active case. — The **web-side half** (ingesting a posted `dsn:sms-signal` envelope and rendering it in the Decision view with sender + ISO timestamp) IS verified by unit test (`App.test.tsx` ingestion test, `DeviceSignalList.test.tsx`). The **native→device delivery** half is BLOCKED (emulator smoke).
+- [x] **VERIFIED on emulator 2026-10-11:** RN Android shell builds a debug APK that boots to the DSN-018 web UI in a WebView; full journey runs unchanged inside it. — Scaffolded RN 0.87.1 (New Arch + Hermes), `./gradlew assembleDebug` → debug APK, `adb install` + launch on `dsn_api35`; WebView loaded `http://localhost:5173` (vite HMR connected) and the owner journey ran inside it (Create synthetic user → Save Safety Plan → Start controlled session → Decision view). Bring-up runbook in `apps/android/README.md`; follow-along in `apps/android/MANUAL-E2E-TEST.md`.
+- [x] **VERIFIED on emulator 2026-10-11:** `SmsSignalModule` reads an incoming SMS **only** after in-app consent **and** only while a Safe Session is open; receiver unregisters on session close/withdrawal; no SMS-history read; no background listening (respects PRD non-goal line 339). — Code: programmatic `SMS_RECEIVED` receiver registered only between `startListening`/`stopListening`, gated by consent + open session **and** app foreground (AppState), unregistered on background/withdrawal/invalidate; no manifest `<receiver>`; no history read. Runtime negative case confirmed: after **Withdraw consent / end session**, an SMS the OS received was **not** captured — a subsequent session showed no "On-device signals" section.
+- [x] **VERIFIED on emulator 2026-10-11:** a real/emulated incoming SMS (`adb emu sms send VM-DEMOBK …`) appears in the Decision view as evidence with provenance "Message received on device" + sender + timestamp, correlated with the active case. — Positive case: with a session open + foregrounded, the sent SMS rendered within ~1–2s as an "On-device signals" claim card (badge "Message received on device", `From VM-DEMOBK · <ISO-8601>`, body) above the honesty Callout. The web-side ingestion half remains additionally covered by unit tests (`App.test.tsx`, `DeviceSignalList.test.tsx`).
 - [x] The SMS is treated as a *message claim*: any parsed payee/amount shows as proposed/claimed, never fills actually-paid fields, never auto-marks verified. — Verified web-side: `DeviceSignalList` renders a persistent Callout "A received message is a claim, not a verified fact or a completed payment" and a `Badge tone="info"`; tests assert no "paid"/"verified" text inside a signal item; the envelope parser strips any extra fields (e.g. `amountMinor`) so no payee/amount can reach actual-paid state.
 - [x] Call audio remains simulated and labelled; the app makes no call-recording claim; 1930/cybercrime stay real and un-filed. — `apps/android/App.tsx` renders a persistent honesty label "Simulated call audio — this demo does not record calls."; no call-recording API is used or claimed; no change to the real-helpline routing.
 - [x] Web-side listener is additive + feature-detected: `apps/web` serves the ally/reviewers unchanged in a plain browser; existing web suite stays green; new listener unit test green; typecheck clean. — Verified: `window.addEventListener('message', …)` added in a mount effect; envelope validation is the gate, so a plain browser's foreign messages are ignored (inert test asserts foreign + malformed are dropped). Full web suite **146 pass** (baseline 130 + new), `typecheck` exit 0 (2026-10-08).
 - [x] No backend/API/contract/state-machine change; browser never calls Firestore/Gemini directly. — Verified: diff since `66b4c45` touches only `apps/android/**`, `apps/web/src/**`, `project/tasks/**`, `docs/demo-runbook.md` (and the git-ignored SDD ledger). No `apps/api`, no `packages/contracts`, no route/state-machine change.
 - [x] Hygiene: `git diff --check` clean; no secrets/workplace identity/absolute JDK or SDK paths committed; personal no-reply commit identity. — Verified: `git diff --check 66b4c45 HEAD` clean; identifier scan (`sfdc|salesforce|chander|/Users/|repo.local|secret|password|apikey|jdk|/Library/Android`) clean on the native diff; JDK/SDK paths are shell-only exports, never committed; commits carry the no-reply co-author line.
 
-Legend: `[x]` verified here · `[~]` code-complete + reviewed, runtime verification blocked · `[ ]` blocked (not inferred).
+Legend: `[x]` verified · (historical: `[~]` code-complete + reviewed, runtime verification blocked · `[ ]` blocked, not inferred — all cleared 2026-10-11).
 
-A task may move to `done` only after every applicable acceptance check is marked complete, the change is integrated, and post-integration verification is recorded. The native build/APK/`adb` checks above remain legitimately blocked on DSN-021 and are **not** inferred green; the founder decides whether to hold the task open for the native track or accept the web-verified half with the native half explicitly blocked.
+Every applicable acceptance check is now marked complete and verified. The native build/APK/`adb` checks that were legitimately blocked on DSN-021 (and never inferred green) were run on an emulator on 2026-10-11 once DSN-021 was `done`; see the "Verification (2026-10-11, native track on emulator)" section below.
 
 ## Verification (2026-10-08, subagent-driven execution)
 
@@ -57,7 +57,21 @@ A task may move to `done` only after every applicable acceptance check is marked
 - `git diff --check 66b4c45 HEAD` → **clean**.
 - Hygiene identifier scan on the native diff → **clean** (no workplace identity, no absolute JDK/SDK paths).
 
-**Not run (BLOCKED-NOT-INFERRED on DSN-021 — no RN CLI / Android SDK here):** `react-native init` scaffold, `./gradlew assembleDebug`, `adb install`, and `adb emu sms send` e2e smoke. These are documented in `apps/android/README.md` and must be run on a machine meeting DSN-021 prerequisites. Not reported green.
+**Native steps (BLOCKED-NOT-INFERRED on DSN-021 as of 2026-10-08 — no RN CLI / Android SDK then) were run on 2026-10-11 once DSN-021 was `done`.** See the next section.
+
+## Verification (2026-10-11, native track on emulator)
+
+**Environment:** macOS arm64; emulator `dsn_api35` (android-35, google_apis, arm64-v8a). Per-terminal only (global `JAVA_HOME` untouched): main Gradle JVM on Homebrew `openjdk@21`; RN gradle-plugin Kotlin toolchain on JDK 17 (passed via `-Dorg.gradle.java.installations.paths`). `dev:api` (Firebase emulators) run under JDK 21. `adb reverse` for :5173 (web), :8787 (API), :9099 (Firebase Auth emulator — the WebView signs in against it directly), :8081 (Metro).
+
+**Steps & results:**
+- Scaffolded RN 0.87.1 outside the web workspaces, copied the committed DSN sources over the skeleton, registered `SmsSignalPackage()` in `MainApplication.kt`, added `RECEIVE_SMS` to the manifest (no `<receiver>`).
+- `./gradlew assembleDebug` → **BUILD SUCCESSFUL** (debug APK ~126 MB). `adb install -r` + launch → app boots to the consent screen; WebView loads the DSN web app (vite HMR connected).
+- **Positive smoke:** session open + foregrounded → `adb emu sms send VM-DEMOBK "Your account is blocked. Pay Rs 50000 to keep funds safe."` → rendered in the Decision view as an "On-device signals" **claim** card (badge "Message received on device", sender, ISO-8601 timestamp, body) above the honesty Callout. **PASS.**
+- **Negative smoke:** **Withdraw consent / end session**, then `adb emu sms send …` → the OS received the SMS (system notification) but a subsequent fresh session showed **no** "On-device signals" section (`DeviceSignalList` returns null when empty) → not captured. **PASS.**
+
+**Docs updated + pushed (`7cc4d34`):** `apps/android/README.md` (dropped the BLOCKED status; recorded the JDK split and the required `adb reverse` ports incl. :9099) and new `apps/android/MANUAL-E2E-TEST.md` (single follow-along manual mobile-view test). The generated RN skeleton remains **uncommitted by design** — regenerated at bring-up per the docs (founder decision 2026-10-11: keep generated artifacts out; only two one-line edits carry DSN logic and both are documented).
+
+**Not committed (intentional):** the throwaway RN scaffold under `~/dsn-native-build/` and a local `node_modules/@react-native/gradle-plugin/settings.gradle.kts` foojay workaround (corporate-proxy only) — both documented, neither in the repo.
 
 **Changed paths:** `apps/android/{App.tsx, src/SmsSignal.ts, README.md, android/app/src/main/java/com/dsncompanion/{SmsSignalModule.kt, SmsSignalPackage.kt}}`; `apps/web/src/{deviceSignals.ts, deviceSignals.test.ts, DeviceSignalList.tsx, DeviceSignalList.test.tsx, App.tsx, App.test.tsx}`; `docs/demo-runbook.md`; this task record. (SDD ledger under git-ignored `.superpowers/`.)
 
@@ -65,7 +79,7 @@ A task may move to `done` only after every applicable acceptance check is marked
 
 ## Blocker or deferral
 
-Native build/APK/`adb` smoke are **blocked on DSN-021** (local env: Android SDK + JDK 21 on PATH + RN CLI — absent on this machine 2026-10-08). Evidence: the native source compiles only inside a scaffolded RN project that cannot be generated here. Next action: satisfy DSN-021 prerequisites, then run the `apps/android/README.md` bring-up + smoke. Owner of that action: founder (schedules the native track / provides the local env). Remaining risk until built: the "connect the dots" value is live-demonstrated only on the web-ingestion half here; the native delivery half is asserted + reviewed, not yet run on a device.
+**Resolved 2026-10-11.** The native build/APK/`adb` smoke were blocked on DSN-021 (Android SDK + JDK + RN CLI) as of 2026-10-08. DSN-021 is now `done`; the native track was built and smoke-tested on `dsn_api35` on 2026-10-11 (see "Verification (2026-10-11, native track on emulator)"). No open blockers. The "connect the dots" value is now live-demonstrated on a device for both the native delivery and web-ingestion halves.
 
 ## Handoff
 
@@ -73,7 +87,8 @@ Plan: `docs/superpowers/plans/2026-10-07-native-android-shell-sms-signal.md`; sp
 `docs/superpowers/specs/2026-10-07-native-android-shell-sms-signal-design.md`;
 decision: `project/decisions/0009-native-android-companion-shell.md`; SDD ledger:
 `.superpowers/sdd/2026-10-07-native-android-shell-sms-signal/progress.md`. Web half
-is implemented + verified; native half is authored + reviewed with build/smoke
-blocked on DSN-021. The WebView reuses the DSN-018 web build — the UI was not
-rewritten in native components. Integrator runs the whole-branch final review and
-merges to local `main` only after the founder reviews the consolidated report.
+is implemented + verified; native half is authored, reviewed, and (2026-10-11)
+built + smoke-tested on an emulator — see `apps/android/MANUAL-E2E-TEST.md` to
+reproduce. The WebView reuses the DSN-018 web build — the UI was not
+rewritten in native components. Integrator ran the whole-branch final review and
+merged to local `main` after the founder reviewed the consolidated report.
