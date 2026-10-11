@@ -154,6 +154,12 @@ function FactCard({ fact, sourceRetained, onViewSource, onCorrect, onConfirm }: 
           {PROVENANCE_COPY[fact.origin]}
         </span>
       </div>
+      {fact.uncertainty !== 'low' && (
+        <p className="text-xs text-text-muted">
+          <span aria-hidden="true">~ </span>
+          {fact.uncertainty === 'high' ? 'Low confidence' : 'Unconfirmed'}
+        </p>
+      )}
       <p className="text-base font-medium">{isUnknown ? 'Unknown' : fact.value}</p>
 
       <ActionBar>
@@ -162,7 +168,9 @@ function FactCard({ fact, sourceRetained, onViewSource, onCorrect, onConfirm }: 
             <Button variant="secondary" size="sm" onClick={() => onViewSource?.(fact.field, fact.sourceSegmentIds)}>
               View source
             </Button>
-          ) : null
+          ) : (
+            <span className="text-xs text-text-muted">Source not retained</span>
+          )
         ) : null}
 
         {fact.origin === 'model' && !isUnknown && (

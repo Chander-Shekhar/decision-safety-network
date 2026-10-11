@@ -76,7 +76,7 @@ describe('VerifyPanel', () => {
 
   it('shows the completed result as one quiet result line without Simulated badges', () => {
     render(<VerifyPanel registry={registry} result={result} />);
-    expect(screen.queryByText('Simulated')).toBeNull();
+    expect(screen.getByText('Simulated')).toBeVisible();
     expect(screen.getByText(/no outbound fraud call/i)).toBeVisible();
     expect(screen.queryByText('9999999999')).toBeNull();
   });

@@ -82,7 +82,8 @@ export function VerifyPanel({ registry, result, disabled, onVerify, onCancel }: 
           <div role="status" className="flex flex-col gap-space-3 rounded-md border border-border bg-surface-sunken p-space-4">
             <h3 className="text-base font-semibold">Claim not supported</h3>
             <p>
-              Checked via {result.method}. No outbound fraud call or protected-account transfer request was recorded.
+              Checked via {result.method}. No outbound fraud call or protected-account transfer request was recorded.{' '}
+              <span className="text-xs text-text-muted">Simulated</span>
             </p>
 
             <ActionBar>

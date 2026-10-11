@@ -55,7 +55,7 @@ export function EvidenceScreen({ timeline, exportAllowed, retentionMode, onExpor
       >
         <p className="font-medium">Draft for your review &mdash; not submitted.</p>
 
-                {retentionMode === 'delete-on-close' && (
+        {retentionMode === 'delete-on-close' && (
           <p role="alert" className="rounded-md border border-border bg-surface-sunken p-space-3">
             Once this case closes under delete-on-close, its content is gone for good &mdash; there is no re-entry recovery path back into this case afterward.
           </p>

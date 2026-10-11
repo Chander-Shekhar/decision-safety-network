@@ -53,9 +53,19 @@ describe('DecisionMap', () => {
     expect(onViewSource).toHaveBeenCalledWith('payee', ['s1']);
   });
 
-  it('drops the source link once source has expired', () => {
+  it('drops the source link and quietly marks the source not retained once it has expired', () => {
     render(<DecisionMap facts={[claimedPayee]} sourceRetained={false} />);
     expect(screen.queryByRole('button', { name: /view source/i })).toBeNull();
+    expect(screen.getByText(/source not retained/i)).toBeVisible();
+  });
+
+  it('shows a quiet uncertainty tag for medium/high uncertainty, none for low', () => {
+    const { rerender } = render(<DecisionMap facts={[claimedPayee]} />);
+    expect(screen.getByText(/unconfirmed/i)).toBeVisible();
+    rerender(<DecisionMap facts={[{ ...claimedPayee, uncertainty: 'high' }]} />);
+    expect(screen.getByText(/low confidence/i)).toBeVisible();
+    rerender(<DecisionMap facts={[{ ...claimedPayee, uncertainty: 'low' }]} />);
+    expect(screen.queryByText(/unconfirmed|low confidence/i)).toBeNull();
   });
 
   it('lets the owner confirm a model-extracted fact', async () => {

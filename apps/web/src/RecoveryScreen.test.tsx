@@ -132,7 +132,7 @@ describe('RecoveryScreen', () => {
     expect(screen.queryByText(/your fault|you should have|careless/i)).toBeNull();
   });
 
-  it('titles the local notes card plainly and does not imply implying a real filing or call', async () => {
+  it('titles the local notes card plainly and does not imply a real filing or call', async () => {
     const onAcknowledge = vi.fn();
     const user = userEvent.setup();
     render(<RecoveryScreen state={baseState} onAcknowledge={onAcknowledge} />);
