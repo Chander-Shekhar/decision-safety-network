@@ -69,6 +69,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // DSN-023: the owner's saved plan (null = none yet). `planLoaded` gates first-run routing.
   const [plan, setPlan] = useState<Plan | null>(null);
   const [planLoaded, setPlanLoaded] = useState(false);
+  // Only a 404 means "fresh user". Any other failure leaves planLoaded false so setup can never overwrite a plan we failed to read.
+  const [planLoadFailed, setPlanLoadFailed] = useState(false);
+  const [planReloadKey, setPlanReloadKey] = useState(0);
   const [editingPlan, setEditingPlan] = useState(false);
   const [savingSetup, setSavingSetup] = useState(false);
   const [deviceSignals, setDeviceSignals] = useState<DeviceSignal[]>([]);
@@ -128,17 +131,23 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   useEffect(() => {
     if (!owner) return;
     let live = true;
+    setPlanLoadFailed(false);
     api
       .get<Plan>('plan')
-      .then((loaded) => live && setPlan(loaded))
-      .catch((e: unknown) => {
-        if (live && !(e instanceof ApiError && e.status === 404)) setError('Could not load your Safety Plan.');
+      .then((loaded) => {
+        if (!live) return;
+        setPlan(loaded);
+        setPlanLoaded(true);
       })
-      .finally(() => live && setPlanLoaded(true));
+      .catch((e: unknown) => {
+        if (!live) return;
+        if (e instanceof ApiError && e.status === 404) setPlanLoaded(true);
+        else setPlanLoadFailed(true);
+      });
     return () => {
       live = false;
     };
-  }, [owner, api]);
+  }, [owner, api, planReloadKey]);
 
   // Deep-link / reload: load the case once the owner is signed in, so gating sees the real phase.
   useEffect(() => {
@@ -188,6 +197,15 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
         )}
 
       <main className="flex min-w-0 flex-1 flex-col gap-space-5">
+        {owner && !caseId && planLoadFailed && !planLoaded && (
+          <Callout kind="error" role="alert">
+            <p>We couldn&apos;t load your Safety Plan, so nothing was changed.</p>
+            <Button variant="secondary" onClick={() => setPlanReloadKey((k) => k + 1)}>
+              Retry
+            </Button>
+          </Callout>
+        )}
+
         {needsSetup && (
           <SetupScreen
             initial={plan ?? undefined}

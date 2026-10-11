@@ -106,6 +106,17 @@ describe('App · first-run setup (DSN-023)', () => {
     expect(screen.queryByRole('region', { name: 'First-run setup' })).toBeNull();
   });
 
+  it('on a non-404 plan load failure shows a retry instead of setup, and retry recovers', async () => {
+    const { ApiError } = await import('./api-client');
+    get.mockRejectedValueOnce(new ApiError(500, 'API_500')).mockResolvedValue(configuredPlan);
+    render(<App auth={auth} />);
+    await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
+    expect(await screen.findByText(/couldn.t load your safety plan/i)).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'First-run setup' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('region', { name: 'Home' })).toBeVisible();
+  });
+
   it('lands an already-configured owner directly on home, skipping setup', async () => {
     get.mockResolvedValue(configuredPlan);
     render(<App auth={auth} />);
