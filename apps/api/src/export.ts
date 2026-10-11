@@ -127,7 +127,7 @@ export const NCRP_FIELD_MAP = {
 } as const;
 
 /** Flattens a case's retained confirmed-facts map into the manifest shape `provenance.json`/the brief/the NCRP preview all share. A paid-payment entry becomes two manifest facts (`paidPayment.payeeId`/`paidPayment.amountMinor`) so it can never be confused with, or silently merged into, the proposed payee/amount. */
-function buildManifestFacts(confirmed: RetainedConfirmed): ManifestFact[] {
+export function buildManifestFacts(confirmed: RetainedConfirmed): ManifestFact[] {
   const facts: ManifestFact[] = [];
   for (const [field, value] of Object.entries(confirmed)) {
     if ('reportedAt' in value) {
@@ -148,7 +148,7 @@ function buildManifestFacts(confirmed: RetainedConfirmed): ManifestFact[] {
  * segment ids currently promoted to `evidence`, so pre- and post-close
  * exports label provenance identically.
  */
-async function normalizeConfirmed(db: Firestore, caseId: string, confirmed: Record<string, unknown> | undefined): Promise<RetainedConfirmed> {
+export async function normalizeConfirmed(db: Firestore, caseId: string, confirmed: Record<string, unknown> | undefined): Promise<RetainedConfirmed> {
   const result: RetainedConfirmed = {};
   const raw: Record<string, Fact | RetainedPaidPayment> = {};
   for (const [field, value] of Object.entries(confirmed ?? {})) {
