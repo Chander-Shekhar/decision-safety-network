@@ -52,7 +52,7 @@ function parseRupeesToMinor(text: string): number | null {
  * claims a real call, filing, or report happened.
  */
 export function RecoveryScreen({ state, onMatch, onEdit, onAcknowledge }: RecoveryScreenProps): React.JSX.Element {
-  const { proposedPayment, paidPayment, helpline1930Action, acknowledgement } = state;
+  const { proposedPayment, paidPayment, helpline1930Action, acknowledgement, guidedFreeze } = state;
   const [editing, setEditing] = useState(false);
   const [payee, setPayee] = useState('');
   const [amount, setAmount] = useState('');
@@ -104,6 +104,30 @@ export function RecoveryScreen({ state, onMatch, onEdit, onAcknowledge }: Recove
           </section>
         </div>
       </Card>
+
+      {guidedFreeze && (
+        <section aria-label="Protect the affected account">
+          <Card title="Protect the affected account">
+            <p>
+              Guided steps, not a real freeze: this app cannot freeze anything. Call your bank&apos;s helpline and read
+              them this script, for the account you paid from only.
+            </p>
+            <p>
+              {guidedFreeze.helpline.institution} helpline (simulated):{' '}
+              <a href={`tel:${guidedFreeze.helpline.number.replace(/\s+/g, '')}`} className="font-semibold underline">
+                {guidedFreeze.helpline.number}
+              </a>
+            </p>
+            <h3 className="font-semibold">What to say</h3>
+            <pre className="whitespace-pre-wrap rounded-md bg-surface-sunken p-space-3 font-sans text-base">{guidedFreeze.script}</pre>
+            <ActionBar>
+              <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(guidedFreeze.script)}>
+                Copy script
+              </Button>
+            </ActionBar>
+          </Card>
+        </section>
+      )}
 
       {(knownEntries.length > 0 || paidPayment || proposedPayment) && (
         <Card title="Your details">
