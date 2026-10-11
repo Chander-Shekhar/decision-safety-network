@@ -21,6 +21,8 @@ describe('parseTranscriptSegmentMessage', () => {
 describe('parseCaptureStatusMessage', () => {
   it('accepts a boolean status and rejects others', () => {
     expect(parseCaptureStatusMessage({ type: 'dsn:capture-status', active: true })?.active).toBe(true);
+    expect(parseCaptureStatusMessage({ type: 'dsn:capture-status', active: true })?.onDevice).toBe(false);
+    expect(parseCaptureStatusMessage({ type: 'dsn:capture-status', active: true, onDevice: true })?.onDevice).toBe(true);
     expect(parseCaptureStatusMessage({ type: 'dsn:capture-status', active: 'yes' })).toBeNull();
     expect(parseCaptureStatusMessage(ok)).toBeNull();
   });
@@ -29,16 +31,24 @@ describe('parseCaptureStatusMessage', () => {
 describe('announceCapturePolicy', () => {
   const plan = { callListening: 'per-call', processingConsent: true, setupCompletedAt: '2026-10-12T00:00:00.000Z' };
   it('is inert without a native bridge', () => {
-    expect(() => announceCapturePolicy(plan, undefined)).not.toThrow();
+    expect(() => announceCapturePolicy(plan, false, undefined)).not.toThrow();
   });
   it('allows capture only for a completed plan with processing consent and a listening preference', () => {
     const post = vi.fn();
-    announceCapturePolicy(plan, { postMessage: post });
+    announceCapturePolicy(plan, false, { postMessage: post });
     expect(JSON.parse(post.mock.calls[0][0])).toEqual({ type: 'dsn:capture-policy', allowed: true, callListening: 'per-call' });
-    announceCapturePolicy({ ...plan, processingConsent: false }, { postMessage: post });
+    announceCapturePolicy({ ...plan, processingConsent: false }, false, { postMessage: post });
     expect(JSON.parse(post.mock.calls[1][0]).allowed).toBe(false);
-    announceCapturePolicy(null, { postMessage: post });
+    announceCapturePolicy(null, false, { postMessage: post });
     expect(JSON.parse(post.mock.calls[2][0])).toEqual({ type: 'dsn:capture-policy', allowed: false, callListening: null });
+  });
+});
+
+describe('announceCapturePolicy · session end', () => {
+  it('forces allowed:false once processing is revoked / session ended, even with a valid plan', () => {
+    const post = vi.fn();
+    announceCapturePolicy({ callListening: 'per-call', processingConsent: true, setupCompletedAt: 'x' }, true, { postMessage: post });
+    expect(JSON.parse(post.mock.calls[0][0]).allowed).toBe(false);
   });
 });
 

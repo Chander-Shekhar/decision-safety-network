@@ -33,6 +33,14 @@ describe('SessionScreen', () => {
     expect(screen.getByRole('list', { name: 'Live transcript segments' })).toBeVisible();
   });
 
+  it('claims on-device / no-upload only when native confirms the on-device recognizer', () => {
+    const { rerender } = render(<SessionScreen status="processing" segments={[]} captureActive />);
+    expect(screen.queryByText(/not uploaded/i)).toBeNull();
+    expect(screen.getByText(/may use an online service.*only text is sent to DSN/i)).toBeVisible();
+    rerender(<SessionScreen status="processing" segments={[]} captureActive captureOnDevice />);
+    expect(screen.getByText(/on-device recognizer; the audio is not uploaded/i)).toBeVisible();
+  });
+
   it('never implies or offers microphone capture', () => {
     render(<SessionScreen status="processing" segments={[]} />);
     expect(screen.queryByText(/record(ing)? your (call|voice)/i)).toBeNull();

@@ -208,8 +208,8 @@ with the honesty line present.
 ## 7a. Test D — DSN-025 prototype call capture (FOUNDER, physical Android device)
 
 **Labeled prototype (decision 0012).** The app records via the **microphone** while a call is on
-**speakerphone** and transcribes **on the device** (Android `SpeechRecognizer`); it does **not** tap the
-carrier/telephony audio and only recognised **text** reaches the web app. Pending founder verification on
+**speakerphone** and transcribes with Android `SpeechRecognizer` (the **on-device** recognizer on API 31+ when available; otherwise the engine's standard recognizer, which **may stream audio to an online service**); it does **not** tap the
+carrier/telephony audio and only recognised **text** reaches the web app and DSN. Pending founder verification on
 real hardware — it has not been exercised on a device by the implementer.
 
 Preconditions: the physical device has a SIM/second phone able to place a call, and its speech recognition
@@ -226,19 +226,22 @@ with the device attached over USB, then **also** do these one-time edits to the 
 |------|--------|----------|
 | D1 | Launch the app. Tap **I CONSENT – START SESSION** (grant RECEIVE_SMS). | Strip reads "Not capturing call audio — controlled transcript only. Prototype call capture is off." Consent copy says call audio is NOT captured unless you separately opt in. |
 | D2 | In the WebView: **Create synthetic user**; complete first-run setup (pick any call-listening option, **turn processing consent ON**, add a demo account); then **2. Session -> Start controlled session**. | Session screen shows "Controlled transcript · segments arrive one at a time". Bottom bar shows "Prototype call capture (call-listening: <your choice>) ..." and **I CONSENT – START PROTOTYPE CALL CAPTURE**. *(If processing consent is off, the bar instead says capture is unavailable — that is the gate working.)* |
-| D3 | Tap **I CONSENT – START PROTOTYPE CALL CAPTURE**; grant the **microphone** permission. | Strip turns to **"Prototype capture — recording this call's audio via the microphone on speakerphone, with your consent."**; Session card shows the same prototype-capture note; button changes to **STOP PROTOTYPE CALL CAPTURE**. Android's mic-in-use indicator is visible. |
+| D3 | Tap **I CONSENT – START PROTOTYPE CALL CAPTURE**; grant the **microphone** permission. | Strip turns to **"Prototype capture — recording this call's audio via the microphone on speakerphone, with your consent."**; Session card shows the prototype-capture note, ending "on-device recognizer; the audio is not uploaded" ONLY if the on-device recognizer is in use, otherwise "offline preferred, but the engine may use an online service; only text is sent to DSN"; button changes to **STOP PROTOTYPE CALL CAPTURE**. Android's mic-in-use indicator is visible. |
 | D4 | From another phone, call this device (or place a call from it), answer, and switch the call to **SPEAKERPHONE**. Have the far party say a scripted line, e.g. "This is the Demo Bank fraud team, move fifty thousand to the safe account now." Keep the DSN app in the foreground. | Within a few seconds, recognised text appears as numbered segments (speaker "caller") in the Session card's **Live transcript segments** list, in order. |
 | D5 | Tap **3. Decision**. | Facts extracted from the live transcript appear in the Decision Map (same pipeline as the controlled transcript). Simulated Demo Bank behaviour elsewhere stays labeled simulated. |
 | D6 | **Negative — stop/withdraw:** tap **STOP PROTOTYPE CALL CAPTURE** (or **WITHDRAW CONSENT / END SESSION**), then speak on the speakerphone again. | Strip returns to "Not capturing call audio ..."; mic indicator disappears; no new segments appear. |
 | D7 | **Negative — background:** restart capture (D3), press Home, speak on speakerphone, then return to the app. | Mic indicator disappears while backgrounded; nothing spoken meanwhile is transcribed; capture resumes on return (strip flips back to the prototype label). |
 | D8 | **Negative — mic permission denied:** revoke the microphone permission in Settings, restart capture and deny. | Notice "Microphone permission was not granted. Not capturing." Strip stays on the not-capturing label. |
-| D9 | **Fallback:** on any device without working on-device recognition, capture fails with "...unavailable... use the controlled transcript"; **Play attack scenario** on the Decision step still drives the pipeline unchanged. | Controlled-transcript path works as before. |
+| D9 | **Negative — Stop processing:** restart capture (D3) so the mic is live, then in the web Session card tap **Stop processing**. | The mic indicator disappears, the strip returns to "Not capturing ...", the capture button reverts to the unavailable notice, and further speech yields no segments. (Regression check: revoke must stop the mic.) |
+| D10 | **Engine check:** note which speech engine is in use and whether its offline pack for the call language is installed (device Settings > speech recognition). Optionally put the device in airplane mode and repeat D4. | Record the engine, offline-pack state, which Session-card wording appeared (on-device vs "may use an online service"), and whether recognition worked offline (if it fails offline, audio is going online). |
+| D11 | **Built-manifest check:** `aapt dump xmltree app/build/outputs/apk/debug/app-debug.apk AndroidManifest.xml` (or Android Studio APK Analyzer). | Contains `RECORD_AUDIO` and the `RecognitionService` `<queries>`, and NO capture-related `<service>` or `<receiver>` (no SMS receiver either). |
+| D12 | **Fallback:** start a **FRESH case** (do not reuse the case that captured live segments — the controlled scenario reuses ids seg-1/seg-2), then tap **Play attack scenario** on the Decision step. On a device without working recognition, capture fails with "...unavailable... use the controlled transcript". | Controlled-transcript path works as before. |
 
-**D passes if:** D4/D5 show real call speech becoming live segments and extracted facts, and D6-D8 show no
+**D passes if:** D4/D5 show real call speech becoming live segments and extracted facts, and D6-D9 show no
 capture without consent/foreground/permission. Record device model, Android version, and recognition
 language/engine in the task record. Known, labeled limitations: speakerphone is required (the far party is
 only audible to the mic that way); recognition quality and offline-pack availability vary by device; the
-engine may beep/pause between utterances.
+engine may beep/pause between utterances, and after repeated recognizer errors capture stops itself rather than looping. Do not reload the page mid-call (live segments are local state).
 
 ---
 

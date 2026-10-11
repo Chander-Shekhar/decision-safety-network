@@ -3,6 +3,7 @@ package com.dsncompanion
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -25,18 +26,22 @@ import java.util.TimeZone
 /**
  * DSN-025 (decision 0012): LABELED PROTOTYPE call capture.
  * Records from the device MICROPHONE (RECORD_AUDIO) while the user has the call on SPEAKERPHONE and
- * transcribes on-device with SpeechRecognizer. This does NOT tap the telephony/carrier audio stream.
- * Only recognised TEXT leaves this module (events below); raw audio is never stored or uploaded.
+ * transcribes with SpeechRecognizer (the ON-DEVICE recognizer on API 31+ when available; otherwise the
+ * engine's standard recognizer, which may use an online service — reported via capture-status.onDevice). This does NOT tap the telephony/carrier audio stream.
+ * Only recognised TEXT leaves this module (events below); this module never stores or uploads audio itself.
  *
  * Capture runs ONLY between startCapture() and stopCapture() (JS calls these only while the session is
  * open, consented, and the app is foreground). It is never started from a manifest component or service.
- * Events: "dsn:transcript-segment" { text, at }  and  "dsn:capture-status" { active }.
+ * Events: "dsn:transcript-segment" { text, at }  and  "dsn:capture-status" { active, onDevice }.
  */
 // verify against RN <version> on scaffold: ReactContextBaseJavaModule / invalidate() signatures.
 class CallCaptureModule(private val ctx: ReactApplicationContext) : ReactContextBaseJavaModule(ctx) {
+  private companion object { const val MAX_CONSECUTIVE_ERRORS = 8 }
   private val main = Handler(Looper.getMainLooper())
   private var recognizer: SpeechRecognizer? = null
   private var active = false
+  private var onDevice = false
+  private var consecutiveErrors = 0
 
   override fun getName() = "CallCapture"
 
@@ -53,9 +58,15 @@ class CallCaptureModule(private val ctx: ReactApplicationContext) : ReactContext
         promise.reject("STT_UNAVAILABLE", "On-device speech recognition is not available")
         return@post
       }
-      val r = SpeechRecognizer.createSpeechRecognizer(ctx)
+      // Prefer the platform ON-DEVICE recognizer (API 31+) when present; otherwise the standard one, which
+      // may use an online service (EXTRA_PREFER_OFFLINE is only a preference). onDevice is reported so the
+      // UI claims "not uploaded" ONLY when this is true.
+      val useOnDevice = Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)
+      val r = if (useOnDevice) SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx) else SpeechRecognizer.createSpeechRecognizer(ctx)
       r.setRecognitionListener(listener)
       recognizer = r
+      onDevice = useOnDevice
+      consecutiveErrors = 0
       active = true
       emitStatus(true)
       listenOnce()
@@ -94,6 +105,7 @@ class CallCaptureModule(private val ctx: ReactApplicationContext) : ReactContext
 
   private val listener = object : RecognitionListener {
     override fun onResults(results: Bundle?) {
+      consecutiveErrors = 0
       val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim()
       if (!text.isNullOrEmpty()) {
         emit("dsn:transcript-segment", Arguments.createMap().apply {
@@ -107,9 +119,19 @@ class CallCaptureModule(private val ctx: ReactApplicationContext) : ReactContext
     override fun onError(error: Int) {
       if (!active) return
       when (error) {
-        // Silence / no match are normal on a call; re-arm after a short pause.
-        SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> main.postDelayed({ if (active) listenOnce() }, 300)
-        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> main.postDelayed({ if (active) { recognizer?.cancel(); listenOnce() } }, 500)
+        // Silence / no match / busy are normal on a call; re-arm with linear backoff, and give up after
+        // MAX_CONSECUTIVE_ERRORS so a persistent error cannot busy-loop or beep-spam.
+        SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT, SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> {
+          consecutiveErrors += 1
+          if (consecutiveErrors > MAX_CONSECUTIVE_ERRORS) { teardown(); return }
+          val delay = (300L * consecutiveErrors).coerceAtMost(3000L)
+          main.postDelayed({
+            if (active) {
+              if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) recognizer?.cancel()
+              listenOnce()
+            }
+          }, delay)
+        }
         // Permission revoked, engine failure, etc: stop honestly (status event tells the UI we are NOT capturing).
         else -> teardown()
       }
@@ -134,7 +156,10 @@ class CallCaptureModule(private val ctx: ReactApplicationContext) : ReactContext
   }
 
   private fun emitStatus(on: Boolean) {
-    emit("dsn:capture-status", Arguments.createMap().apply { putBoolean("active", on) })
+    emit("dsn:capture-status", Arguments.createMap().apply {
+      putBoolean("active", on)
+      putBoolean("onDevice", on && onDevice)
+    })
   }
 
   // ISO-8601 UTC without java.time, so it works below API 26 (minSdk) without desugaring.

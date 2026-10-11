@@ -12,6 +12,9 @@ import { App, type AuthProvider } from './App';
 
 const auth: AuthProvider = { signInSynthetic: vi.fn().mockResolvedValue(undefined), getIdToken: vi.fn().mockResolvedValue('t') };
 
+// jsdom's window.postMessage leaves event.source null; a real WebView injectJavaScript postMessage has source === window.
+const fromPage = (data: string) => window.dispatchEvent(new MessageEvent('message', { data, source: window }));
+
 beforeEach(() => {
   command.mockReset();
   get.mockReset();
@@ -53,7 +56,7 @@ describe('App', () => {
     render(<App auth={auth} />);
     await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
     await userEvent.click(await screen.findByRole('button', { name: /^Decision/ }));
-    window.postMessage(JSON.stringify({ type: 'dsn:sms-signal', from: 'VM-DEMOBK', body: 'blocked, call now', receivedAt: '2026-10-07T10:00:00.000Z' }), '*');
+    fromPage(JSON.stringify({ type: 'dsn:sms-signal', from: 'VM-DEMOBK', body: 'blocked, call now', receivedAt: '2026-10-07T10:00:00.000Z' }));
     expect(await screen.findByText(/incoming sms/i)).toBeVisible();
   });
 
@@ -64,8 +67,8 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: /synthetic user/i }));
     await userEvent.click(await screen.findByRole('button', { name: /^Decision/ }));
     // A foreign message and a malformed dsn envelope (missing `from`) must both be dropped.
-    window.postMessage(JSON.stringify({ type: 'webpackHotUpdate' }), '*');
-    window.postMessage(JSON.stringify({ type: 'dsn:sms-signal', body: 'no sender', receivedAt: '2026-10-07T10:00:00.000Z' }), '*');
+    fromPage(JSON.stringify({ type: 'webpackHotUpdate' }));
+    fromPage(JSON.stringify({ type: 'dsn:sms-signal', body: 'no sender', receivedAt: '2026-10-07T10:00:00.000Z' }));
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByText(/incoming sms/i)).toBeNull();
   });
@@ -85,7 +88,7 @@ describe('App · live transcript bridge (DSN-025)', () => {
 
   it('ingests a dsn:transcript-segment through the same segment API and then extracts', async () => {
     await openSession();
-    window.postMessage(seg('Move 50,000 to the safe account now', '2026-10-12T10:00:00.000Z'), '*');
+    fromPage(seg('Move 50,000 to the safe account now', '2026-10-12T10:00:00.000Z'));
     expect(await screen.findByText('Move 50,000 to the safe account now')).toBeVisible();
     await waitFor(() => expect(command).toHaveBeenCalledWith('POST', 'cases/c1/segments', { id: 'seg-1', order: 1, speaker: 'caller', text: 'Move 50,000 to the safe account now' }));
     await waitFor(() => expect(command).toHaveBeenCalledWith('POST', 'cases/c1/facts/extract', expect.anything()));
@@ -94,24 +97,49 @@ describe('App · live transcript bridge (DSN-025)', () => {
   it('shows the prototype-capture label only after native reports capture active', async () => {
     await openSession();
     expect(screen.queryByText(/prototype capture/i)).toBeNull();
-    window.postMessage(JSON.stringify({ type: 'dsn:capture-status', active: true }), '*');
+    fromPage(JSON.stringify({ type: 'dsn:capture-status', active: true }));
     expect(await screen.findByText(/prototype capture/i)).toBeVisible();
-    window.postMessage(JSON.stringify({ type: 'dsn:capture-status', active: false }), '*');
+    fromPage(JSON.stringify({ type: 'dsn:capture-status', active: false }));
     await waitFor(() => expect(screen.queryByText(/prototype capture/i)).toBeNull());
   });
 
   it('ignores malformed/foreign envelopes and does nothing without an open case', async () => {
     await openSession();
-    window.postMessage(JSON.stringify({ type: 'webpackHotUpdate' }), '*');
-    window.postMessage(JSON.stringify({ type: 'dsn:transcript-segment', at: '2026-10-12T10:00:00.000Z' }), '*');
+    fromPage(JSON.stringify({ type: 'webpackHotUpdate' }));
+    fromPage(JSON.stringify({ type: 'dsn:transcript-segment', at: '2026-10-12T10:00:00.000Z' }));
     await new Promise((r) => setTimeout(r, 0));
     expect(command).not.toHaveBeenCalledWith('POST', 'cases/c1/segments', expect.anything());
+  });
+
+  it('ignores envelopes whose source is not the page window (frames / other windows)', async () => {
+    await openSession();
+    window.dispatchEvent(new MessageEvent('message', { data: seg('injected', '2026-10-12T10:00:00.000Z'), source: null }));
+    window.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ type: 'dsn:sms-signal', from: 'x', body: 'y', receivedAt: 'z' }), source: null }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('injected')).toBeNull();
+    expect(command).not.toHaveBeenCalledWith('POST', 'cases/c1/segments', expect.anything());
+  });
+
+  it('tells native to stop the mic (allowed:false) when processing is revoked', async () => {
+    const post = vi.fn();
+    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage: post };
+    try {
+      await openSession();
+      await userEvent.click(screen.getByRole('button', { name: /stop processing/i }));
+      await waitFor(() => expect(command).toHaveBeenCalledWith('POST', 'cases/c1/processing/revoke'));
+      await waitFor(() => {
+        const last = JSON.parse(post.mock.calls[post.mock.calls.length - 1][0]);
+        expect(last).toMatchObject({ type: 'dsn:capture-policy', allowed: false });
+      });
+    } finally {
+      delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+    }
   });
 
   it('is inert before a case exists (plain browser / no session)', async () => {
     window.history.pushState({}, '', '/');
     render(<App auth={auth} />);
-    window.postMessage(seg('hello', '2026-10-12T10:00:00.000Z'), '*');
+    fromPage(seg('hello', '2026-10-12T10:00:00.000Z'));
     await new Promise((r) => setTimeout(r, 0));
     expect(command).not.toHaveBeenCalledWith('POST', expect.stringContaining('/segments'), expect.anything());
   });

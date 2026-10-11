@@ -3,7 +3,7 @@ import { NativeModules, NativeEventEmitter } from 'react-native';
 // DSN-025: typed wrapper over the native CallCapture module (CallCaptureModule.kt).
 // LABELED PROTOTYPE: microphone + speakerphone, on-device STT. See decision 0012 and apps/android/README.md.
 export type TranscriptSegmentPayload = { text: string; at: string };
-export type CaptureStatusPayload = { active: boolean };
+export type CaptureStatusPayload = { active: boolean; onDevice: boolean };
 
 const { CallCapture } = NativeModules;
 // verify against RN <version> on scaffold: NativeEventEmitter ctor takes the native module (needs addListener/removeListeners).

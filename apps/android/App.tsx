@@ -93,9 +93,9 @@ export default function App(): React.JSX.Element {
     const post = (envelope: object) =>
       webViewRef.current?.injectJavaScript(`window.postMessage(${JSON.stringify(JSON.stringify(envelope))}, '*'); true;`);
     const segSub = onTranscriptSegment(({ text, at }) => post({ type: 'dsn:transcript-segment', text, at }));
-    const statusSub = onCaptureStatus(({ active }) => {
+    const statusSub = onCaptureStatus(({ active, onDevice }) => {
       setCapturing(active);
-      post({ type: 'dsn:capture-status', active });
+      post({ type: 'dsn:capture-status', active, onDevice: active && onDevice === true });
     });
     return () => {
       segSub.remove();
@@ -145,7 +145,7 @@ export default function App(): React.JSX.Element {
               <>
                 <Text style={styles.barText}>
                   Prototype call capture (call-listening: {policy.callListening}): records via the microphone while your
-                  call is on speakerphone, transcribes on this device, and sends only text. Foreground only.
+                  call is on speakerphone, transcribes with the device's speech recognizer (offline preferred; some engines may use an online service), and sends only text to DSN. Foreground only.
                 </Text>
                 <Button title="I consent - start prototype call capture" onPress={startPrototypeCapture} />
               </>

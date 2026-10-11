@@ -12,6 +12,8 @@ export interface DsnTranscriptSegment {
 export interface DsnCaptureStatus {
   type: 'dsn:capture-status';
   active: boolean;
+  /** True only when native is using the platform ON-DEVICE recognizer (API 31+); never assumed otherwise. */
+  onDevice: boolean;
 }
 
 function asRecord(data: unknown): Record<string, unknown> | null {
@@ -36,17 +38,18 @@ export function parseTranscriptSegmentMessage(data: unknown): DsnTranscriptSegme
 export function parseCaptureStatusMessage(data: unknown): DsnCaptureStatus | null {
   const o = asRecord(data);
   if (!o || o.type !== 'dsn:capture-status' || typeof o.active !== 'boolean') return null;
-  return { type: 'dsn:capture-status', active: o.active };
+  return { type: 'dsn:capture-status', active: o.active, onDevice: o.active && o.onDevice === true };
 }
 
 /** Tell the native shell (if any) the owner's saved call-listening preference, so capture can be
- * gated on it. Inert in a plain browser (no `ReactNativeWebView`). Carries no call content. */
+ * gated on it. `sessionEnded` (processing revoked / session closed) forces allowed:false so the mic stops. Inert in a plain browser (no `ReactNativeWebView`). Carries no call content. */
 export function announceCapturePolicy(
   plan: { callListening?: string; processingConsent?: boolean; setupCompletedAt?: string } | null,
+  sessionEnded = false,
   target: { postMessage(m: string): void } | undefined = (window as unknown as { ReactNativeWebView?: { postMessage(m: string): void } }).ReactNativeWebView,
 ): void {
   if (!target) return;
-  const allowed = !!plan?.setupCompletedAt && !!plan.callListening && plan.processingConsent === true;
+  const allowed = !sessionEnded && !!plan?.setupCompletedAt && !!plan.callListening && plan.processingConsent === true;
   target.postMessage(JSON.stringify({ type: 'dsn:capture-policy', allowed, callListening: plan?.callListening ?? null }));
 }
 

@@ -82,6 +82,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [screenedNumber, setScreenedNumber] = useState('');
   const stepInitialised = useRef(false);
   const [captureActive, setCaptureActive] = useState(false);
+  // Processing revoked / segment refused for this case: tell native to stop the mic (allowed:false).
+  const [captureOnDevice, setCaptureOnDevice] = useState(false);
+  const [captureEnded, setCaptureEnded] = useState(false);
   const caseIdRef = useRef(caseId);
   caseIdRef.current = caseId;
   const segmentsRef = useRef<SessionSegmentView[]>(segments);
@@ -131,6 +134,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // DSN-020: consented on-device SMS signals (native shell only). Inert in a plain browser.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
+      if (e.source !== window) return; // only the page's own bridge (injectJavaScript), not frames/other windows
       const sig = parseSmsSignalMessage(e.data);
       if (sig) setDeviceSignals((prev) => ingestSmsSignal(prev, sig));
     };
@@ -144,9 +148,11 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   useEffect(() => {
     let queue: Promise<void> = Promise.resolve();
     const onMessage = (e: MessageEvent) => {
+      if (e.source !== window) return; // only the page's own bridge (injectJavaScript), not frames/other windows
       const status = parseCaptureStatusMessage(e.data);
       if (status) {
         setCaptureActive(status.active);
+        setCaptureOnDevice(status.onDevice);
         return;
       }
       const sig = parseTranscriptSegmentMessage(e.data);
@@ -163,6 +169,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             await api.command('POST', `cases/${id}/segments`, segment);
           } catch (err) {
             // Not accepted (e.g. processing revoked): drop it locally so the view never shows unaccepted text.
+            setCaptureEnded(true); // fail safe: a refused segment means the session no longer accepts capture
             segmentsRef.current = segmentsRef.current.filter((s) => s.id !== segment.id);
             setSegments(segmentsRef.current);
             throw err;
@@ -180,8 +187,8 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
   // DSN-025: relay the saved call-listening preference to the native shell so capture is gated on it.
   useEffect(() => {
-    announceCapturePolicy(plan);
-  }, [plan]);
+    announceCapturePolicy(plan, captureEnded);
+  }, [plan, captureEnded]);
 
   // Load the owner's plan once signed in; a missing plan (404) simply means a fresh user.
   useEffect(() => {
@@ -351,6 +358,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   run(async () => {
                     const created = await api.command<CaseView>('POST', 'cases');
                     setCaseId(created.id);
+                    setCaptureEnded(false);
                     window.history.pushState({}, '', `/cases/${created.id}`);
                     await refreshCase(created.id);
                   })
@@ -366,7 +374,13 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 status="processing"
                 segments={segments}
                 captureActive={captureActive}
-                onStopProcessing={() => run(async () => void (await api.command('POST', `cases/${caseId}/processing/revoke`)))}
+                captureOnDevice={captureOnDevice}
+                onStopProcessing={() =>
+                  run(async () => {
+                    await api.command('POST', `cases/${caseId}/processing/revoke`);
+                    setCaptureEnded(true); // native stops the mic and drops the recording label
+                  })
+                }
               />
             )}
           </section>

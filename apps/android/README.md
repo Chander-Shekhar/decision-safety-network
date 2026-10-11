@@ -24,7 +24,7 @@ Authored here:
 - `android/app/src/main/java/com/dsncompanion/SmsSignalModule.kt`, `SmsSignalPackage.kt`
 - DSN-025 (labeled prototype call capture, **not yet built/verified on a device**): `src/CallCapture.ts`,
   `CallCaptureModule.kt` (registered in `SmsSignalPackage`). Envelopes to the web app: `dsn:transcript-segment`
-  `{text, at}` and `dsn:capture-status` `{active}`; web -> native: `dsn:capture-policy` `{allowed, callListening}`.
+  `{text, at}` and `dsn:capture-status` `{active, onDevice}`; web -> native: `dsn:capture-policy` `{allowed, callListening}`.
 
 Signatures marked `verify against RN <version> on scaffold` in the sources must be checked against the scaffolded RN version.
 
@@ -95,7 +95,7 @@ are in [`MANUAL-E2E-TEST.md`](./MANUAL-E2E-TEST.md).
 - Call audio is **not captured by default**; the strip reads "Not capturing call audio — controlled transcript only."
   Only after a separate in-app opt-in (and the saved call-listening preference / processing consent allow it)
   does DSN-025's **labeled prototype capture** record via the **microphone while the call is on speakerphone**
-  (on-device `SpeechRecognizer`; only text is sent to the web app; the carrier/telephony stream is NOT tapped).
+  (`SpeechRecognizer`: the on-device recognizer on API 31+ when available, else the engine's standard one, which may use an online service; only text is sent to the web app; the carrier/telephony stream is NOT tapped).
   The strip then reads "Prototype capture — recording this call's audio via the microphone on speakerphone,
   with your consent." Foreground- and session-scoped; stops on background, stop, or withdrawal. See decision 0012.
 - A received SMS is a message **claim**, not a verified fact, and never an actually-paid record.
