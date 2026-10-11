@@ -68,6 +68,11 @@ export default function App(): React.JSX.Element {
     return () => sub.remove();
   }, [sessionOpen]);
 
+  // Belt and braces: whenever capture is not allowed, the opt-in is cleared (also fixes the bar state).
+  useEffect(() => {
+    if (!policy.allowed) setCaptureOn(false);
+  }, [policy.allowed]);
+
   // Prototype capture: mic is live only while a session is open, capture is opted in, the saved
   // preference allows it, and the app is in the foreground. Torn down on background/withdrawal/end.
   useEffect(() => {
@@ -123,6 +128,8 @@ export default function App(): React.JSX.Element {
     try {
       const m = JSON.parse(e.nativeEvent.data) as { type?: string; allowed?: unknown; callListening?: unknown };
       if (m.type !== 'dsn:capture-policy') return;
+      // Any disallow clears the opt-in at once: consent must be re-tapped before the mic can run again.
+      if (m.allowed !== true) setCaptureOn(false);
       setPolicy({ allowed: m.allowed === true, callListening: typeof m.callListening === 'string' ? m.callListening : null });
     } catch {
       /* ignore non-JSON */
