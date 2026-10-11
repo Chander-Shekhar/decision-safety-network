@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import type { RetentionMode } from '../../../packages/contracts/src/plan';
-import { Badge, Button, Card, Field } from './ui';
+import { Button, Card, Field } from './ui';
 
 /** Readiness is a separate signal from nomination: an unaccepted invitation is never "ready". */
 export type AllyStatus = 'none' | 'invited' | 'ready';
@@ -112,10 +112,7 @@ function OwnerPlanView({
 
         <div className="flex flex-col gap-space-1">
           <h3 className="font-semibold">Independent bank route</h3>
-          <p>
-            <Badge tone="simulated">Simulated</Badge> Demo Bank &middot; fictional verification registry
-          </p>
-          <p>Never use a number provided by the caller.</p>
+          <p>Demo Bank &middot; verification registry</p>
         </div>
 
         <div className="flex flex-col gap-space-2">

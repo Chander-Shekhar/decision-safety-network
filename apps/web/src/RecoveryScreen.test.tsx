@@ -35,13 +35,13 @@ describe('RecoveryScreen', () => {
     expect(within(helpline).getByText(/ready/i)).toBeVisible();
   });
 
-  it('labels the bank route Simulated/fictional but never badges the real 1930 route as fictional or simulated', () => {
+  it('marks the bank route fictional but never marks the real 1930 route as fictional or simulated', () => {
     render(<RecoveryScreen state={baseState} />);
     const bank = screen.getByRole('region', { name: /demo bank support/i });
     const helpline = screen.getByRole('region', { name: /call 1930/i });
-    expect(within(bank).getByText(/simulated/i)).toBeVisible();
     expect(within(bank).getByText(/fictional/i)).toBeVisible();
     expect(helpline.textContent).not.toMatch(/simulated|fictional|fake|demo/i);
+    expect(within(helpline).getByText(/official route/i)).toBeVisible();
   });
 
   it('shows the 1930 official source and review date', () => {
@@ -132,19 +132,19 @@ describe('RecoveryScreen', () => {
     expect(screen.queryByText(/your fault|you should have|careless/i)).toBeNull();
   });
 
-  it('labels the local acknowledgement Simulated without implying a real filing or call', async () => {
+  it('titles the local notes card plainly and does not imply a real filing or call', async () => {
     const onAcknowledge = vi.fn();
     const user = userEvent.setup();
     render(<RecoveryScreen state={baseState} onAcknowledge={onAcknowledge} />);
     const ack = screen.getByRole('region', { name: /local status/i });
-    expect(within(ack).getByText(/simulated acknowledgement/i)).toBeVisible();
+    expect(within(ack).getByRole('heading', { name: 'Notes' })).toBeVisible();
     expect(within(ack).getByText(/not an official receipt/i)).toBeVisible();
     await user.click(within(ack).getByRole('button', { name: /demo bank/i }));
     expect(onAcknowledge).toHaveBeenCalledWith('bank');
     expect(screen.queryByText(/we (filed|reported|called)|report (was )?(filed|submitted)|complaint registered/i)).toBeNull();
   });
 
-  it('shows a recorded acknowledgement as a simulated local note', () => {
+  it('shows a recorded acknowledgement as a local note', () => {
     const state: RecoveryState = {
       ...baseState,
       acknowledgement: { action: 'bank', status: 'local-note-recorded', simulated: true, at: '2026-10-04T10:00:00.000Z' },
@@ -152,7 +152,6 @@ describe('RecoveryScreen', () => {
     render(<RecoveryScreen state={state} />);
     const ack = screen.getByRole('region', { name: /local status/i });
     expect(within(ack).getByText(/local note recorded/i)).toBeVisible();
-    expect(within(ack).getAllByText(/simulated/i).length).toBeGreaterThan(0);
   });
 
   it('never shows a scam probability, risk score, or mental-state label', () => {

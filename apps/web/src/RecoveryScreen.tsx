@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActionBar, Badge, Button, Card } from './ui';
+import { ActionBar, Button, Card } from './ui';
 import type { PaidField, RecoveryState } from '../../../packages/contracts/src/recovery';
 
 /** Details the owner typed. Blank optional fields are omitted, never sent as empty strings. */
@@ -84,86 +84,84 @@ export function RecoveryScreen({ state, onMatch, onEdit, onAcknowledge }: Recove
       <h1 className="text-2xl font-semibold">You said you already paid</h1>
       <p>Many people are caught by convincing calls. We will reuse what you confirmed. Act quickly; you can fill gaps later.</p>
 
-      <h2 className="text-xl font-semibold">First-hour options</h2>
-      {/* Equal-weight routes: identical Card structure, same heading level (Card title = h2). */}
-      <section aria-label="Contact Demo Bank support">
-        <Card title="Contact Demo Bank support">
-          <p>
-            <Badge tone="simulated">SIMULATED BANK ROUTE &middot; DEMO BANK IS FICTIONAL</Badge>
-          </p>
-          <p>Independent registry route &middot; {state.bankAction.status}</p>
+      <Card title="First-hour options">
+        {/* Equal-weight routes: identical structure and heading level. */}
+        <div className="grid gap-space-4 md:grid-cols-2">
+          <section aria-label="Contact Demo Bank support" className="flex flex-col gap-space-1 rounded-md bg-surface-sunken p-space-4">
+            <h3 className="font-semibold">Contact Demo Bank support</h3>
+            <p>Independent registry route &middot; {state.bankAction.status}</p>
+            <p className="text-sm text-text-muted">Demo Bank is fictional.</p>
+          </section>
+          <section aria-label="Call 1930" className="flex flex-col gap-space-1 rounded-md bg-surface-sunken p-space-4">
+            <h3 className="font-semibold">Call 1930</h3>
+            <p>
+              Official route &middot; {helpline1930Action.status}
+            </p>
+            <p>
+              Official source: <a href={helpline1930Action.sourceUrl} className="underline">cybercrime.gov.in</a>
+            </p>
+            <p className="text-sm text-text-muted">Source reviewed {helpline1930Action.reviewedAt}</p>
+          </section>
+        </div>
+      </Card>
+
+      {(knownEntries.length > 0 || paidPayment || proposedPayment) && (
+        <Card title="Your details">
+          {knownEntries.length > 0 && (
+            <section aria-label="What you already confirmed" className="flex flex-col gap-space-2">
+              <h3 className="font-semibold">What you already confirmed</h3>
+              <dl className="flex flex-col gap-space-2">
+                {knownEntries.map(([field, value]) => (
+                  <div key={field}>
+                    <dt className="text-sm text-text-muted">{field}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
+          {paidPayment && (
+            <section aria-label="Paid details" className="flex flex-col gap-space-2">
+              <h3 className="font-semibold">Recorded as reported by you</h3>
+              <dl className="flex flex-col gap-space-1">
+                <dt className="text-sm text-text-muted">Paid payee</dt>
+                <dd>{paidPayment.paidPayee}</dd>
+                <dt className="text-sm text-text-muted">Paid amount</dt>
+                <dd>{formatRupees(paidPayment.paidAmountMinor)}</dd>
+              </dl>
+            </section>
+          )}
+
+          {!paidPayment && proposedPayment && (
+            <section aria-label="Pre-filled from this case" className="flex flex-col gap-space-2">
+              <h3 className="font-semibold">Pre-filled from this case</h3>
+              <p>{proposedPayment.sourceLabel}</p>
+              <dl className="flex flex-col gap-space-1">
+                <dt className="text-sm text-text-muted">Proposed payee</dt>
+                <dd>{proposedPayment.payee}</dd>
+                <dt className="text-sm text-text-muted">Proposed amount</dt>
+                <dd>{formatRupees(proposedPayment.amountMinor)}</dd>
+              </dl>
+              <p>A cancelled proposal is not proof of the payment you made.</p>
+              {!editing && (
+                <>
+                  <p>Did you pay these same details?</p>
+                  <ActionBar>
+                    <Button size="lg" onClick={() => onMatch?.(proposedPayment.fingerprint)}>Yes, they match</Button>
+                    <Button variant="secondary" onClick={() => setEditing(true)}>
+                      No, edit paid details
+                    </Button>
+                  </ActionBar>
+                </>
+              )}
+            </section>
+          )}
         </Card>
-      </section>
-      <section aria-label="Call 1930">
-        <Card title="Call 1930">
-          <p>
-            <Badge tone="info">REAL PUBLIC ROUTE</Badge>
-          </p>
-          <p>Official route &middot; {helpline1930Action.status}</p>
-          <p>
-            Official source: <a href={helpline1930Action.sourceUrl} className="underline">cybercrime.gov.in</a>
-          </p>
-          <p>Source reviewed {helpline1930Action.reviewedAt}</p>
-        </Card>
-      </section>
-
-      {knownEntries.length > 0 && (
-        <section aria-label="What you already confirmed">
-          <Card title="What you already confirmed">
-            <dl className="flex flex-col gap-space-2">
-              {knownEntries.map(([field, value]) => (
-                <div key={field}>
-                  <dt className="text-sm text-text-muted">{field}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-        </section>
-      )}
-
-      {paidPayment && (
-        <section aria-label="Paid details">
-          <Card title="Recorded as reported by you">
-            <dl className="flex flex-col gap-space-1">
-              <dt className="text-sm text-text-muted">Paid payee</dt>
-              <dd>{paidPayment.paidPayee}</dd>
-              <dt className="text-sm text-text-muted">Paid amount</dt>
-              <dd>{formatRupees(paidPayment.paidAmountMinor)}</dd>
-            </dl>
-          </Card>
-        </section>
-      )}
-
-      {!paidPayment && proposedPayment && (
-        <section aria-label="Pre-filled from this case">
-          <Card title="Pre-filled from this case">
-            <p>{proposedPayment.sourceLabel}</p>
-            <dl className="flex flex-col gap-space-1">
-              <dt className="text-sm text-text-muted">Proposed payee</dt>
-              <dd>{proposedPayment.payee}</dd>
-              <dt className="text-sm text-text-muted">Proposed amount</dt>
-              <dd>{formatRupees(proposedPayment.amountMinor)}</dd>
-            </dl>
-            <p>A cancelled proposal is not proof of the payment you made.</p>
-            {!editing && (
-              <>
-                <p>Did you pay these same details?</p>
-                <ActionBar>
-                  <Button onClick={() => onMatch?.(proposedPayment.fingerprint)}>Yes, they match</Button>
-                  <Button variant="secondary" onClick={() => setEditing(true)}>
-                    No, edit paid details
-                  </Button>
-                </ActionBar>
-                <p className="text-sm text-text-muted">Yes records paid details as user-reported, without retyping.</p>
-              </>
-            )}
-          </Card>
-        </section>
       )}
 
       {showForm && (
-        <form aria-label="Paid details form" onSubmit={submit} className="flex flex-col gap-space-3 rounded-lg border border-border bg-surface-raised p-space-4">
+        <form aria-label="Paid details form" onSubmit={submit} className="flex flex-col gap-space-3 rounded-lg bg-surface-raised p-space-5 shadow-sm">
           <label className="flex flex-col gap-space-1 text-sm font-medium">
             Who did you pay?
             <input className={INPUT_CLASS} value={payee} onChange={(e) => setPayee(e.target.value)} />
@@ -191,8 +189,8 @@ export function RecoveryScreen({ state, onMatch, onEdit, onAcknowledge }: Recove
         </form>
       )}
 
-      <section aria-label="Still needed">
-        <Card title="Still needed">
+      <Card title="Still needed">
+        <section aria-label="Still needed">
           {state.missing.length === 0 ? (
             <p>Nothing else is needed right now.</p>
           ) : (
@@ -202,21 +200,19 @@ export function RecoveryScreen({ state, onMatch, onEdit, onAcknowledge }: Recove
               ))}
             </ul>
           )}
-        </Card>
-      </section>
-
-      <section aria-label="Recovery scam warning">
-        <Card title={<>Watch for follow-on &ldquo;recovery&rdquo; scams</>}>
+        </section>
+        <section aria-label="Recovery scam warning">
+          <h3 className="font-semibold">Watch for follow-on &ldquo;recovery&rdquo; scams</h3>
           <p>Do not pay a stranger who promises to retrieve funds.</p>
-        </Card>
-      </section>
+        </section>
+      </Card>
 
       <section aria-label="Local status only">
-        <Card title={<>LOCAL STATUS ONLY &middot; SIMULATED ACKNOWLEDGEMENT</>}>
-          <p>These notes stay in this app. They are not an official receipt and nothing is sent to anyone.</p>
+        <Card title="Notes">
+          <p className="text-sm text-text-muted">These notes stay in this app. They are not an official receipt and nothing is sent to anyone.</p>
           {acknowledgement && (
             <p role="status">
-              Local note recorded for {acknowledgement.action === 'bank' ? 'Demo Bank' : '1930'} (simulated).
+              Local note recorded for {acknowledgement.action === 'bank' ? 'Demo Bank' : '1930'}.
             </p>
           )}
           <ActionBar>

@@ -25,9 +25,9 @@ describe('ActionConsole', () => {
     expect(screen.queryByText(/fourth reason/i)).toBeNull();
   });
 
-  it('persistently labels the surface Simulated and uses pre-OTP framing', () => {
+  it('uses pre-OTP framing without a per-panel simulated stamp', () => {
     render(<ActionConsole caseState={joinedCase} />);
-    expect(screen.getAllByText(/simulated/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/simulated/i)).toBeNull();
     expect(screen.getByText(/before you enter an otp/i)).toBeVisible();
   });
 
@@ -41,7 +41,7 @@ describe('ActionConsole', () => {
     expect(screen.queryByText(/we held your real transfer|real transfer (was|has been)/i)).toBeNull();
   });
 
-  it('lets the owner pause the simulated transfer', async () => {
+  it('lets the owner pause the transfer', async () => {
     const onPause = vi.fn();
     const user = userEvent.setup();
     render(<ActionConsole caseState={joinedCase} onPause={onPause} />);
@@ -49,7 +49,7 @@ describe('ActionConsole', () => {
     expect(onPause).toHaveBeenCalled();
   });
 
-  it('lets the owner cancel the simulated transfer', async () => {
+  it('lets the owner cancel the transfer', async () => {
     const onCancel = vi.fn();
     const user = userEvent.setup();
     render(<ActionConsole caseState={joinedCase} onCancel={onCancel} />);
@@ -98,20 +98,20 @@ describe('ActionConsole', () => {
   it('a non-joined Check case uses an ordinary confirmation, with no acknowledgment gate', () => {
     render(<ActionConsole caseState={checkCase} />);
     expect(screen.queryByRole('checkbox', { name: /understand.*unverified/i })).toBeNull();
-    expect(screen.getByRole('button', { name: /continue the simulated transfer/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /continue the transfer/i })).toBeEnabled();
   });
 
   it('an ordinary Continue click calls onContinue directly, without an acknowledgment gate', async () => {
     const onContinue = vi.fn();
     const user = userEvent.setup();
     render(<ActionConsole caseState={checkCase} onContinue={onContinue} />);
-    await user.click(screen.getByRole('button', { name: /continue the simulated transfer/i }));
+    await user.click(screen.getByRole('button', { name: /continue the transfer/i }));
     expect(onContinue).toHaveBeenCalled();
   });
 
   it('gates the acknowledgment and still requires it when the AI check is degraded, even from Check', () => {
     render(<ActionConsole caseState={checkCase} aiCheckDegraded />);
-    expect(screen.getByText(/safety check could not be completed/i)).toBeVisible();
+    expect(screen.getByText(/safety check unavailable/i)).toBeVisible();
     expect(screen.getByRole('checkbox', { name: /understand.*unverified/i })).not.toBeChecked();
     expect(screen.getByRole('button', { name: /confirm continue/i })).toBeDisabled();
   });
@@ -125,7 +125,8 @@ describe('ActionConsole', () => {
 
   it('shows a resolved, honest cancellation summary instead of action buttons once cancelled', () => {
     render(<ActionConsole caseState={{ phase: 'Resolve', paymentState: 'cancelled', reasons }} />);
-    expect(screen.getByText(/cancelled, not just hidden/i)).toBeVisible();
+    expect(screen.getByText(/transfer cancelled/i)).toBeVisible();
+    expect(screen.getByText('Simulated')).toBeVisible();
     expect(screen.queryByRole('button', { name: /pause/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull();
   });

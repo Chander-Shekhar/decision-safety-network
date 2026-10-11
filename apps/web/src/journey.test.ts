@@ -12,7 +12,7 @@ describe('canVerify', () => {
   it('blocks verify from Observe with guidance and no allowance', () => {
     const r = canVerify({ ...base, phase: 'Observe' });
     expect(r.allowed).toBe(false);
-    expect(r.reason).toMatch(/submit the simulated transfer/i);
+    expect(r.reason).toMatch(/submit the transfer/i);
   });
   it('allows verify from Check and Pause', () => {
     expect(canVerify({ ...base, phase: 'Check' }).allowed).toBe(true);

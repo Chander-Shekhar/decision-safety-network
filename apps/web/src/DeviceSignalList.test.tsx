@@ -13,8 +13,7 @@ describe('DeviceSignalList', () => {
   });
   it('frames the message as a claim, never as paid or verified', () => {
     render(<DeviceSignalList signals={[sig]} />);
-    expect(screen.getByText(/not a verified fact|claim/i)).toBeVisible();
-    // The disclaimer itself says "not a verified fact"; the signal item must never claim paid/verified.
+    // The per-item callout was removed (DSN-022); the signal item must still never claim paid/verified.
     expect(within(screen.getByRole('listitem')).queryByText(/\bpaid\b|\bverified\b/i)).toBeNull();
   });
   it('renders nothing when there are no signals', () => {

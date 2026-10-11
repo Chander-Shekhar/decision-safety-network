@@ -69,22 +69,21 @@ export function ActionConsole({
   return (
     <section aria-label="Action console">
       <Card title="Before you enter an OTP">
-        <p>
-          <Badge tone="simulated">SIMULATED PAYMENT</Badge>
-        </p>
-        <p className="text-sm text-text-muted">Nothing here moves real money. Every action below changes only this simulated case.</p>
-
         {resolved ? (
           <div role="status" className="rounded-md border border-border bg-surface-sunken p-space-3">
             {paymentState === 'cancelled' ? (
               <>
-                <h3 className="font-semibold">Simulated transfer cancelled</h3>
-                <p>Cancelled, not just hidden. The simulated transfer will not proceed.</p>
+                <h3 className="font-semibold">
+                  Transfer cancelled <Badge tone="simulated">Simulated</Badge>
+                </h3>
+                <p>The transfer will not proceed.</p>
               </>
             ) : (
               <>
-                <h3 className="font-semibold">Simulated transfer continued</h3>
-                <p>You chose to continue the simulated transfer after acknowledging the request remains unverified.</p>
+                <h3 className="font-semibold">
+                  Transfer continued <Badge tone="simulated">Simulated</Badge>
+                </h3>
+                <p>You chose to continue after acknowledging the request remains unverified.</p>
               </>
             )}
           </div>
@@ -101,50 +100,48 @@ export function ActionConsole({
 
             <ActionBar>
               {hasOpenPayment && (
-                <Button variant="pause" onClick={() => onPause?.()}>
-                  Pause simulated transfer
+                <Button variant="pause" size="lg" onClick={() => onPause?.()}>
+                  Pause transfer
                 </Button>
               )}
               {hasOpenPayment && (
-                <Button variant="cancel" onClick={() => onCancel?.()}>
-                  Cancel simulated transfer
+                <Button variant="secondary" onClick={() => onCancel?.()}>
+                  Cancel transfer
                 </Button>
               )}
-              <Button variant="secondary" onClick={() => onVerify?.()}>
-                Verify officially
-              </Button>
             </ActionBar>
 
             <ActionBar>
-              <Button variant="secondary" onClick={() => onAskAlly?.()}>
+              <Button variant="link" onClick={() => onVerify?.()}>
+                Verify officially
+              </Button>
+              <Button variant="link" onClick={() => onAskAlly?.()}>
                 Ask my ally
               </Button>
             </ActionBar>
-            <p className="text-sm text-text-muted">Opens a preview to share this case - nothing is sent yet.</p>
 
             {hasOpenPayment &&
               (ackGated ? (
                 <div className="flex flex-col gap-space-2 rounded-md border border-border bg-surface-sunken p-space-3">
                   {aiCheckDegraded && (
                     <p>
-                      The safety check could not be completed right now. The simulated transfer stays as it is until you choose an
-                      action, and continuing still requires your acknowledgment.
+                      Safety check unavailable &mdash; choose an action. Continuing still requires your acknowledgment.
                     </p>
                   )}
                   <label className="flex items-start gap-space-2">
                     <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
-                    I understand the caller&apos;s request remains unverified, and I choose to continue the simulated transfer.
+                    I understand the caller&apos;s request remains unverified, and I choose to continue.
                   </label>
                   <ActionBar>
-                    <Button variant="secondary" disabled={!acknowledged} onClick={() => onContinue?.()}>
+                    <Button variant="ghost" disabled={!acknowledged} onClick={() => onContinue?.()}>
                       Confirm Continue
                     </Button>
                   </ActionBar>
                 </div>
               ) : (
                 <ActionBar>
-                  <Button variant="secondary" onClick={() => onContinue?.()}>
-                    Continue the simulated transfer
+                  <Button variant="ghost" onClick={() => onContinue?.()}>
+                    Continue the transfer
                   </Button>
                 </ActionBar>
               ))}

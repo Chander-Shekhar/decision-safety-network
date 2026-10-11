@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AllyPacket } from '../../../packages/contracts/src/ally';
-import { ActionBar, Badge, Button, Callout, Card, Field } from './ui';
+import { ActionBar, Button, Callout, Card, Field } from './ui';
 
 export interface AllyScreenProps {
   /** The frozen packet from `GET /api/v1/ally/cases/:id`; the only case data this screen ever receives. */
@@ -58,9 +58,6 @@ export function AllyScreen({ packet, accessState = 'active', onContactRequest, o
   return (
     <section aria-label="Safety Ally review">
       <Card title="Safety Ally review">
-        <p>
-          <Badge tone="simulated">SIMULATED</Badge>
-        </p>
         <p>Your review is requested. Separate sign-in &middot; this case&apos;s grant only.</p>
 
         <h3 className="text-base font-semibold">Minimum case packet</h3>

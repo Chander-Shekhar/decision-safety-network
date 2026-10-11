@@ -1,4 +1,4 @@
-import { ActionBar, Badge, Button, Callout, Card } from './ui';
+import { ActionBar, Button, Card } from './ui';
 
 /**
  * The display shape this panel reads from the versioned registry record
@@ -60,10 +60,6 @@ export function VerifyPanel({ registry, result, disabled, onVerify, onCancel }: 
   return (
     <section aria-label="Demo Bank verification">
       <Card title="Demo Bank verification">
-        <p>
-          <Badge tone="simulated">SIMULATED</Badge>
-        </p>
-        <p className="text-sm font-semibold text-text-muted">FICTIONAL DEMO BANK &middot; REGISTRY v{registry.version}</p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-space-4 gap-y-space-1">
           <dt className="text-sm text-text-muted">Route</dt>
           <dd>{registry.routeLabel}</dd>
@@ -72,9 +68,7 @@ export function VerifyPanel({ registry, result, disabled, onVerify, onCancel }: 
           <dt className="text-sm text-text-muted">Reviewed</dt>
           <dd>{registry.reviewedAt}</dd>
         </dl>
-        <Callout kind="info">
-          <p>This route came from our registry, not from the caller. Caller-provided phone numbers are never used.</p>
-        </Callout>
+        <p className="text-sm text-text-muted">This route came from our registry, not from the caller.</p>
 
         {!result && (
           <ActionBar>
@@ -85,25 +79,16 @@ export function VerifyPanel({ registry, result, disabled, onVerify, onCancel }: 
         )}
 
         {result && (
-          <div role="status" className="flex flex-col gap-space-3 rounded-md border border-simulated border-dashed bg-simulated-soft p-space-3">
+          <div role="status" className="flex flex-col gap-space-3 rounded-md border border-border bg-surface-sunken p-space-4">
             <h3 className="text-base font-semibold">Claim not supported</h3>
             <p>
-              <Badge tone="simulated">SIMULATED</Badge>
+              Checked via {result.method}. No outbound fraud call or protected-account transfer request was recorded.{' '}
+              <span className="text-xs text-text-muted">Simulated</span>
             </p>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-space-4 gap-y-space-1">
-              <dt className="text-sm text-text-muted">Method</dt>
-              <dd>{result.method}</dd>
-              <dt className="text-sm text-text-muted">Registry version</dt>
-              <dd>{result.registryVersion}</dd>
-              <dt className="text-sm text-text-muted">Checked at</dt>
-              <dd>{result.checkedAt}</dd>
-            </dl>
-            <p>No outbound fraud call was recorded in this simulation.</p>
-            <p>No protected-account transfer was requested in this simulation.</p>
 
             <ActionBar>
               <Button variant="cancel" onClick={() => onCancel?.()}>
-                Cancel the simulated transfer
+                Cancel the transfer
               </Button>
             </ActionBar>
             {/* No Defer control here: there is no `deferred` PaymentState and no
@@ -111,7 +96,6 @@ export function VerifyPanel({ registry, result, disabled, onVerify, onCancel }: 
                 component's scope) to back it, so a Defer button would be a
                 no-op reaching the user. Re-add only alongside that backend, if
                 the founder decides defer becomes a real action. */}
-            <p className="text-sm text-text-muted">Choosing Cancel ends this case&apos;s simulated transfer &mdash; cancelled, not just hidden.</p>
           </div>
         )}
       </Card>

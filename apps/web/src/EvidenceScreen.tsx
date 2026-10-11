@@ -1,4 +1,4 @@
-import { ActionBar, Badge, Button, Card } from './ui';
+import { ActionBar, Button, Card } from './ui';
 
 /**
  * One rendered timeline row's display shape - a locally defined mirror, not
@@ -53,12 +53,8 @@ export function EvidenceScreen({ timeline, exportAllowed, retentionMode, onExpor
           </ActionBar>
         }
       >
-        <p>
-          <Badge tone="simulated">SIMULATED</Badge>
-        </p>
-        <p>This is a reviewable preview &mdash; not submitted or accepted. No report has been filed on your behalf.</p>
+        <p className="font-medium">Draft for your review &mdash; not submitted.</p>
 
-        <p>Retention: {RETENTION_LABELS[retentionMode]}</p>
         {retentionMode === 'delete-on-close' && (
           <p role="alert" className="rounded-md border border-border bg-surface-sunken p-space-3">
             Once this case closes under delete-on-close, its content is gone for good &mdash; there is no re-entry recovery path back into this case afterward.
@@ -75,6 +71,7 @@ export function EvidenceScreen({ timeline, exportAllowed, retentionMode, onExpor
           ))}
         </ol>
 
+        <p className="text-xs text-text-muted">Retention: {RETENTION_LABELS[retentionMode]}</p>
         {!exportAllowed && <p>Export is unavailable right now &mdash; export consent was either never given or has been revoked.</p>}
       </Card>
     </section>

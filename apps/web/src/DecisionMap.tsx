@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import type { Fact, FactOrigin } from '../../../packages/contracts/src/facts';
-import { ActionBar, Badge, Button, Card, Field } from './ui';
+import { ActionBar, Button, Card, Field } from './ui';
 
 /**
  * Live-extraction status for this case's Decision Map, independent of the
@@ -37,8 +37,8 @@ const FIELD_LABELS: Record<string, string> = {
  * Provenance label per the wireframes README's "Provenance is not truth"
  * rule: `Caller claimed`, `User confirmed`, and `User corrected` are
  * different states, and none of them means the underlying claim is genuine.
- * Every fact also carries the persistent "Not independently verified"
- * qualifier below, regardless of origin.
+ * Provenance is shown as a quiet inline tag (glyph + label, never color
+ * alone) on every fact; no state implies the claim is genuine.
  */
 const PROVENANCE_COPY: Record<FactOrigin, string> = {
   model: 'Caller claimed',
@@ -103,11 +103,10 @@ export function DecisionMap({
         <p role="status" className="text-sm font-medium">
           {STATUS_COPY[status]}
         </p>
-        <p className="text-sm text-text-muted">Source IDs and corrections travel with the case.</p>
 
-        <ol aria-label="Case facts" className="flex flex-col gap-space-3">
+        <ol aria-label="Case facts" className="flex flex-col divide-y divide-border">
           {facts.map((fact) => (
-            <li key={fact.field}>
+            <li key={fact.field} className="py-space-3 first:pt-0 last:pb-0">
               <FactCard
                 fact={fact}
                 sourceRetained={sourceRetained}
@@ -147,19 +146,21 @@ function FactCard({ fact, sourceRetained, onViewSource, onCorrect, onConfirm }: 
   }
 
   return (
-    <div className="flex flex-col gap-space-2 rounded-md border border-border bg-surface-sunken p-space-3">
-      <h3 className="text-base font-semibold">{label}</h3>
-      <p>
-        <Badge tone={PROVENANCE_TONE[fact.origin]}>
-          <span aria-hidden="true" className="mr-space-1">
-            {PROVENANCE_GLYPH[fact.origin]}
-          </span>
+    <div className="flex flex-col gap-space-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-space-2">
+        <h3 className="text-sm font-medium text-text-muted">{label}</h3>
+        <span className="inline-flex items-center gap-space-1 rounded-pill bg-surface-sunken px-space-2 text-xs text-text-muted">
+          <span aria-hidden="true">{PROVENANCE_GLYPH[fact.origin]}</span>
           {PROVENANCE_COPY[fact.origin]}
-        </Badge>
-      </p>
-      <p className="text-sm text-text-muted">Not independently verified.</p>
-      <p>{isUnknown ? 'Unknown' : fact.value}</p>
-      <p className="text-sm text-text-muted">Certainty: {fact.uncertainty}</p>
+        </span>
+      </div>
+      {fact.uncertainty !== 'low' && (
+        <p className="text-xs text-text-muted">
+          <span aria-hidden="true">~ </span>
+          {fact.uncertainty === 'high' ? 'Low confidence' : 'Unconfirmed'}
+        </p>
+      )}
+      <p className="text-base font-medium">{isUnknown ? 'Unknown' : fact.value}</p>
 
       <ActionBar>
         {hasSource ? (
@@ -168,12 +169,12 @@ function FactCard({ fact, sourceRetained, onViewSource, onCorrect, onConfirm }: 
               View source
             </Button>
           ) : (
-            <Badge tone="neutral">Source not retained</Badge>
+            <span className="text-xs text-text-muted">Source not retained</span>
           )
         ) : null}
 
         {fact.origin === 'model' && !isUnknown && (
-          <Button variant="primary" size="sm" onClick={() => onConfirm?.(fact.field)}>
+          <Button variant="secondary" size="sm" onClick={() => onConfirm?.(fact.field)}>
             Confirm {label.toLowerCase()}
           </Button>
         )}
@@ -189,7 +190,7 @@ function FactCard({ fact, sourceRetained, onViewSource, onCorrect, onConfirm }: 
         />
       </Field>
       <ActionBar>
-        <Button variant="secondary" size="sm" onClick={submitCorrection}>
+        <Button variant="ghost" size="sm" onClick={submitCorrection}>
           Correct
         </Button>
       </ActionBar>
