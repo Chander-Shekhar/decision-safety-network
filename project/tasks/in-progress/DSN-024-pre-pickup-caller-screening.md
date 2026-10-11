@@ -2,13 +2,13 @@
 
 - **Scope:** core
 - **Priority:** P1
-- **Owner:** Unassigned
-- **Branch/worktree:** Not claimed
-- **Owned paths:** None until claimed (expected: `apps/api/src/**` new screening + fraud-list store, `packages/contracts/src/**`, `apps/web/src/**`)
-- **Dependencies:** DSN-022; pairs with DSN-025
+- **Owner:** Orchestrator (subagent-driven implementer under integrator)
+- **Branch/worktree:** `task/DSN-024-pre-pickup-caller-screening` (isolated worktree)
+- **Owned paths:** NEW `apps/api/src/screening*` + `apps/api/src/fraud-list*` (+ matching `apps/api/test/**`), NEW `packages/contracts/src/screening.ts` (and additive edits to `fraud`/`case` contracts if needed), NEW `apps/web/src/` screening screen + edits to incoming-call/session entry. Serialized/not owned: do not restructure plan/recovery/ally/payment/verification semantics.
+- **Dependencies:** DSN-022, DSN-023 (plan `callListening` readable via `getPlan`) — both integrated. Pairs with DSN-025.
 - **PRD references:** Part I — C2 (pre-pickup screening), C13 (private confirmed-fraud list); External-signals scope row; Responsibility boundary (untrusted signals); non-goal (no public blacklist)
 - **Decision references:** 0010
-- **Started:** Not started
+- **Started:** 2026-10-11
 - **Last updated:** 2026-10-11
 
 ## Outcome
