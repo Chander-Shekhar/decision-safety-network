@@ -19,6 +19,11 @@ dist/
 build/
 .cache/
 
+# Playwright e2e output (reports, traces, videos; browser binaries live in a global cache)
+playwright-report/
+test-results/
+.playwright/
+
 # Common dependency and language caches
 node_modules/
 .venv/
