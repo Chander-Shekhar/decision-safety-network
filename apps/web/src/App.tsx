@@ -10,6 +10,7 @@ import type { RecoveryState } from '../../../packages/contracts/src/recovery';
 import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
 import type { ReportDraft, ReportHandoffResult } from '../../../packages/contracts/src/report';
 import { ActionConsole } from './ActionConsole';
+import { AllyEvidenceSelector, MAX_ALLY_EVIDENCE } from './AllyEvidenceSelector';
 import { AllyScreen } from './AllyScreen';
 import { AllySharePreview } from './AllySharePreview';
 import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken } from './api-client';
@@ -73,6 +74,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [caseId, setCaseId] = useState<string>(() => /cases\/([^/]+)/.exec(window.location.pathname)?.[1] ?? '');
   const [caseView, setCaseView] = useState<CaseView | null>(null);
   const [segments, setSegments] = useState<SessionSegmentView[]>([]);
+  // Ally evidence selection: every segment is shared by default. We track the
+  // owner's DE-selections, so segments that arrive after the owner opened the
+  // Ally step default to selected without resurrecting ones already dropped.
+  const [deselectedEvidenceIds, setDeselectedEvidenceIds] = useState<ReadonlySet<string>>(() => new Set());
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [allyUid, setAllyUid] = useState<string | null>(null);
   // Payee picker (DSN-030): the owner's registered accounts plus a free-text
@@ -140,6 +145,20 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     },
     [api],
   );
+
+  // Ids the owner is sharing with the ally: all current segments minus any de-selected.
+  const selectedEvidenceIds = useMemo(
+    () => segments.filter((segment) => !deselectedEvidenceIds.has(segment.id)).map((segment) => segment.id),
+    [segments, deselectedEvidenceIds],
+  );
+  const toggleEvidence = useCallback((id: string) => {
+    setDeselectedEvidenceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // DSN-026: fetch the case's stored untrusted web evidence. Supporting evidence only; never the official route.
   const loadWebEvidence = useCallback(
@@ -636,21 +655,42 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
         {owner && caseId && step === 'Ally' && (
           <>
-            <div><Button
-              onClick={() =>
+            <AllyEvidenceSelector
+              segments={segments}
+              selectedIds={selectedEvidenceIds}
+              onToggle={toggleEvidence}
+              onPreview={() =>
                 run(async () => {
-                  const selectedEvidenceIds = segments.map((s) => s.id);
-                  const result = await api.command<{ packet: AllyPacketContent; packetHash: string; caseVersion: number }>(
+                  // Guard the server cap BEFORE promoting anything: the preview endpoint
+                  // rejects >MAX_ALLY_EVIDENCE ids, and promoting first would persist
+                  // evidence for a request we know will 400. The button is already
+                  // disabled over the cap; this makes the side-effect-free path explicit.
+                  if (selectedEvidenceIds.length > MAX_ALLY_EVIDENCE) {
+                    setError(`Choose at most ${MAX_ALLY_EVIDENCE} excerpts to share before previewing.`);
+                    return;
+                  }
+                  // Promote each chosen segment into the case's `evidence` subcollection
+                  // (idempotent per segment) so the preview can resolve the selected ids,
+                  // then preview with exactly those ids.
+                  for (const id of selectedEvidenceIds) {
+                    await api.command('POST', `cases/${caseId}/evidence/${id}/promote`, {});
+                  }
+                  const result = await api.command<{ packetContent: AllyPacketContent; packetHash: string; caseVersion: number }>(
                     'POST',
                     `cases/${caseId}/ally-share-preview`,
                     { selectedEvidenceIds },
                   );
-                  setPreview({ ...result, selectedEvidenceIds });
+                  // The preview endpoint returns `packetContent` (ally.ts previewAllyPacket);
+                  // map it to the `packet` the dialog renders.
+                  setPreview({
+                    packet: result.packetContent,
+                    packetHash: result.packetHash,
+                    caseVersion: result.caseVersion,
+                    selectedEvidenceIds,
+                  });
                 })
               }
-            >
-              Preview what my ally would see
-            </Button></div>
+            />
             <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)} title="What your ally would see">
               {preview && (
                 <AllySharePreview

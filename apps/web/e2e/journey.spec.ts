@@ -137,14 +137,26 @@ test.describe('attack journey', () => {
     // "Central claim" (asserted above), and the Pause OFFERS the ally route rather than
     // acting on the caller's demand.
     //
-    // NOTE: the owner-side ally-share PREVIEW dialog is a known shell gap — the UI posts
-    // every segment id as `selectedEvidenceIds`, but nothing promotes segments into the
-    // `evidence` subcollection, so the preview always fails with UNKNOWN_EVIDENCE. The
-    // ally packet's claim / proposed-action / verification-gap allowlist (and that the
-    // raw transcript is never shared) is covered at the API layer by
-    // apps/api/test/ally.test.ts. The gap is recorded as a limitation + proposed
-    // follow-up on the DSN-032 task record; this harness task does not change product src.
-    await expect(actionConsole.getByRole('button', { name: 'Ask my ally' })).toBeVisible();
+    // Owner-side ally reach (DSN-033): the Pause offers "Ask my ally", which opens the
+    // Ally step's evidence selector (all transcript excerpts selected by default). The
+    // owner previews EXACTLY the allowlisted packet the ally would receive — the caller's
+    // words appear under a "Caller claimed" label and a "Verification gap", never as an
+    // instruction. (This exercises the full promote-then-preview path end to end; the gap
+    // the DSN-032 harness had to document is now resolved.)
+    await actionConsole.getByRole('button', { name: 'Ask my ally' }).click();
+    await expect(page.getByRole('heading', { name: 'Choose what your ally sees' })).toBeVisible();
+    await page.getByRole('button', { name: 'Preview what my ally would see' }).click();
+
+    const previewDialog = page.getByRole('dialog', { name: 'What your ally would see' });
+    await expect(previewDialog.getByText('Caller claimed')).toBeVisible();
+    await expect(previewDialog.getByText('Account compromised')).toBeVisible();
+    await expect(previewDialog.getByText('Verification gap')).toBeVisible();
+    // The raw transcript is never shared — only the allowlisted packet + chosen excerpts.
+    await expect(previewDialog.getByText(/full transcript and other evidence are not included/i)).toBeVisible();
+
+    // Close the modal preview before leaving for the official-verification route.
+    await previewDialog.getByRole('button', { name: 'Not now' }).click();
+    await expect(previewDialog).toBeHidden();
 
     // Official verification is a SEALED, simulated route sourced from the Demo Bank
     // registry (never caller data); it reports the claim is not supported.
