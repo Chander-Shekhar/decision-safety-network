@@ -543,6 +543,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               onAlreadyPaid={() =>
                 run(async () => {
                   setRecovery(await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/enter`, withKey({})));
+                  await refreshCase(caseId); // keep caseView.phase current so phase-gated UI (e.g. the 1930 handoff) is accurate
                   window.history.pushState({}, '', `/cases/${caseId}/recover`);
                   setStep('Recovery');
                 })
@@ -685,7 +686,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             {!recovery && (
               <div><Button
                 onClick={() =>
-                  run(async () => setRecovery(await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/enter`, withKey({}))))
+                  run(async () => {
+                    setRecovery(await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/enter`, withKey({})));
+                    await refreshCase(caseId); // keep caseView.phase current for phase-gated UI
+                  })
                 }
               >
                 I already paid
@@ -745,7 +749,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             }
             // DSN-028: pre-filled report draft; the user downloads/opens the official channel themselves.
             reportDraft={reportDraft}
-            handoffAllowed={caseView?.phase === 'Recover'}
+            handoffAllowed={!!recovery || caseView?.phase === 'Recover'}
             handedOff={reportHandedOff}
             onDownloadReportDraft={() =>
               run(async () => {
