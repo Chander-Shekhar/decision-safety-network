@@ -83,9 +83,9 @@ async function readOrderedSegmentIds(db: Firestore, caseId: string): Promise<Fac
  * (never caller identity, `certifiesCaller` is not even a field on its
  * result), and web evidence is untrusted by type (`certifiesCaller:false`).
  * So the claimed identity is never independently verified in this build, and
- * this module never flips `unverified` to false. A verification that
- * *contradicts* the claim is handled separately by
- * `deriveVerificationContradiction`, which only ever reinforces the
+ * this module never flips `unverified` to false. The owner's bank's verified
+ * policy rebutting a pressured transfer request is handled separately by
+ * `deriveVerifiedBankPolicyRebuttal`, which only ever reinforces the
  * `unverified-claim` reason. This module also never infers "verified" from
  * the free-text `verificationStatus` claim content itself - doing so would
  * let a caller-supplied claim mark itself verified (PRD 8.2's untrusted-
@@ -105,18 +105,25 @@ function deriveConversationSignals(confirmed: Record<string, Fact> | undefined):
 
 /**
  * Reads the case's sealed (trusted) `VerificationResult` - the ONLY trusted
- * verification producer (verification.ts) - and reports whether the bank's
- * own verified policy contradicts a pressured transfer request: Demo Bank
- * never makes outbound fraud calls and never requests protected transfers, so
- * a result asserting both `false` means a caller doing exactly that is acting
- * against how the owner's bank actually operates. This feeds `assessCase` only
- * as a REINFORCING signal (`verificationContradictsClaim`): it upgrades the
- * `unverified-claim` reason's fixed text and cites the record, and can never
- * lift a Pause or mark the claim verified. Untrusted open-web evidence
- * (web-verification.ts) is deliberately never consulted here - only the sealed
- * route may touch the deterministic decision (decisions 0013/0015).
+ * verification producer (verification.ts) - and reports whether the owner's
+ * bank's verified policy rebuts a pressured transfer request: the bank never
+ * makes outbound fraud calls and never requests protected transfers, so a
+ * result asserting both `false` means a request to move money under pressure
+ * runs against how the owner's bank actually operates.
+ *
+ * Deliberately does NOT inspect the caller's claimed identity: the signal is
+ * not a per-call "the caller claimed to be the bank" comparison. For the Cup
+ * Demo Bank registry those two policy fields are constants (the bank never does
+ * this), so in practice this is true whenever any sealed demo-bank verification
+ * is present. That is intentional and honest: the bank-policy fact is itself
+ * constant, and the signal is only ever applied to REINFORCE the
+ * `unverified-claim` reason - which `policy.ts` emits only alongside manipulation
+ * cues, and only via a call site that always has an open transfer draft. It can
+ * never lift a Pause, change a phase, or mark the claim verified. Untrusted
+ * open-web evidence (web-verification.ts) is never consulted here - only the
+ * sealed route may touch the deterministic decision (decisions 0013/0015).
  */
-function deriveVerificationContradiction(verification: VerificationResult | undefined): { contradicts: boolean; ref?: string } {
+function deriveVerifiedBankPolicyRebuttal(verification: VerificationResult | undefined): { contradicts: boolean; ref?: string } {
   if (!verification || verification.simulated !== true) {
     return { contradicts: false };
   }
@@ -261,7 +268,7 @@ export async function submitIntent(db: Firestore, uid: string, caseId: string, i
     }
 
     const signals = deriveConversationSignals(current.confirmed);
-    const contradiction = deriveVerificationContradiction(current.verification);
+    const rebuttal = deriveVerifiedBankPolicyRebuttal(current.verification);
     const largeNewPayee = isLargeNewPayee(draft, thresholdMinor);
     const assessInput: AssessCaseInput = {
       cues: signals.cues,
@@ -269,8 +276,8 @@ export async function submitIntent(db: Firestore, uid: string, caseId: string, i
       matchingRelation: false,
       largeNewPayee,
       sourceSegmentIds: signals.sourceSegmentIds,
-      verificationContradictsClaim: contradiction.contradicts,
-      verificationRef: contradiction.ref,
+      verifiedBankPolicyContradictsRequest: rebuttal.contradicts,
+      verificationRef: rebuttal.ref,
     };
     const decision = assessCase(assessInput);
     const nextPhase = decision.phase === current.phase ? current.phase : transition(current.phase, decision.phase, 'payment-submit-intent');
@@ -369,7 +376,7 @@ export async function applyValidatedRelation(
 
     const matchingRelation = relationConfirms(relation);
     const signals = deriveConversationSignals(current.confirmed);
-    const contradiction = deriveVerificationContradiction(current.verification);
+    const rebuttal = deriveVerifiedBankPolicyRebuttal(current.verification);
     const largeNewPayee = isLargeNewPayee(current.paymentDraft!, thresholdMinor);
     const assessInput: AssessCaseInput = {
       cues: signals.cues,
@@ -378,8 +385,8 @@ export async function applyValidatedRelation(
       largeNewPayee,
       sourceSegmentIds: [...new Set([...signals.sourceSegmentIds, ...sourceSegmentsFromRelation(relation)])],
       paymentEventId: current.paymentDraft?.id,
-      verificationContradictsClaim: contradiction.contradicts,
-      verificationRef: contradiction.ref,
+      verifiedBankPolicyContradictsRequest: rebuttal.contradicts,
+      verificationRef: rebuttal.ref,
     };
     const decision = assessCase(assessInput);
     const nextPhase = decision.phase === current.phase ? current.phase : transition(current.phase, decision.phase, 'payment-relation-applied');
