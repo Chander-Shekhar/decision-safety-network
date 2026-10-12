@@ -15,6 +15,7 @@ import { planRoutes } from './plan-routes.js';
 import { createRecoveryRoutes } from './recovery-routes.js';
 import { createReportRoutes } from './report-routes.js';
 import { createScreeningRoutes } from './screening-routes.js';
+import { createTranscriptionRoutes } from './transcription-routes.js';
 import { createRetentionRoutes, type OidcKeySource, type SchedulerIdentityConfig } from './retention-routes.js';
 import { sessionRoutes } from './session-routes.js';
 import { createVerificationRoutes } from './verification-routes.js';
@@ -52,6 +53,7 @@ export function buildServer(
     caseRoutes,
     sessionRoutes,
     createFactRoutes(gemini),
+    createTranscriptionRoutes(),
     createPaymentRoutes(gemini),
     createDecisionRoutes(),
     createVerificationRoutes(),

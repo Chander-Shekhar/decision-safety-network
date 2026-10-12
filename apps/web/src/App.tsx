@@ -23,6 +23,7 @@ import { PaymentPanel } from './PaymentPanel';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
 import { RecoveryScreen } from './RecoveryScreen';
 import { SetupScreen, type SetupValues } from './SetupScreen';
+import { TranscriptEntry } from './TranscriptEntry';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
 import { Button, Callout, Dialog, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
@@ -52,6 +53,19 @@ interface AllyPreview {
   selectedEvidenceIds: string[];
 }
 
+/** Reads a File into base64 (no `data:` prefix), for the transcription upload (DSN-030). */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error('FILE_READ_FAILED'));
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      resolve(result.slice(result.indexOf(',') + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const api = useMemo(() => createApiClient(auth.getIdToken), [auth]);
   const [role, setRole] = useState<'owner' | 'ally' | null>(null);
@@ -61,8 +75,14 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [segments, setSegments] = useState<SessionSegmentView[]>([]);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [allyUid, setAllyUid] = useState<string | null>(null);
-  const [draftPayee, setDraftPayee] = useState('safe-new');
+  // Payee picker (DSN-030): the owner's registered accounts plus a free-text
+  // "new payee" the caller named. `newPayee` stays server-derived - the id is
+  // only input. '__new__' selects the free-text field.
+  const [draftPayee, setDraftPayee] = useState('__new__');
+  const [newPayeeId, setNewPayeeId] = useState('');
   const [draftAmount, setDraftAmount] = useState('');
+  // DSN-030: a transcript paste/audio submit is in flight.
+  const [transcriptBusy, setTranscriptBusy] = useState(false);
   const [allyStatus, setAllyStatus] = useState<AllyStatus>('none');
   const [registry, setRegistry] = useState<VerifyPanelRegistry | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerifyPanelResult | undefined>();
@@ -493,19 +513,24 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 return res.maskedNumber;
               }}
             />
-            <div><Button variant="secondary" onClick={() => run(playScenario)}>
-              Play attack scenario
-            </Button></div>
+            <TranscriptEntry
+              busy={transcriptBusy}
+              disabled={!caseId}
+              onSubmitPaste={(text) => run(() => submitPastedTranscript(text))}
+              onSubmitAudio={(audioFile) => run(() => submitAudioRecording(audioFile))}
+            />
             <form
               aria-label="Draft a transfer"
               className="flex flex-wrap items-end gap-space-3"
               onSubmit={(e) => {
                 e.preventDefault();
                 run(async () => {
+                  const beneficiaryId = (draftPayee === '__new__' ? newPayeeId : draftPayee).trim();
+                  if (!beneficiaryId) return;
                   await api.command(
                     'POST',
                     `cases/${caseId}/payment/draft`,
-                    withKey({ beneficiaryId: draftPayee, amountMinor: Math.round(Number(draftAmount) * 100), expectedVersion: version }),
+                    withKey({ beneficiaryId, amountMinor: Math.round(Number(draftAmount) * 100), expectedVersion: version }),
                   );
                   await refreshCase(caseId);
                 });
@@ -514,10 +539,24 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               <label>
                 Beneficiary
                 <select value={draftPayee} onChange={(e) => setDraftPayee(e.target.value)}>
-                  <option value="safe-new">safe-new (new payee)</option>
-                  <option value="safe-known">safe-known</option>
+                  {(plan?.bankAccounts ?? []).map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.label} · ending {account.last4}
+                    </option>
+                  ))}
+                  <option value="__new__">New payee…</option>
                 </select>
               </label>
+              {draftPayee === '__new__' && (
+                <label>
+                  New payee account
+                  <input
+                    value={newPayeeId}
+                    onChange={(e) => setNewPayeeId(e.target.value)}
+                    placeholder="account the caller gave you"
+                  />
+                </label>
+              )}
               <label>
                 Amount
                 <input inputMode="numeric" value={draftAmount} onChange={(e) => setDraftAmount(e.target.value)} />
@@ -783,20 +822,69 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     await refreshCase(caseId);
   }
 
-  /** Controlled, synthetic transcript (never a live call): appended through the API, then one extraction pass. */
-  async function playScenario(): Promise<void> {
-    const lines = [
-      'This is the Demo Bank fraud team. Your account is compromised.',
-      'To protect it, move 50,000 to the safe-new account right now.',
-    ];
-    const played: SessionSegmentView[] = lines.map((text, i) => ({ id: `seg-${i + 1}`, order: i + 1, speaker: 'caller', text }));
-    for (const segment of played) {
-      await api.command('POST', `cases/${caseId}/segments`, segment);
+  /**
+   * DSN-030: append owner-supplied transcript turns through the SAME segment
+   * API as the live-capture bridge, then run one extraction pass. Orders
+   * continue gap-free from whatever segments the case already has. Shared by
+   * the paste and audio-upload paths.
+   */
+  async function appendTurnsAndExtract(id: string, turns: { speaker: string; text: string }[], idPrefix: string): Promise<void> {
+    if (!turns.length) return;
+    const stamp = Date.now().toString(36);
+    for (const [i, turn] of turns.entries()) {
+      // Order off the highest order already accepted (matching the live
+      // bridge's max+1 rule, not list length), computed fresh each iteration.
+      const order = segmentsRef.current.reduce((max, s) => Math.max(max, s.order), 0) + 1;
+      const segment: SessionSegmentView = { id: `${idPrefix}-${stamp}-${i}`, order, speaker: turn.speaker || 'caller', text: turn.text };
+      await api.command('POST', `cases/${id}/segments`, segment);
+      // Record each segment only after the server accepts it, so a mid-loop
+      // failure never leaves the local base behind the server's
+      // lastSegmentOrder (which would ORDER_CONFLICT the owner's retry).
+      segmentsRef.current = [...segmentsRef.current, segment];
+      setSegments(segmentsRef.current);
     }
-    setSegments(played);
-    await refreshCase(caseId);
-    await api.command('POST', `cases/${caseId}/facts/extract`, { expectedVersion: (await api.get<CaseView>(`cases/${caseId}`)).version });
-    await refreshCase(caseId);
+    await refreshCase(id);
+    const latest = await api.get<CaseView>(`cases/${id}`);
+    await api.command('POST', `cases/${id}/facts/extract`, { expectedVersion: latest.version });
+    await refreshCase(id);
+  }
+
+  /** Pasted call text: one turn per non-empty line, with an optional "Name:" speaker prefix (default caller). */
+  async function submitPastedTranscript(text: string): Promise<void> {
+    const id = caseIdRef.current;
+    if (!id) return;
+    const turns = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        const m = /^([A-Za-z][\w ]{0,20}?)\s*:\s*(.+)$/.exec(line);
+        return m ? { speaker: m[1]!.trim().toLowerCase(), text: m[2]!.trim() } : { speaker: 'caller', text: line };
+      });
+    setTranscriptBusy(true);
+    try {
+      await appendTurnsAndExtract(id, turns, 'paste');
+    } finally {
+      setTranscriptBusy(false);
+    }
+  }
+
+  /** Uploaded recording: transcribed server-side into turns (audio is never stored), then the same append + extract path. */
+  async function submitAudioRecording(audioFile: File): Promise<void> {
+    const id = caseIdRef.current;
+    if (!id) return;
+    setTranscriptBusy(true);
+    try {
+      const dataBase64 = await fileToBase64(audioFile);
+      const { turns } = await api.command<{ turns: { speaker: string; text: string }[] }>(
+        'POST',
+        `cases/${id}/transcript/audio`,
+        { audio: { mimeType: audioFile.type || 'audio/webm', dataBase64 } },
+      );
+      await appendTurnsAndExtract(id, turns, 'audio');
+    } finally {
+      setTranscriptBusy(false);
+    }
   }
 
   async function respond(body: { kind: string; source?: string }): Promise<void> {

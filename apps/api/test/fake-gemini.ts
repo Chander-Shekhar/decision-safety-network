@@ -1,9 +1,12 @@
 import type {
+  AudioInput,
   CandidateFact,
   CandidateRelation,
   FactSegmentInput,
   GeminiPort,
   RelateInput,
+  TranscriptionPort,
+  TranscriptTurn,
 } from '../../../packages/contracts/src/facts.js';
 
 /**
@@ -73,6 +76,28 @@ export function createFakeGemini(): GeminiPort & { readonly isTestDouble: true }
           { field: 'amountMinor', matches: amountMatch.length > 0, sourceSegmentIds: amountMatch.map((s) => s.id) },
         ],
       };
+    },
+  };
+}
+
+/**
+ * Deterministic `TranscriptionPort` test double for the transcription route
+ * (DSN-030). Real audio never reaches it; a test supplies known text as the
+ * "audio" bytes. It decodes the base64 payload as UTF-8, treats each non-empty
+ * line as one turn, and alternates speakers caller/you - enough to drive the
+ * route end to end (transcribe -> append segments -> extract) with the same
+ * attack-fixture text the `extract` double already recognizes.
+ */
+export function createFakeTranscription(): TranscriptionPort & { readonly isTestDouble: true } {
+  return {
+    isTestDouble: true,
+    async transcribe(audio: AudioInput): Promise<TranscriptTurn[]> {
+      const text = Buffer.from(audio.dataBase64, 'base64').toString('utf8');
+      return text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .map((line, i) => ({ speaker: i % 2 === 0 ? 'caller' : 'you', text: line }));
     },
   };
 }

@@ -131,3 +131,31 @@ export interface GeminiPort {
   extract(segments: FactSegmentInput[]): Promise<CandidateFact[]>;
   relate(input: RelateInput): Promise<CandidateRelation>;
 }
+
+/** Raw audio a browser uploads for prototype transcription (DSN-030). Never persisted server-side. */
+export interface AudioInput {
+  /** e.g. 'audio/webm', 'audio/mp4', 'audio/wav'. */
+  mimeType: string;
+  /** base64-encoded audio payload. */
+  dataBase64: string;
+}
+
+/** One speaker turn the transcription model proposes. Becomes an untrusted transcript segment, never a trusted fact on its own. */
+export interface TranscriptTurn {
+  speaker: string;
+  text: string;
+}
+
+/**
+ * Audio -> text boundary for the prototype "upload a recording of your call"
+ * input (DSN-030). Kept separate from `GeminiPort` so adding it never forces
+ * every existing `GeminiPort` fake to grow a method. Implemented concretely by
+ * `gemini.ts`'s `createGeminiTranscriptionPort()` and by a test double. The
+ * turns it returns are untrusted transcript content: they flow into the same
+ * segment + `facts/extract` pipeline as any other transcript and can never
+ * become a trusted fact without the owner's explicit confirmation. It never
+ * selects an action, emits a scam probability, or returns policy.
+ */
+export interface TranscriptionPort {
+  transcribe(audio: AudioInput): Promise<TranscriptTurn[]>;
+}

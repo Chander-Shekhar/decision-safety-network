@@ -2,11 +2,14 @@ import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import {
   REQUIRED_FACT_FIELDS,
+  type AudioInput,
   type CandidateFact,
   type CandidateRelation,
   type FactSegmentInput,
   type GeminiPort,
   type RelateInput,
+  type TranscriptionPort,
+  type TranscriptTurn,
 } from '../../../packages/contracts/src/facts.js';
 
 /**
@@ -18,6 +21,9 @@ export const EXTRACT_PROMPT_VERSION = 'facts-extract-v1';
 
 /** Prompt/schema version for `relate`. See `EXTRACT_PROMPT_VERSION`. */
 export const RELATE_PROMPT_VERSION = 'facts-relate-v1';
+
+/** Prompt/schema version for `transcribe` (DSN-030). See `EXTRACT_PROMPT_VERSION`. */
+export const TRANSCRIBE_PROMPT_VERSION = 'facts-transcribe-v1';
 
 const UncertaintySchema = z.enum(['low', 'medium', 'high']);
 
@@ -70,6 +76,25 @@ const candidateFactsJsonSchema = {
     },
   },
   required: ['facts'],
+} as const;
+
+const TranscriptTurnsResponseSchema = z.object({
+  turns: z.array(z.object({ speaker: z.string(), text: z.string() })),
+});
+
+const transcriptTurnsJsonSchema = {
+  type: 'object',
+  properties: {
+    turns: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { speaker: { type: 'string' }, text: { type: 'string' } },
+        required: ['speaker', 'text'],
+      },
+    },
+  },
+  required: ['turns'],
 } as const;
 
 const relationJsonSchema = {
@@ -167,6 +192,46 @@ export function createGeminiPort(): GeminiPort {
         throw new Error('STALE_RELATION');
       }
       return relation;
+    },
+  };
+}
+
+/**
+ * Concrete `TranscriptionPort` over `@google/genai` (DSN-030). Transcribes an
+ * uploaded call recording into ordered speaker turns. The audio travels only
+ * as inline request content for this one call and is never persisted anywhere
+ * by this process. Like `extract`/`relate`, the response is schema-constrained
+ * at `temperature: 0` and re-validated with Zod; the turns it returns are
+ * untrusted transcript content, not trusted facts - they become ordinary
+ * transcript segments downstream and must still be owner-confirmed to matter.
+ * Not exercised against the real Google Cloud endpoint by any test (the
+ * transcription route tests inject a fake); live calls need DSN-014 cloud auth.
+ */
+export function createGeminiTranscriptionPort(): TranscriptionPort {
+  const ai = new GoogleGenAI({ vertexai: true, project: process.env.GOOGLE_CLOUD_PROJECT ?? '', location: 'global' });
+
+  return {
+    async transcribe(audio: AudioInput): Promise<TranscriptTurn[]> {
+      const response = await ai.models.generateContent({
+        model: modelId(),
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { inlineData: { mimeType: audio.mimeType, data: audio.dataBase64 } },
+              {
+                text: JSON.stringify({
+                  task: 'transcribe this call recording into ordered speaker turns',
+                  promptVersion: TRANSCRIBE_PROMPT_VERSION,
+                  speakers: ['caller', 'you'],
+                }),
+              },
+            ],
+          },
+        ],
+        config: { responseMimeType: 'application/json', responseJsonSchema: transcriptTurnsJsonSchema, temperature: 0 },
+      });
+      return TranscriptTurnsResponseSchema.parse(JSON.parse(response.text ?? '{}')).turns;
     },
   };
 }

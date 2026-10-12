@@ -26,3 +26,6 @@ venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Local agent worktrees / session scratch
+.claude/
