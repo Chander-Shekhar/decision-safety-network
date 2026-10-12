@@ -11,6 +11,7 @@ import {
   type TranscriptionPort,
   type TranscriptTurn,
 } from '../../../packages/contracts/src/facts.js';
+import type { NumberMatch, OfficialSourceGrounding } from './web-verification-adapter.js';
 
 /**
  * Prompt/schema version for `extract`. Bump whenever the prompt or response
@@ -24,6 +25,9 @@ export const RELATE_PROMPT_VERSION = 'facts-relate-v1';
 
 /** Prompt/schema version for `transcribe` (DSN-030). See `EXTRACT_PROMPT_VERSION`. */
 export const TRANSCRIBE_PROMPT_VERSION = 'facts-transcribe-v1';
+
+/** Prompt/schema version for the open-web grounding number check (DSN-031). See `EXTRACT_PROMPT_VERSION`. */
+export const GROUNDING_PROMPT_VERSION = 'web-verify-grounding-v1';
 
 const UncertaintySchema = z.enum(['low', 'medium', 'high']);
 
@@ -95,6 +99,15 @@ const transcriptTurnsJsonSchema = {
     },
   },
   required: ['turns'],
+} as const;
+
+const NUMBER_MATCHES = ['matches-pattern', 'mismatch', 'unknown'] as const;
+const NumberMatchResponseSchema = z.object({ numberMatch: z.enum(NUMBER_MATCHES) });
+
+const numberMatchJsonSchema = {
+  type: 'object',
+  properties: { numberMatch: { type: 'string', enum: NUMBER_MATCHES } },
+  required: ['numberMatch'],
 } as const;
 
 const relationJsonSchema = {
@@ -232,6 +245,46 @@ export function createGeminiTranscriptionPort(): TranscriptionPort {
         config: { responseMimeType: 'application/json', responseJsonSchema: transcriptTurnsJsonSchema, temperature: 0 },
       });
       return TranscriptTurnsResponseSchema.parse(JSON.parse(response.text ?? '{}')).turns;
+    },
+  };
+}
+
+/**
+ * Concrete `OfficialSourceGrounding` over `@google/genai` with Google Search
+ * grounding (DSN-031). Answers ONLY the single constrained question "does this
+ * number fit the official published contact pattern of <institution>, per its
+ * official source?" and returns a closed `NumberMatch` enum - never free text,
+ * never a certification. The hostile `claimedIdentity` is resolved to a curated
+ * institution upstream and is NEVER passed here; this call sees only the
+ * server-curated `displayName`/`officialDomain` plus the normalized number, and
+ * its return is re-normalized by `web-verification.ts`'s sanitizer regardless.
+ * `GoogleGenAI` is constructed lazily inside the call so merely selecting this
+ * provider at wiring time needs no cloud credentials. Not exercised against the
+ * real endpoint by any test (the grounded-adapter tests inject a fake); live
+ * calls need DSN-014 cloud auth and grounding provisioning.
+ */
+export function createGeminiOfficialSourceGrounding(): OfficialSourceGrounding {
+  return {
+    async checkNumber({ displayName, officialDomain, normalizedNumber }): Promise<NumberMatch> {
+      const ai = new GoogleGenAI({ vertexai: true, project: process.env.GOOGLE_CLOUD_PROJECT ?? '', location: 'global' });
+      const response = await ai.models.generateContent({
+        model: modelId(),
+        contents: JSON.stringify({
+          task: 'Using only the institution\'s official published source, decide whether the number matches its official contact pattern.',
+          promptVersion: GROUNDING_PROMPT_VERSION,
+          institution: displayName,
+          officialSource: officialDomain,
+          number: normalizedNumber,
+          answer: 'one of: matches-pattern | mismatch | unknown',
+        }),
+        config: {
+          responseMimeType: 'application/json',
+          responseJsonSchema: numberMatchJsonSchema,
+          temperature: 0,
+          tools: [{ googleSearch: {} }],
+        },
+      });
+      return NumberMatchResponseSchema.parse(JSON.parse(response.text ?? '{}')).numberMatch;
     },
   };
 }
