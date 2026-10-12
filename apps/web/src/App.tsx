@@ -830,19 +830,19 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
    */
   async function appendTurnsAndExtract(id: string, turns: { speaker: string; text: string }[], idPrefix: string): Promise<void> {
     if (!turns.length) return;
-    const base = segmentsRef.current.length;
     const stamp = Date.now().toString(36);
-    const built: SessionSegmentView[] = turns.map((turn, i) => ({
-      id: `${idPrefix}-${stamp}-${i}`,
-      order: base + i + 1,
-      speaker: turn.speaker || 'caller',
-      text: turn.text,
-    }));
-    for (const segment of built) {
+    for (const [i, turn] of turns.entries()) {
+      // Order off the highest order already accepted (matching the live
+      // bridge's max+1 rule, not list length), computed fresh each iteration.
+      const order = segmentsRef.current.reduce((max, s) => Math.max(max, s.order), 0) + 1;
+      const segment: SessionSegmentView = { id: `${idPrefix}-${stamp}-${i}`, order, speaker: turn.speaker || 'caller', text: turn.text };
       await api.command('POST', `cases/${id}/segments`, segment);
+      // Record each segment only after the server accepts it, so a mid-loop
+      // failure never leaves the local base behind the server's
+      // lastSegmentOrder (which would ORDER_CONFLICT the owner's retry).
+      segmentsRef.current = [...segmentsRef.current, segment];
+      setSegments(segmentsRef.current);
     }
-    segmentsRef.current = [...segmentsRef.current, ...built];
-    setSegments(segmentsRef.current);
     await refreshCase(id);
     const latest = await api.get<CaseView>(`cases/${id}`);
     await api.command('POST', `cases/${id}/facts/extract`, { expectedVersion: latest.version });
