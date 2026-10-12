@@ -20,6 +20,18 @@ export const POLICY_VERSION = 'cup-core-1';
  *
  * - `manipulation-cues`: an observed-tactics pressure cue is present (PRD 7.1.A).
  * - `unverified-claim`: the claimed identity/claim has not been independently verified (PRD 7.1.C).
+ *   When a sealed, trusted `VerificationResult` (verification.ts - the only trusted
+ *   verification producer) is present and the owner's bank's verified policy is
+ *   that it never phones customers to move money (`verifiedBankPolicyContradictsRequest`),
+ *   this one reason's fixed text is upgraded to note that the pressured transfer
+ *   request runs against the bank's own policy, and it carries the verification's
+ *   `verificationRef`. The text deliberately does NOT assert the caller claimed to
+ *   be the bank - the signal never inspects the claimed identity, so it only states
+ *   the (true) bank-policy fact and that the claim is still unverified. This only
+ *   ever REINFORCES caution: it never adds a fourth reason (PRD C6 shows at most
+ *   three), never selects or lifts a phase, and never implies the claim is now
+ *   verified. Untrusted open-web evidence (web-verification.ts) is deliberately NOT
+ *   a signal here (decision 0013/0015): only the sealed route may touch this policy.
  * - `large-new-payee`: the open payment is a new payee above the plan's threshold *and* the
  *   conversation has been validated as directing this specific payment (PRD C4). Never emitted
  *   without a validated matching relation, so a large payment is never cited as a reason unless
@@ -40,6 +52,8 @@ export interface GroundedReason {
   sourceSegmentIds: string[];
   paymentEventId?: string;
   correctionEventId?: string;
+  /** The sealed verification record (`<bankId>@<registryVersion>`) backing an upgraded `unverified-claim` reason; cited only onto that reason, never free text. */
+  verificationRef?: string;
 }
 
 /**
@@ -60,6 +74,22 @@ export interface AssessCaseInput {
   largeNewPayee: boolean;
   /** An owner correction was applied to this case (PRD causal matrix row 4 rollback trigger). This policy does not know, and never claims, what - if anything - was previously joined. */
   corrected?: boolean;
+  /**
+   * A sealed, trusted `VerificationResult` (verification.ts) is present and the
+   * owner's bank's verified policy rebuts a pressured transfer request (the bank
+   * never makes outbound fraud calls or requests protected transfers). Derived
+   * only from the sealed route, never from untrusted web evidence, and never
+   * from the caller's claimed identity (so it must not be read as "the caller
+   * claimed to be the bank"). `assessCase` is only ever called with an open
+   * payment draft (payment.ts is its sole caller), so a transfer request always
+   * exists when this is true. When true alongside an unverified claim with cues,
+   * it only upgrades the fixed text of the `unverified-claim` reason - it never
+   * changes the selected phase, never lifts a Pause, and never marks the claim
+   * verified.
+   */
+  verifiedBankPolicyContradictsRequest?: boolean;
+  /** The sealed verification record reference (`<bankId>@<registryVersion>`) backing `verifiedBankPolicyContradictsRequest`; cited only onto the upgraded `unverified-claim` reason. */
+  verificationRef?: string;
   /** Transcript segments backing `cues`/`unverified`/`matchingRelation`; cited verbatim onto whichever reasons need them. */
   sourceSegmentIds?: string[];
   /** The payment draft/submit event backing `largeNewPayee`; cited only onto the `large-new-payee` reason. */
@@ -146,10 +176,20 @@ function buildReasons(input: AssessCaseInput): GroundedReason[] {
       text: 'A pressure tactic was observed in the conversation.',
       sourceSegmentIds,
     });
+    // The sealed verification only ever REINFORCES this reason: it upgrades the
+    // fixed text (still asserting the claim is unverified) and cites the record.
+    // It never changes `code`, never adds a reason, and never lifts a phase. The
+    // text states the (true) bank-policy fact and that the request runs against
+    // it - it never asserts the caller claimed to be the bank (the signal never
+    // inspects the claimed identity).
+    const reinforced = Boolean(input.verifiedBankPolicyContradictsRequest && input.verificationRef);
     reasons.push({
       code: 'unverified-claim',
-      text: 'The claimed identity or claim has not been independently verified.',
+      text: reinforced
+        ? 'The claimed identity is still not independently verified — and your bank’s verified policy is that it never phones you to move money, so a request like this one runs against your bank’s own policy.'
+        : 'The claimed identity or claim has not been independently verified.',
       sourceSegmentIds,
+      ...(reinforced ? { verificationRef: input.verificationRef } : {}),
     });
   }
   if (isJoined(input)) {

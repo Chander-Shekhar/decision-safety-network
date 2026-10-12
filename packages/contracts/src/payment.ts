@@ -53,6 +53,14 @@ export interface PaymentReason {
   sourceSegmentIds: string[];
   paymentEventId?: string;
   correctionEventId?: string;
+  /**
+   * Set only when a sealed (trusted) `VerificationResult` reinforced this
+   * reason - the opaque registry reference (`<bankId>@<registryVersion>`) of
+   * the official verification whose policy contradicts the caller's request.
+   * A provenance breadcrumb, never free text and never a certification: web
+   * evidence can never set it, and it never lifts a Pause (see policy.ts).
+   */
+  verificationRef?: string;
 }
 
 /**

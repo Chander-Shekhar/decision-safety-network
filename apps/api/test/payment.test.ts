@@ -310,6 +310,60 @@ describe('applyValidatedRelation (joined intervention requires a validated, curr
     expect(result.reasons.some((r) => r.code === 'large-new-payee')).toBe(true);
   });
 
+  it('a sealed verification whose policy contradicts the request reinforces the unverified-claim reason, and never lifts the Pause (DSN-031)', async () => {
+    const ownerUid = uid('owner');
+    const { caseId, pending, draft } = await seedJoinedCase(ownerUid);
+    // The sealed, trusted Demo Bank result (produced only by verification.ts) is
+    // present on the case: the bank never makes outbound fraud calls / requests
+    // protected transfers. Set directly here to isolate the payment-side signal
+    // derivation from DSN-010's own phase mechanics; no version bump.
+    await db.collection('cases').doc(caseId).set(
+      {
+        verification: {
+          bankId: 'demo-bank',
+          registryVersion: 'cup-1',
+          method: 'versioned-demo-registry',
+          checkedAt: new Date().toISOString(),
+          outboundFraudCall: false,
+          protectedTransferRequested: false,
+          simulated: true,
+        },
+      },
+      { merge: true },
+    );
+
+    const relation = joinedRelation({
+      segmentIds: ['s1'],
+      draftEventId: draft.paymentDraft!.id,
+      draftVersion: draft.paymentDraft!.version,
+      inputCaseVersion: pending.version,
+    });
+    const result = await applyValidatedRelation(db, caseId, relation);
+
+    // Reinforce + explain, never lift: still a joined Pause.
+    expect(result.phase).toBe('Pause');
+    const unver = result.reasons.find((r) => r.code === 'unverified-claim')!;
+    expect(unver.verificationRef).toBe('demo-bank@cup-1');
+    expect(unver.text).toMatch(/policy/i);
+    // No fourth reason smuggled in (PRD C6).
+    expect(result.reasons.length).toBeLessThanOrEqual(3);
+  });
+
+  it('without a sealed verification, the unverified-claim reason stays plain (no ref, no bank-policy text)', async () => {
+    const ownerUid = uid('owner');
+    const { caseId, pending, draft } = await seedJoinedCase(ownerUid);
+    const relation = joinedRelation({
+      segmentIds: ['s1'],
+      draftEventId: draft.paymentDraft!.id,
+      draftVersion: draft.paymentDraft!.version,
+      inputCaseVersion: pending.version,
+    });
+    const result = await applyValidatedRelation(db, caseId, relation);
+    const unver = result.reasons.find((r) => r.code === 'unverified-claim')!;
+    expect(unver.verificationRef).toBeUndefined();
+    expect(unver.text).toBe('The claimed identity or claim has not been independently verified.');
+  });
+
   it('a draft edit invalidates any prior relation (stale draftEventId/draftVersion is discarded, not applied)', async () => {
     const ownerUid = uid('owner');
     const { caseId, pending, draft } = await seedJoinedCase(ownerUid);

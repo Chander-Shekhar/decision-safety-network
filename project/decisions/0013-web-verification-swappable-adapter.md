@@ -8,6 +8,7 @@
 - **Refines:** the untrusted-supporting-evidence discipline established for DSN-024 in [0011](0011-private-fraud-list-privacy-and-retention.md)
 - **Supersedes:** None
 - **Superseded by:** None
+- **Refined by:** [0015](0015-live-web-grounding-and-verification-into-decision.md) (enables the live grounding seam, splits the institution config, and feeds the sealed verification into the decision)
 
 ## Context
 

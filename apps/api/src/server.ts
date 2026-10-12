@@ -9,7 +9,12 @@ import { createAllyRoutes } from './ally-routes.js';
 import { createDecisionRoutes } from './decision-routes.js';
 import { createEvidenceRoutes } from './evidence-routes.js';
 import { createFactRoutes } from './fact-routes.js';
-import { createGeminiPort } from './gemini.js';
+import { createGeminiOfficialSourceGrounding, createGeminiPort } from './gemini.js';
+import {
+  createCuratedWebVerificationAdapter,
+  createGroundedWebVerificationAdapter,
+  type WebVerificationAdapter,
+} from './web-verification-adapter.js';
 import { createPaymentRoutes } from './payment-routes.js';
 import { planRoutes } from './plan-routes.js';
 import { createRecoveryRoutes } from './recovery-routes.js';
@@ -25,6 +30,23 @@ import type { GeminiPort } from '../../../packages/contracts/src/facts.js';
 const healthRoutes: RouteInstaller = (app) => {
   app.get('/healthz', async () => ({ status: 'ok' }));
 };
+
+/**
+ * Chooses the open-web claim-verification adapter (DSN-031, refining decision
+ * 0013's documented seam into an env-selectable one). `DSN_WEB_VERIFICATION=
+ * grounded` enables the LIVE grounded adapter (real institutions resolve
+ * against their official source); any other value keeps the reproducible
+ * curated default that tests, evals, and the Cup demo rely on. The grounded
+ * adapter constructs its Gemini client lazily, so selecting it here never needs
+ * cloud credentials at wiring time. Either way the result is untrusted and
+ * re-normalized server-side; neither can become the official route.
+ */
+export function selectWebVerificationAdapter(): WebVerificationAdapter {
+  if (process.env.DSN_WEB_VERIFICATION === 'grounded') {
+    return createGroundedWebVerificationAdapter(createGeminiOfficialSourceGrounding());
+  }
+  return createCuratedWebVerificationAdapter();
+}
 
 /**
  * Composition root (plan Task 12 / DSN-014). Mounts every feature installer
@@ -56,7 +78,7 @@ export function buildServer(
     createTranscriptionRoutes(),
     createPaymentRoutes(gemini),
     createDecisionRoutes(),
-    createVerificationRoutes(),
+    createVerificationRoutes(selectWebVerificationAdapter()),
     createAllyRoutes(),
     createRecoveryRoutes(),
     createReportRoutes(),

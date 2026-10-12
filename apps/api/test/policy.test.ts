@@ -252,6 +252,50 @@ describe('assessCase: at most three grounded reasons, fixed priority order, vali
   });
 });
 
+describe('assessCase: a sealed verification only reinforces, never lifts (DSN-031)', () => {
+  const rebuttal = { verifiedBankPolicyContradictsRequest: true, verificationRef: 'demo-bank@cup-1' };
+
+  it('upgrades the unverified-claim reason text and cites the verification, without adding a fourth reason or changing phase', () => {
+    const base = input({ cues: true, unverified: true, matchingRelation: true, largeNewPayee: true, sourceSegmentIds: ['s1'], paymentEventId: 'p1' });
+    const plain = assessCase(base);
+    const reinforced = assessCase({ ...base, ...rebuttal });
+
+    // Phase is identical with and without the signal - it never selects or lifts a phase.
+    expect(reinforced.phase).toBe(plain.phase);
+    expect(reinforced.phase).toBe('Pause');
+    // Still exactly the three joined reasons, same codes/order (PRD C6, no fourth).
+    expect(reinforced.reasons.map((r) => r.code)).toEqual(plain.reasons.map((r) => r.code));
+    expect(reinforced.reasons.map((r) => r.code)).toEqual(['manipulation-cues', 'unverified-claim', 'large-new-payee']);
+
+    const unver = reinforced.reasons.find((r) => r.code === 'unverified-claim')!;
+    expect(unver.verificationRef).toBe('demo-bank@cup-1');
+    expect(unver.text).toMatch(/policy/i);
+    expect(unver.text).toMatch(/runs against/i);
+    // Still asserts the claim is unverified - never implies it is now verified.
+    expect(unver.text.toLowerCase()).not.toContain(' is verified');
+  });
+
+  it('reinforces the Check-row unverified-claim reason too', () => {
+    const reinforced = assessCase({ cues: true, unverified: true, matchingRelation: false, largeNewPayee: false, sourceSegmentIds: ['s1'], ...rebuttal });
+    expect(reinforced.phase).toBe('Check');
+    const unver = reinforced.reasons.find((r) => r.code === 'unverified-claim')!;
+    expect(unver.verificationRef).toBe('demo-bank@cup-1');
+  });
+
+  it('never surfaces the reinforcement without an unverified-claim reason (quiet Observe stays quiet)', () => {
+    const result = assessCase({ cues: false, unverified: false, matchingRelation: false, largeNewPayee: true, ...rebuttal });
+    expect(result.phase).toBe('Observe');
+    expect(result.reasons).toEqual([]);
+  });
+
+  it('ignores the flag when no verificationRef is supplied (nothing honest to cite)', () => {
+    const result = assessCase({ cues: true, unverified: true, matchingRelation: false, largeNewPayee: false, sourceSegmentIds: ['s1'], verifiedBankPolicyContradictsRequest: true });
+    const unver = result.reasons.find((r) => r.code === 'unverified-claim')!;
+    expect(unver.verificationRef).toBeUndefined();
+    expect(unver.text).toBe('The claimed identity or claim has not been independently verified.');
+  });
+});
+
 describe('assessCase: model text can never select a phase or an action', () => {
   it('ignores any extra action/phase/free-text fields smuggled onto the input', () => {
     const hostile = {
