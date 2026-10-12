@@ -1,0 +1,41 @@
+# 0016: Owner ally-share preview promotes the selected excerpts
+
+- **Status:** Accepted
+- **Date:** 2026-10-12
+- **Owners:** Orchestrator (DSN-033)
+- **Related task:** DSN-033
+- **PRD references:** Part I — Safety Ally / ally reach; the ally packet is an owner-approved allowlist (claim, proposed action, amount, verification gap, selected excerpts), never the raw transcript.
+- **Supersedes:** None
+- **Superseded by:** None
+
+## Context
+
+The owner-side "Preview what my ally would see" step calls `POST cases/:id/ally-share-preview`, which (`apps/api/src/ally.ts` `previewAllyPacket` → `buildAllowlistedPacket` → `readSelectedEvidence`) resolves each selected id against the case's `evidence` subcollection and throws `UNKNOWN_EVIDENCE` for any id not yet promoted. The web client never promoted transcript segments, so the preview was unreachable (always 400). DSN-033 had to wire the client to promote the owner's selected segments before previewing. The question this records: *when* should promotion happen — on preview, or deferred to the Share grant.
+
+The API has no "preview from un-promoted segments" mode and a batched promote endpoint is out of scope for the demo, so promotion must happen client-side via the existing idempotent `POST cases/:id/evidence/:segmentId/promote` route. The only real choice is its timing.
+
+## Decision
+
+The preview handler promotes exactly the owner-selected segments (idempotent, per segment) immediately before requesting the preview, and the Share grant binds to the previewed `selectedEvidenceIds` / `caseVersion` / `packetHash` snapshot. Selection is capped client-side at `MAX_ALLY_EVIDENCE = 10` (mirroring the server `SelectionSchema.max(10)` / `MAX_SELECTED_EVIDENCE`): the Preview button is disabled with a caution callout over the cap, and the handler guards the cap before promoting so an over-cap request never persists evidence it knows the endpoint will reject.
+
+## Consequences
+
+- Positive: the preview works end to end with no API change; the Share path keeps its existing version+hash re-validation (`createAllyGrant` → `STALE_PREVIEW`), so a selection change after preview cannot silently grant a stale packet.
+- Positive: the raw transcript is still never shared — only the allowlisted packet plus the owner-chosen excerpts.
+- Limitation (retention coupling): because promotion happens on **preview**, excerpts the owner previews but never shares — or deselects and re-previews — are persisted into the `evidence` subcollection and retained under the `selected-7d` policy for 7 days, despite no grant ever existing. This is the owner's own case data, authorized by the owner, and `readSelectedEvidence` only ever returns ids explicitly requested per grant, so a lingering promoted doc is never silently disclosed. It nonetheless slightly contradicts the "preview creates nothing" framing in `ally.ts`'s doc comment. Accepted for the demo; revisit only if a preview-without-persistence API mode becomes warranted.
+
+## Alternatives considered
+
+### Promote on Share (grant) instead of on preview
+
+Would keep "preview creates nothing" literally true. Rejected: the preview endpoint itself resolves the packet from promoted evidence, so without promotion the preview cannot render at all. Deferring promotion to Share would require a new API mode (build the packet from un-promoted segments) — an API change explicitly excluded from DSN-033.
+
+### Batch promote endpoint
+
+A single `POST .../evidence/promote` accepting many ids. Rejected as out of scope: per-segment idempotent promote is adequate for the demo's small segment counts, and adding an endpoint is an API change.
+
+## Verification
+
+- `apps/web/e2e/journey.spec.ts` attack journey drives Ask my ally → preview and asserts the allowlisted packet renders (claim under "Caller claimed", "Verification gap") and that the full transcript is not included — green across desktop + mobile-440.
+- `apps/web/src/AllyEvidenceSelector.test.tsx` covers default-all-selected, toggle, empty-state, disabled-when-empty, over-cap disabled + warning, and enabled exactly at the cap.
+- Server behavior unchanged (`apps/api/test/ally.test.ts`); no API or contract edit in this task.
