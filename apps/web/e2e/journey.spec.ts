@@ -31,25 +31,16 @@ const ATTACK_TRANSCRIPT = [
   'Caller: Transfer 50,000 right now or you lose it all.',
 ].join('\n');
 
-/** Create a synthetic owner and complete the first-run setup wizard with processing + ally-sharing consent. */
+/** Open the app (auto owner sign-in) and complete first-run setup from the consolidated Settings. */
 async function createConfiguredOwner(page: Page): Promise<void> {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Create synthetic user' }).click();
+  // A fresh owner lands on a first-run Home that points into Settings for setup.
+  await page.getByRole('button', { name: /Go to Settings to set up/i }).click();
+  await expect(page.getByRole('region', { name: 'Settings' })).toBeVisible();
 
-  // Step 1 — Call listening (a listening mode must be chosen before Continue enables).
-  await expect(page.getByRole('heading', { name: /Call listening/ })).toBeVisible();
+  // Choose a listening mode. Processing and ally sharing are on by default; saving completes setup.
   await page.getByRole('radio', { name: /All calls/ }).check();
-  await page.getByRole('checkbox', { name: /Allow processing of call transcripts/i }).check();
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  // Step 2 — Your Safety Ally (skip the optional pairing code; keep ally sharing on).
-  await expect(page.getByRole('heading', { name: 'Your Safety Ally' })).toBeVisible();
-  await page.getByRole('checkbox', { name: /Allow ally sharing/i }).check();
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  // Step 3 — Your accounts.
-  await expect(page.getByRole('heading', { name: 'Your accounts' })).toBeVisible();
-  await page.getByRole('button', { name: 'Finish setup' }).click();
+  await page.getByRole('button', { name: 'Save settings' }).click();
 
   // Lands on Home as a configured owner.
   await expect(page.getByRole('heading', { name: "You're protected" })).toBeVisible();
@@ -129,9 +120,6 @@ test.describe('attack journey', () => {
     await expect(actionConsole.getByRole('button', { name: 'Pause transfer' })).toBeVisible();
     await expect(actionConsole.getByRole('button', { name: 'Verify officially' })).toBeVisible();
 
-    // The simulated nature is always labeled (persistent header note — PRD honesty).
-    await expect(page.getByText(/Demo Bank and the transfer are simulated/i)).toBeVisible();
-
     // The caller's words are consistently framed as a CLAIM to be checked, never as an
     // instruction to act: the Decision Map renders them under "Claimed identity" /
     // "Central claim" (asserted above), and the Pause OFFERS the ally route rather than
@@ -161,7 +149,7 @@ test.describe('attack journey', () => {
     // Official verification is a SEALED, simulated route sourced from the Demo Bank
     // registry (never caller data); it reports the claim is not supported.
     await page.getByRole('button', { name: 'Verify', exact: true }).click();
-    await page.getByRole('button', { name: 'Load Demo Bank registry' }).click();
+    await page.getByRole('button', { name: 'Load verification registry' }).click();
     await page.getByRole('button', { name: 'Verify with Demo Bank' }).click();
     await expect(page.getByRole('heading', { name: 'Claim not supported' })).toBeVisible();
   });

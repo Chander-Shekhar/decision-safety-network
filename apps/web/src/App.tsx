@@ -9,25 +9,31 @@ import type { PaymentProjection } from '../../../packages/contracts/src/payment'
 import type { RecoveryState } from '../../../packages/contracts/src/recovery';
 import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
 import type { ReportDraft, ReportHandoffResult } from '../../../packages/contracts/src/report';
+import { AboutScreen } from './AboutScreen';
 import { ActionConsole } from './ActionConsole';
 import { AllyEvidenceSelector, MAX_ALLY_EVIDENCE } from './AllyEvidenceSelector';
 import { AllyScreen } from './AllyScreen';
 import { AllySharePreview } from './AllySharePreview';
 import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken } from './api-client';
+import { AppShell, type AppView } from './AppShell';
+import { CasesScreen } from './CasesScreen';
 import { DecisionMap } from './DecisionMap';
 import { EvidenceScreen, type ReportDraftView } from './EvidenceScreen';
 import { HomeScreen } from './HomeScreen';
 import { ConfirmFraudPanel, IncomingCallScreen } from './ScreeningScreen';
 import type { ScreeningVerdict } from '../../../packages/contracts/src/screening';
-import { canVerify, initialStep, journeySteps, STEPS, type JourneyState, type Step } from './journey';
+import { canVerify, initialStep, journeySteps, type JourneyState, type Step } from './journey';
 import { PaymentPanel } from './PaymentPanel';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
 import { RecoveryScreen } from './RecoveryScreen';
-import { SetupScreen, type SetupValues } from './SetupScreen';
-import { TranscriptEntry } from './TranscriptEntry';
+import { SettingsScreen, type SettingsValues } from './SettingsScreen';
+import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
 import { Button, Callout, Dialog, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
+
+/** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
+const SAMPLE_ALLY_NAME = 'Priya Nair';
 
 /**
  * Auth boundary injected by `main.tsx`. The real implementation (Firebase
@@ -88,7 +94,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [draftAmount, setDraftAmount] = useState('');
   // DSN-030: a transcript paste/audio submit is in flight.
   const [transcriptBusy, setTranscriptBusy] = useState(false);
-  const [allyStatus, setAllyStatus] = useState<AllyStatus>('none');
+  // A sample ally is pre-added so setup reads as ready out of the box; pairing a real ally clears the sample flag.
+  const [allyStatus, setAllyStatus] = useState<AllyStatus>('ready');
+  const [allyIsSample, setAllyIsSample] = useState(true);
   const [registry, setRegistry] = useState<VerifyPanelRegistry | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerifyPanelResult | undefined>();
   const [preview, setPreview] = useState<AllyPreview | null>(null);
@@ -111,7 +119,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // Only a 404 means "fresh user". Any other failure leaves planLoaded false so setup can never overwrite a plan we failed to read.
   const [planLoadFailed, setPlanLoadFailed] = useState(false);
   const [planReloadKey, setPlanReloadKey] = useState(0);
-  const [editingPlan, setEditingPlan] = useState(false);
+  // Top-level navigation surface (burger menu). The in-case journey renders inside the Home view.
+  const [view, setView] = useState<AppView>('home');
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const [savingSetup, setSavingSetup] = useState(false);
   const [deviceSignals, setDeviceSignals] = useState<DeviceSignal[]>([]);
   const [incomingCall, setIncomingCall] = useState(false);
@@ -129,6 +139,31 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const segmentsRef = useRef<SessionSegmentView[]>(segments);
   segmentsRef.current = segments;
   const seenLiveRef = useRef(new Set<string>());
+
+  // Auto sign-in on first load: the demo opens straight into the app, no role picker.
+  // Role comes from the URL (`?role=ally` for the ally's own window/device, per the
+  // documented two-context model); everyone else is the owner. Anonymous auth returns
+  // the same persisted user for a given browser context, so the owner's setup survives
+  // reloads within that context.
+  const signedInRef = useRef(false);
+  useEffect(() => {
+    if (signedInRef.current || role) return;
+    signedInRef.current = true;
+    const initialRole: 'owner' | 'ally' = new URLSearchParams(window.location.search).get('role') === 'ally' ? 'ally' : 'owner';
+    void (async () => {
+      try {
+        await auth.signInSynthetic(initialRole);
+        if (initialRole === 'ally') {
+          stepInitialised.current = true;
+          setStep('Plan');
+        }
+        setRole(initialRole);
+      } catch {
+        signedInRef.current = false;
+        setError('We could not open the app. Please reload.');
+      }
+    })();
+  }, [auth, role]);
 
   const run = useCallback(async (work: () => Promise<void>) => {
     setError(null);
@@ -322,126 +357,150 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   }, [role, caseId, caseView, planLoaded]);
 
   return (
-    <div className="min-h-screen bg-surface text-text">
-      <header role="banner" className="border-b border-border bg-surface-raised px-space-4 py-space-3">
-        <h1 className="text-xl font-semibold tracking-tight">Decision Safety Network</h1>
-        <p role="note" className="text-sm text-text-muted">
-          Prototype &mdash; Demo Bank and the transfer are simulated; all data is synthetic.
-        </p>
-        {!role && (
-          <p className="mt-space-3 flex flex-wrap gap-space-2">
-            <Button onClick={() => run(async () => { await auth.signInSynthetic('owner'); setRole('owner'); })}>
-              Create synthetic user
-            </Button>
-            <Button variant="secondary" onClick={() => run(async () => { await auth.signInSynthetic('ally'); setRole('ally'); })}>
-              Create synthetic ally
-            </Button>
-          </p>
-        )}
-        {error && (
+    <AppShell
+      view={view}
+      onNavigate={navigate}
+      allyMode={role === 'ally'}
+      onExitAllyView={exitAllyView}
+      banner={
+        error ? (
           <Callout kind="error" role="alert">
             {error}
           </Callout>
-        )}
-      </header>
+        ) : undefined
+      }
+    >
+      {!role && <p className="text-text-muted">Opening…</p>}
 
-      <div className="mx-auto flex max-w-5xl flex-col gap-space-4 p-space-4 md:flex-row">
-        {role && !needsSetup && (
-          <aside className="md:w-56">
-            <StepRail steps={railSteps} current={step} onSelect={setStep} />
-          </aside>
-        )}
+      {owner && view === 'about' && <AboutScreen />}
 
-      <main className="flex min-w-0 flex-1 flex-col gap-space-5">
-        {owner && !caseId && planLoadFailed && !planLoaded && (
-          <Callout kind="error" role="alert">
-            <p>We couldn&apos;t load your Safety Plan, so nothing was changed.</p>
-            <Button variant="secondary" onClick={() => setPlanReloadKey((k) => k + 1)}>
-              Retry
-            </Button>
-          </Callout>
-        )}
+      {owner && view === 'cases' && (
+        <CasesScreen
+          currentCaseId={caseId || undefined}
+          onOpenCurrent={() => {
+            setView('home');
+            setStep('Decision');
+          }}
+          onStartSession={() => {
+            setView('home');
+            setStep('Session');
+          }}
+        />
+      )}
 
-        {needsSetup && (
-          <SetupScreen
-            initial={plan ?? undefined}
-            saving={savingSetup}
-            onComplete={({ allyPairingCode, ...setup }: SetupValues) =>
-              run(async () => {
-                setSavingSetup(true);
-                try {
-                  const saved = await api.command<Plan>('PUT', 'plan', {
-                    thresholdMinor: plan?.thresholdMinor ?? 500_000,
-                    bankId: 'demo-bank',
-                    retentionMode: plan?.retentionMode ?? 'facts-24h',
-                    exportConsent: plan?.exportConsent ?? false,
-                    ...setup,
-                    completeSetup: true,
-                  });
-                  setPlan(saved);
-                  setPlanSavedFlag(true);
-                  setStep('Plan');
-                  if (allyPairingCode) {
-                    const invitation = await api.command<{ allyUid: string }>('POST', 'ally-invitations', { pairingCode: allyPairingCode });
-                    setAllyUid(invitation.allyUid);
-                    setAllyStatus('invited');
-                  }
-                } finally {
-                  setSavingSetup(false);
+      {owner && view === 'settings' && (
+        <SettingsScreen
+          initial={
+            plan
+              ? {
+                  callListening: plan.callListening,
+                  processingConsent: plan.processingConsent,
+                  allySharingConsent: plan.allySharingConsent,
+                  allyShareFields: plan.allyShareFields,
+                  bankAccounts: plan.bankAccounts,
+                  thresholdMinor: plan.thresholdMinor,
+                  retentionMode: plan.retentionMode,
+                  exportConsent: plan.exportConsent,
                 }
-              })
-            }
-          />
-        )}
-
-        {owner && !needsSetup && configured && plan && step === 'Plan' && !editingPlan && !incomingCall && (
-          <HomeScreen
-            plan={plan}
-            allyStatus={allyStatus}
-            onStartSession={() => setStep('Session')}
-            onEditPlan={() => setEditingPlan(true)}
-            onIncomingCall={() => setIncomingCall(true)}
-          />
-        )}
-
-        {owner && !needsSetup && configured && step === 'Plan' && incomingCall && (
-          <IncomingCallScreen
-            onScreen={(number) => api.command<ScreeningVerdict>('POST', 'screening/check', { number })}
-            onAnswer={(number) => {
-              setScreenedNumber(number);
-              setIncomingCall(false);
-              setStep('Session');
-            }}
-            onDecline={() => setIncomingCall(false)}
-          />
-        )}
-
-        {role && !needsSetup && step === 'Plan' && !(owner && configured && plan && !editingPlan) && (
-          <PlanScreen
-            role={role}
-            allyStatus={allyStatus}
-            pairingCode={pairingCode}
-            onRequestPairingCode={() =>
-              run(async () => {
-                const issued = await api.command<{ code: string }>('POST', 'ally-pairing-code');
-                setPairingCode(issued.code);
-              })
-            }
-            onAcceptInvitation={() => run(async () => setAllyStatus('ready'))}
-            onSavePlan={({ allyPairingCode, ...savedPlan }) =>
-              run(async () => {
-                setPlan(await api.command<Plan>('PUT', 'plan', savedPlan));
+              : undefined
+          }
+          allyStatus={allyStatus}
+          allyName={SAMPLE_ALLY_NAME}
+          allyIsSample={allyIsSample}
+          saving={savingSetup}
+          saved={settingsSaved}
+          onSave={({ allyPairingCode, ...values }: SettingsValues) =>
+            run(async () => {
+              const wasFirstRun = !configured;
+              setSavingSetup(true);
+              setSettingsSaved(false);
+              try {
+                const saved = await api.command<Plan>('PUT', 'plan', {
+                  ...values,
+                  bankId: 'demo-bank',
+                  completeSetup: true,
+                });
+                setPlan(saved);
                 setPlanSavedFlag(true);
-                setEditingPlan(false);
+                setSettingsSaved(true);
                 if (allyPairingCode) {
                   const invitation = await api.command<{ allyUid: string }>('POST', 'ally-invitations', { pairingCode: allyPairingCode });
                   setAllyUid(invitation.allyUid);
                   setAllyStatus('invited');
+                  setAllyIsSample(false);
                 }
-              })
-            }
-          />
-        )}
+                if (wasFirstRun) {
+                  setStep('Plan');
+                  setView('home');
+                }
+              } finally {
+                setSavingSetup(false);
+              }
+            })
+          }
+        />
+      )}
+
+      {role && view === 'home' && (
+        <>
+          {owner && !caseId && planLoadFailed && !planLoaded && (
+            <Callout kind="error" role="alert">
+              <p>We couldn&apos;t load your settings, so nothing was changed.</p>
+              <Button variant="secondary" onClick={() => setPlanReloadKey((k) => k + 1)}>
+                Retry
+              </Button>
+            </Callout>
+          )}
+
+          {owner && !needsSetup && (caseId || step !== 'Plan') && <StepRail steps={railSteps} current={step} onSelect={setStep} />}
+
+          {owner && needsSetup && (
+            <HomeScreen
+              firstRun
+              allyStatus={allyStatus}
+              onStartSession={() => setView('settings')}
+              onOpenSettings={() => setView('settings')}
+            />
+          )}
+
+          {owner && !needsSetup && configured && plan && step === 'Plan' && !incomingCall && (
+            <HomeScreen
+              plan={plan}
+              allyStatus={allyStatus}
+              allyIsSample={allyIsSample}
+              onStartSession={() => setStep('Session')}
+              onOpenSettings={() => setView('settings')}
+              onIncomingCall={() => setIncomingCall(true)}
+            />
+          )}
+
+          {owner && !needsSetup && configured && step === 'Plan' && incomingCall && (
+            <IncomingCallScreen
+              onScreen={(number) => api.command<ScreeningVerdict>('POST', 'screening/check', { number })}
+              onAnswer={(number) => {
+                setScreenedNumber(number);
+                setIncomingCall(false);
+                setStep('Session');
+              }}
+              onDecline={() => setIncomingCall(false)}
+            />
+          )}
+
+          {role === 'ally' && step === 'Plan' && (
+            <PlanScreen
+              role="ally"
+              allyStatus={allyStatus}
+              pairingCode={pairingCode}
+              onRequestPairingCode={() =>
+                run(async () => {
+                  const issued = await api.command<{ code: string }>('POST', 'ally-pairing-code');
+                  setPairingCode(issued.code);
+                })
+              }
+              onAcceptInvitation={() => run(async () => setAllyStatus('ready'))}
+              onSavePlan={() => run(async () => setStep('Ally'))}
+            />
+          )}
 
         {owner && step === 'Session' && (
           <section aria-label="Controlled session">
@@ -463,18 +522,34 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               <p>Case {caseId}</p>
             )}
             {caseId && (
-              <SessionScreen
-                status="processing"
-                segments={segments}
-                captureActive={captureActive}
-                captureOnDevice={captureOnDevice}
-                onStopProcessing={() =>
-                  run(async () => {
-                    await api.command('POST', `cases/${caseId}/processing/revoke`);
-                    setCaptureEnded(true); // native stops the mic and drops the recording label
-                  })
-                }
-              />
+              <>
+                <SessionScreen
+                  status="processing"
+                  segments={segments}
+                  captureActive={captureActive}
+                  captureOnDevice={captureOnDevice}
+                  onStopProcessing={() =>
+                    run(async () => {
+                      await api.command('POST', `cases/${caseId}/processing/revoke`);
+                      setCaptureEnded(true); // native stops the mic and drops the recording label
+                    })
+                  }
+                />
+                {/* On the web (no live capture) this is how a call is brought in; it also lets a native
+                    session add a pasted/uploaded call. The same switcher appears on the Decision step. */}
+                <SessionInput
+                  busy={transcriptBusy}
+                  disabled={!caseId}
+                  captureActive={captureActive}
+                  onSubmitPaste={(text) => run(() => submitPastedTranscript(text))}
+                  onSubmitAudio={(audioFile) => run(() => submitAudioRecording(audioFile))}
+                />
+                <div>
+                  <Button variant="secondary" onClick={() => setStep('Decision')}>
+                    Go to the decision
+                  </Button>
+                </div>
+              </>
             )}
           </section>
         )}
@@ -532,9 +607,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 return res.maskedNumber;
               }}
             />
-            <TranscriptEntry
+            <SessionInput
               busy={transcriptBusy}
               disabled={!caseId}
+              captureActive={captureActive}
               onSubmitPaste={(text) => run(() => submitPastedTranscript(text))}
               onSubmitAudio={(audioFile) => run(() => submitAudioRecording(audioFile))}
             />
@@ -627,7 +703,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             {!verifyGate.allowed && <Callout kind="info">{verifyGate.reason}</Callout>}
             {!registry && (
               <div><Button onClick={() => run(async () => setRegistry(await api.get<VerifyPanelRegistry>('registry/demo-bank')))}>
-                Load Demo Bank registry
+                Load verification registry
               </Button></div>
             )}
             {registry && (
@@ -852,10 +928,26 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             }
           />
         )}
-      </main>
-      </div>
-    </div>
+        </>
+      )}
+    </AppShell>
   );
+
+  function navigate(next: AppView): void {
+    setView(next);
+    setIncomingCall(false);
+    if (next !== 'settings') setSettingsSaved(false);
+  }
+
+  /** Leave the ally view back to an owner view in this same context (drops the ?role=ally hint). */
+  function exitAllyView(): void {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('role');
+    window.history.pushState({}, '', `${url.pathname}${url.search}`);
+    setRole('owner');
+    setStep('Plan');
+    setView('home');
+  }
 
   async function act(kind: 'pause' | 'cancel' | 'continue'): Promise<void> {
     await api.command('POST', `cases/${caseId}/actions/${kind}`, { expectedVersion: version, idempotencyKey: newIdempotencyKey() });

@@ -51,7 +51,7 @@ export function SessionScreen({ status, segments, onStopProcessing, captureActiv
       <Card title="Live session">
         {captureActive ? (
           <p role="note" className="text-sm font-medium">
-            Prototype capture &mdash; recording this call&apos;s audio via the microphone on speakerphone, with your consent.
+            Capturing this call&apos;s audio via the microphone on speakerphone, with your consent.
             {captureOnDevice
               ? ' Speech is transcribed by the on-device recognizer; the audio is not uploaded.'
               : " Transcribed by the device's speech recognizer (offline preferred, but the engine may use an online service); only text is sent to DSN."}
