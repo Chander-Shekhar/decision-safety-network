@@ -20,6 +20,10 @@ Allowed side transitions:
 4. Only after the claim commit is on shared `main` may the owner create the task branch and isolated worktree from that commit and begin editing. Confirm the task is no longer in `ready` before starting work.
 5. Never claim overlapping paths. Shared files require the integrator to serialize work.
 
+## Solo owner
+
+When a single owner drives a task end-to-end and no other agent is active, that owner may combine claim, implementation, and integration without a separate integrator: move the task through its states (`in-progress → review → done`), keep commits atomic and prefixed with the task ID, and self-review against acceptance before merging to `main`. The serialized-integrator rules above still apply whenever work is concurrent or touches shared files (root configuration, schemas, lockfiles, `AGENTS.md`, the PRD, shared tracking files).
+
 ## Implement and hand off
 
 Use `task/DSN-NNN-short-title` in an isolated worktree, make atomic commits prefixed with the task ID, and keep work inside declared paths. Before handoff, record changed paths, commits, commands/results, limitations, unresolved risks, and next action.
