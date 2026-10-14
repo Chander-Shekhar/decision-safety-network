@@ -49,8 +49,8 @@ A read-only adversarial review of the full working tree ran before integration. 
 
 ## Verification evidence
 
-- **Commits:** 8aebe3b (claim + design spec); implementation commit recorded at integration.
-- **Integration commit:** (recorded at merge)
+- **Commits:** 8aebe3b (claim + design spec); ac33bbf (implementation + review fixes).
+- **Integration commit:** merged to `main` with `--no-ff` (merge commit hash in `git log` on `main`).
 - **Commands and results:**
   - `npx tsc --noEmit` (apps/web) — clean.
   - `npx vitest run` (apps/web) — 24 files, 215 tests passed.
