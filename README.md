@@ -2,7 +2,7 @@
 
 AI Builder Cup repository for the Decision Safety Network product.
 
-**State as of 3 October 2026:** The Core MVP requirements, technical plan, and UI wireframes are approved. Product implementation and deployment had not begun. Consult code, tests, and canonical task records for the current state.
+**State as of 15 October 2026:** The Core MVP requirements, technical plan, and UI wireframes are approved, and implementation is underway — the Core case journey and web UI exist (through DSN-033). Deployment is not yet live. Consult code, tests, and canonical task records for the current state.
 
 ## Start here
 
