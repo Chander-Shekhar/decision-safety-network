@@ -50,12 +50,12 @@ A read-only adversarial review of the full working tree ran before integration. 
 ## Verification evidence
 
 - **Commits:** 8aebe3b (claim + design spec); ac33bbf (implementation + review fixes).
-- **Integration commit:** merged to `main` with `--no-ff` (merge commit hash in `git log` on `main`).
+- **Integration commit:** 106ebd9 (`--no-ff` merge of `task/DSN-034-mobile-shell-nav` into `main`).
 - **Commands and results:**
   - `npx tsc --noEmit` (apps/web) — clean.
   - `npx vitest run` (apps/web) — 24 files, 215 tests passed.
   - `npx playwright test` — 8 passed (desktop + mobile-440), local emulator + fake-Gemini stack. Run with `JAVA_HOME=/opt/homebrew/opt/openjdk@21` and `node_modules/.bin` on PATH (global `firebase`/JDK21 not on the default PATH; see Limitations).
-- **Post-integration verification:** (recorded at merge)
+- **Post-integration verification:** on `main` after the merge — `tsc --noEmit` clean; `vitest run` 24 files / 215 tests pass. (e2e proven on the identical pre-merge branch tree: 8/8.)
 - **Changed paths:** `apps/web/src/{App,HomeScreen,SessionScreen,ScreeningScreen}.tsx`; new `apps/web/src/{AppShell,SettingsScreen,SessionInput,CasesScreen,AboutScreen}.tsx` + `ui/{Drawer,IllustrativeTag}.tsx` + `ui/index.ts`; new tests `{HomeScreen,SettingsScreen,SessionInput}.test.tsx` + updated `{App,SessionScreen}.test.tsx`; removed `{SetupScreen,TranscriptEntry}.{tsx,test.tsx}`; `apps/web/index.html` (title); `apps/web/e2e/journey.spec.ts`.
 - **Limitations or skipped checks:** e2e requires JDK 21 as `JAVA_HOME` and the local `firebase-tools` on PATH (ambient `JAVA_HOME` pointed at an older JDK; global `firebase` absent). No code change needed — just the invocation env. "Demo Bank" institution name not renamed (optional follow-up, see Decisions). Point-of-use "Simulated" indicators on money/authority actions intentionally retained (decision 0010).
 
