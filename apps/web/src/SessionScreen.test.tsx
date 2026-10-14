@@ -24,11 +24,11 @@ describe('SessionScreen', () => {
     expect(screen.queryByText(/degraded/i)).toBeNull();
   });
 
-  it('shows the prototype-capture + consent label only while capture is active (DSN-025)', () => {
+  it('shows the live-capture + consent label only while capture is active (DSN-025)', () => {
     const { rerender } = render(<SessionScreen status="processing" segments={[]} />);
-    expect(screen.queryByText(/prototype capture/i)).toBeNull();
+    expect(screen.queryByText(/microphone on speakerphone/i)).toBeNull();
     rerender(<SessionScreen status="processing" segments={[]} captureActive />);
-    expect(screen.getByText(/prototype capture.*microphone on speakerphone, with your consent/i)).toBeVisible();
+    expect(screen.getByText(/capturing this call.*microphone on speakerphone, with your consent/i)).toBeVisible();
     expect(screen.queryByText(/controlled transcript ·/i)).toBeNull();
     expect(screen.getByRole('list', { name: 'Live transcript segments' })).toBeVisible();
   });

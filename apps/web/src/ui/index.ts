@@ -14,5 +14,8 @@ export { ActionBar } from './ActionBar';
 export type { ActionBarProps } from './ActionBar';
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
+export { Drawer } from './Drawer';
+export type { DrawerProps } from './Drawer';
+export { IllustrativeTag } from './IllustrativeTag';
 export { Disclosure } from './Disclosure';
 export type { DisclosureProps } from './Disclosure';

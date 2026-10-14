@@ -47,7 +47,7 @@ export function IncomingCallScreen({ onScreen, onAnswer, onDecline }: IncomingCa
       <Card title="Incoming call">
         {!verdict && (
           <>
-            <Field label="Caller's number" htmlFor={inputId} hint="Pick a demo number or type one. The number is checked before you pick up.">
+            <Field label="Caller's number" htmlFor={inputId} hint="Pick a sample number or type one. The number is checked before you pick up.">
               <input
                 id={inputId}
                 inputMode="tel"
