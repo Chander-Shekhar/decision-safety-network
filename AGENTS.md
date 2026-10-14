@@ -13,15 +13,15 @@ Authority order:
 
 ## Required read order
 
-Before writing, read this file and the assigned task. Every product-facing task also requires the PRD's AI Builder Cup executive brief, locked decisions, scope/proof boundary, Core MVP, and Cup-ready definition plus any additional sections referenced by the task. Read applicable implementation decisions and the approved Core MVP plan in `docs/superpowers/plans/2026-10-02-core-mvp-implementation-plan.md`. Frontend implementers and reviewers must also read `docs/design/wireframes/README.md` and the plan-mapped frames; they guide hierarchy and interactions, while the PRD remains authoritative. Read `project/WORKFLOW.md` before claiming or moving a task.
+Before writing, read this file and the assigned task. Then read what the task actually touches — do not re-read everything every time. For product-facing behavior the PRD remains authoritative; consult the relevant PRD sections (executive brief, scope/proof boundary, Core MVP, Cup-ready definition) and any accepted decision the task depends on. Frontend work should consult `docs/design/wireframes/README.md` and the relevant frames for hierarchy and interactions. The approved Core MVP plan lives in `docs/superpowers/plans/2026-10-02-core-mvp-implementation-plan.md`. Read `project/WORKFLOW.md` before claiming or moving a task.
 
 ## Task ownership
 
-- Do not begin implementation without a DSN task ID.
-- Claim exactly one task by moving it to `project/tasks/in-progress/` and recording one owner, branch/worktree, owned paths, and start time.
+- Track consequential work as a DSN task so outcomes stay reviewable. Trivial or exploratory changes may proceed without a formal task; capture the outcome afterward if it matters.
+- When claiming a task, move it to `project/tasks/in-progress/` and record the owner and owned paths; add branch/worktree and start time when work runs concurrently with other agents.
 - One active owner per task. No concurrent ownership of overlapping paths.
 - Root configuration, schemas, lockfiles, this file, the PRD, and shared tracking files require serialized integrator ownership.
-- If scope expands beyond declared paths, pause and coordinate before editing.
+- If scope expands beyond declared paths during concurrent work, pause and coordinate before editing.
 
 ## Parallel development
 
@@ -42,7 +42,7 @@ Before writing, read this file and the assigned task. Every product-facing task 
 ## Verification and completion
 
 - A file existing is not evidence that behavior works.
-- Record commands, results, changed paths, limitations, and commit IDs in the task before review.
+- For tracked tasks, record commands, results, changed paths, limitations, and commit IDs before review, in proportion to the change.
 - Move a task to `done` only after its changes are integrated and applicable acceptance checks pass.
 - `blocked` requires the blocker, evidence, next action, and owner of that action.
 - `deferred` requires rationale, remaining risk, and an explicit resume condition.
@@ -50,8 +50,8 @@ Before writing, read this file and the assigned task. Every product-facing task 
 
 ## Safety and repository hygiene
 
-- Use synthetic demo data only.
-- Persistently label simulated bank, authority, reporting, and payment behavior as simulated.
+- Use only non-real, non-production data. Never use real personal, financial, credential, or identifying data.
+- Be honest about what is not yet live: disclose which integrations (bank, caller-ID, authority/reporting, payment) are not real through a single consolidated disclosure, not scattered inline caveats. Keep a light point-of-use indicator only where an action could otherwise be mistaken for a real-world effect. Prefer capability-forward wording; blanket "synthetic", "demo", or per-element "simulated" labels are not required.
 - This is a public GitHub project. Use a personal GitHub identity or no-reply commit address; never publish a workplace email, credentials, or private local path.
 - Never commit secrets, personal data, local credentials, generated build output, or environment files.
 - Keep changes inside the assigned task and leave a complete handoff before stopping.
