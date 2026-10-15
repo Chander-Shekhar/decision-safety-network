@@ -195,6 +195,50 @@ describe('App · ally session pairing', () => {
   });
 });
 
+describe('App · owner reflects ally acceptance', () => {
+  const nominatedPlan = {
+    callListening: 'per-call',
+    processingConsent: false,
+    allySharingConsent: true,
+    allyShareFields: ['claim'],
+    bankAccounts: [{ id: 'a1', label: 'Everyday Savings', last4: '4821' }],
+    thresholdMinor: 500000,
+    retentionMode: 'facts-24h',
+    exportConsent: false,
+    setupCompletedAt: '2026-10-11T00:00:00.000Z',
+    // A real nomination is stored on the plan; this clears the sample ally and
+    // turns on the owner invitation poll.
+    nominatedAllyUid: 'ally-1',
+  };
+
+  it('polls the owner-keyed invitation read and shows the ally ready once accepted', async () => {
+    get.mockImplementation(async (path: string) =>
+      path === 'owner/invitations'
+        ? { invitations: [{ id: 'inv-1', allyUid: 'ally-1', acceptedAt: '2026-10-15T00:00:00.000Z' }] }
+        : nominatedPlan,
+    );
+    render(<App auth={auth} />);
+
+    await waitFor(() => expect(get).toHaveBeenCalledWith('owner/invitations'));
+    // Previously the owner sat at "awaiting acceptance" forever; now it reflects acceptance.
+    expect(await screen.findByText(/ally ready/i)).toBeVisible();
+    expect(screen.queryByText(/awaiting acceptance/i)).toBeNull();
+  });
+
+  it('shows "awaiting acceptance" while the nominated ally has not yet accepted', async () => {
+    get.mockImplementation(async (path: string) =>
+      path === 'owner/invitations'
+        ? { invitations: [{ id: 'inv-1', allyUid: 'ally-1', acceptedAt: null }] }
+        : nominatedPlan,
+    );
+    render(<App auth={auth} />);
+
+    await waitFor(() => expect(get).toHaveBeenCalledWith('owner/invitations'));
+    expect(await screen.findByText(/awaiting acceptance/i)).toBeVisible();
+    expect(screen.queryByText(/ally ready/i)).toBeNull();
+  });
+});
+
 describe('App · first-run setup (DSN-023)', () => {
   const configuredPlan = {
     callListening: 'per-call',

@@ -152,6 +152,23 @@ export async function listInvitationsForAlly(db: Firestore, allyUid: string): Pr
 }
 
 /**
+ * Lists the authenticated owner's own currently-active (unrevoked) invitations.
+ * The owner-side mirror of `listInvitationsForAlly`: it is how the owner screen
+ * learns that the ally it nominated has accepted. The owner already knows the
+ * invitation exists (they created it), but acceptance is written by the ally on
+ * a separate device/context, so without re-reading this the owner would sit at
+ * "awaiting acceptance" forever. Scoped strictly to `ownerUid`, detail-free.
+ */
+export async function listInvitationsForOwner(db: Firestore, ownerUid: string): Promise<AllyInvitation[]> {
+  const snap = await db
+    .collection('allyInvitations')
+    .where('ownerUid', '==', ownerUid)
+    .where('revokedAt', '==', null)
+    .get();
+  return snap.docs.map((d) => d.data() as AllyInvitation);
+}
+
+/**
  * The readiness predicate: true only if `ownerUid` and `allyUid` have a
  * currently-active (unrevoked) invitation that has been accepted. Never
  * caches between calls - every call re-queries Firestore, so revocation

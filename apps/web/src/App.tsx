@@ -199,6 +199,40 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     };
   }, [role, api]);
 
+  // Owner session: once a real ally has been nominated (the client-only sample
+  // ally is cleared), poll the owner-keyed invitation read so the Plan/Settings
+  // screen reflects when the ally accepts. Acceptance is written on the ally's
+  // own device/context, so without this the owner would sit at "awaiting
+  // acceptance" forever. The sample-ally demo state is left untouched.
+  useEffect(() => {
+    if (role !== 'owner' || allyIsSample) return;
+    let cancelled = false;
+    const sync = async () => {
+      try {
+        const { invitations } = await api.get<{ invitations: { id: string; allyUid: string; acceptedAt?: string | null }[] }>(
+          'owner/invitations',
+        );
+        if (cancelled) return;
+        const active = invitations[0];
+        if (!active) {
+          setAllyStatus('none');
+        } else {
+          setAllyUid(active.allyUid);
+          setAllyInvitationId(active.id);
+          setAllyStatus(active.acceptedAt ? 'ready' : 'invited');
+        }
+      } catch {
+        // Transient read failure: leave the current state; the next poll retries.
+      }
+    };
+    void sync();
+    const timer = window.setInterval(() => void sync(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [role, allyIsSample, api]);
+
   const run = useCallback(async (work: () => Promise<void>) => {
     setError(null);
     try {
@@ -334,6 +368,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
         if (!live) return;
         setPlan(loaded);
         setPlanLoaded(true);
+        // A stored real nomination clears the client-only sample ally, so the
+        // owner invitation poll (below) runs and reflects true acceptance state
+        // even on a fresh reload.
+        if (loaded.nominatedAllyUid) setAllyIsSample(false);
       })
       .catch((e: unknown) => {
         if (!live) return;

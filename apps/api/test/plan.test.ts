@@ -10,6 +10,7 @@ import {
   createInvitation,
   hasAcceptedRelationship,
   listInvitationsForAlly,
+  listInvitationsForOwner,
   revokeInvitation,
   savePlan,
 } from '../src/plan.js';
@@ -309,6 +310,44 @@ describe('listInvitationsForAlly', () => {
   });
 });
 
+describe('listInvitationsForOwner', () => {
+  const planPayload = {
+    thresholdMinor: 500000,
+    bankId: 'demo-bank' as const,
+    processingConsent: true,
+    retentionMode: 'facts-24h' as const,
+    allySharingConsent: true,
+    exportConsent: true,
+  };
+
+  it("returns only the owner's own active invitations and reflects acceptance", async () => {
+    const ownerUid = uid('owner');
+    const allyUid = uid('ally');
+    const otherOwnerUid = uid('owner2');
+    const otherAllyUid = uid('ally2');
+    await savePlan(db, ownerUid, planPayload);
+    await savePlan(db, otherOwnerUid, planPayload);
+
+    const invitationId = await nominate(ownerUid, allyUid);
+    // Another owner's invitation must never leak into this owner's list.
+    await nominate(otherOwnerUid, otherAllyUid);
+
+    const mine = await listInvitationsForOwner(db, ownerUid);
+    expect(mine.map((i) => i.id)).toEqual([invitationId]);
+    expect(mine[0]!.allyUid).toBe(allyUid);
+    expect(mine[0]!.acceptedAt ?? null).toBeNull();
+
+    // Once the ally accepts, the owner's read carries the acceptance timestamp.
+    await acceptInvitation(db, invitationId, allyUid);
+    const afterAccept = await listInvitationsForOwner(db, ownerUid);
+    expect(afterAccept[0]!.acceptedAt).toBeTruthy();
+
+    // A revoked invitation drops out immediately.
+    await revokeInvitation(db, invitationId, ownerUid);
+    expect(await listInvitationsForOwner(db, ownerUid)).toEqual([]);
+  });
+});
+
 describe('authenticated plan/ally-pairing HTTP routes', () => {
   it('PUT /api/v1/plan saves the four separate consents, threshold, and Demo Bank route', async () => {
     const ownerUid = uid('owner');
@@ -484,6 +523,58 @@ describe('authenticated plan/ally-pairing HTTP routes', () => {
   it('GET /api/v1/ally/invitations denies an unauthenticated request', async () => {
     const app = buildApi([planRoutes], deps);
     const response = await app.inject({ method: 'GET', url: '/api/v1/ally/invitations' });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('GET /api/v1/owner/invitations lets the owner see acceptance of the ally it nominated', async () => {
+    const ownerUid = uid('owner');
+    const allyUid = uid('ally');
+    const app = buildApi([planRoutes], deps);
+
+    await app.inject({
+      method: 'PUT',
+      url: '/api/v1/plan',
+      headers: await authHeader(ownerUid),
+      payload: {
+        thresholdMinor: 500000,
+        bankId: 'demo-bank',
+        processingConsent: true,
+        retentionMode: 'facts-24h',
+        allySharingConsent: true,
+        exportConsent: true,
+      },
+    });
+    const { code } = (
+      await app.inject({ method: 'POST', url: '/api/v1/ally-pairing-code', headers: await authHeader(allyUid) })
+    ).json() as { code: string };
+    const invitation = (
+      await app.inject({
+        method: 'POST',
+        url: '/api/v1/ally-invitations',
+        headers: await authHeader(ownerUid),
+        payload: { pairingCode: code },
+      })
+    ).json() as { id: string };
+
+    // Before acceptance the owner sees its invitation pending.
+    const pending = await app.inject({ method: 'GET', url: '/api/v1/owner/invitations', headers: await authHeader(ownerUid) });
+    expect(pending.statusCode).toBe(200);
+    const { invitations } = pending.json() as { invitations: { id: string; acceptedAt?: string | null }[] };
+    expect(invitations.map((i) => i.id)).toEqual([invitation.id]);
+    expect(invitations[0]!.acceptedAt ?? null).toBeNull();
+    expect(JSON.stringify(invitations)).not.toMatch(/claim|payee|transcript/);
+
+    // Once the ally accepts, the owner's read reports it accepted (so the owner screen can show "ready").
+    await app.inject({ method: 'POST', url: `/api/v1/ally-invitations/${invitation.id}/accept`, headers: await authHeader(allyUid) });
+    const afterAccept = (
+      await app.inject({ method: 'GET', url: '/api/v1/owner/invitations', headers: await authHeader(ownerUid) })
+    ).json() as { invitations: { acceptedAt?: string | null }[] };
+    expect(afterAccept.invitations[0]!.acceptedAt).toBeTruthy();
+  });
+
+  it('GET /api/v1/owner/invitations denies an unauthenticated request', async () => {
+    const app = buildApi([planRoutes], deps);
+    const response = await app.inject({ method: 'GET', url: '/api/v1/owner/invitations' });
     expect(response.statusCode).toBe(401);
   });
 
