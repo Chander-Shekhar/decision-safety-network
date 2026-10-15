@@ -17,6 +17,8 @@
     "test:web": "npm run test --workspace apps/web --",
     "test:e2e": "npm run test:e2e --workspace apps/web --if-present",
     "emulators": "firebase emulators:start --only auth,firestore",
+    "kill:emulators": "scripts/kill-emulators.sh",
+    "predev:api": "scripts/kill-emulators.sh",
     "dev:api": "firebase emulators:exec --project demo-dsn --only auth,firestore \"PORT=8787 npx tsx apps/api/src/dev-server.ts\"",
     "dev:web": "npm --workspace apps/web run dev"
   },
