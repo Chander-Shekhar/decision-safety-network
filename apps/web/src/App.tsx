@@ -29,8 +29,8 @@ import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
-import { Button, Callout, Card, Disclosure, StepFlowNav, StepRail } from './ui';
-import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
+import { Button, Callout, Card, Disclosure, Field, StepFlowNav, StepRail } from './ui';
+import { VerifyPanel, WebEvidenceList, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
 const SAMPLE_ALLY_NAME = 'Priya Nair';
@@ -315,7 +315,16 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const loadWebEvidence = useCallback(
     async (id: string) => {
       const res = await api.get<{ evidence: WebVerificationEvidence[] }>(`cases/${id}/web-verification`);
-      setWebEvidence(res.evidence);
+      // Re-running the same check appends another identical row server-side; collapse
+      // content-identical results so the UI shows each distinct finding once.
+      const seen = new Set<string>();
+      const unique = res.evidence.filter((e) => {
+        const key = `${e.stance}|${e.institution}|${e.headline}|${e.maskedNumber}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setWebEvidence(unique);
     },
     [api],
   );
@@ -754,14 +763,25 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                         });
                       }}
                     >
-                      <label>
-                        Number the caller is using
-                        <input inputMode="tel" value={webCheckNumber} onChange={(e) => setWebCheckNumber(e.target.value)} />
-                      </label>
+                      <Field label="Number the caller is using" htmlFor="web-check-number">
+                        <input
+                          id="web-check-number"
+                          inputMode="tel"
+                          placeholder="+91…"
+                          value={webCheckNumber}
+                          onChange={(e) => setWebCheckNumber(e.target.value)}
+                          className="rounded-md border border-border bg-surface-raised px-space-3 py-space-2 text-text"
+                        />
+                      </Field>
                       <Button type="submit" variant="secondary" disabled={!claimedIdentity || !webCheckNumber}>
                         Check public listings
                       </Button>
                     </form>
+                    {!claimedIdentity && (
+                      <p className="text-xs text-text-muted">Confirm or correct the caller&apos;s claimed identity above to run this check.</p>
+                    )}
+                    {/* Immediate in-place result: the same evidence also attaches to the Claimed identity fact above. */}
+                    <WebEvidenceList evidence={webEvidence} />
                   </div>
                   <div className="flex flex-col gap-space-2">
                     <p className="text-sm text-text-muted">

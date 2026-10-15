@@ -81,6 +81,16 @@ Founder: the vertical `StepRail` (a full-width list of all 9 step names + lock r
 - Accessible name per circle stays the exact step name (plus a status suffix only when current/locked), so existing `/^Review/`-style selectors and the available-and-not-current exact `Verify` selector keep matching.
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **230** tests pass (no selector changes needed).
 
+### Batch 7 — wire the public-listings check: visible input + in-place result (2026-10-15)
+
+Founder: the "Number the caller is using" input was invisible until focused, and clicking "Check public listings" seemed to do nothing (the network call ran and returned evidence, but the UI didn't show it — so they clicked three times, producing three identical rows).
+
+1. **Invisible input:** the `<input>` had no className, so Tailwind preflight left it borderless. Gave it the standard field styling (`rounded-md border border-border bg-surface-raised px-space-3 py-space-2`) and wrapped it in the shared `Field` for a proper stacked label + a `+91…` placeholder.
+2. **No visible feedback:** the returned evidence only rendered inside `DecisionMap` under the Claimed-identity fact card — above the form and off-screen. Now `WebEvidenceList` also renders **inline right below the form**, so the result appears where the action happened (it still also attaches to the claim in the map). Added a hint when the check is disabled because the claimed identity isn't set yet.
+3. **Duplicate rows:** re-running the check appends an identical row server-side; `loadWebEvidence` now collapses content-identical results so each distinct finding shows once.
+
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **230** tests pass.
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).
