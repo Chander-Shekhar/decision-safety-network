@@ -29,7 +29,7 @@ import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
-import { Button, Callout, Dialog, Disclosure, StepRail } from './ui';
+import { Button, Callout, Dialog, Disclosure, StepFlowNav, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
@@ -1073,6 +1073,12 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             }
           />
         )}
+
+          {/* Sequential Back / Next across the journey, shown wherever the StepRail is: the rail
+              is the overview, this is the one-step-at-a-time path. */}
+          {owner && !needsSetup && (caseId || step !== 'Plan') && (
+            <StepFlowNav steps={railSteps} current={step} onSelect={setStep} />
+          )}
         </>
       )}
     </AppShell>

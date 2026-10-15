@@ -5,7 +5,7 @@
 - **Owner:** Orchestrator (solo owner — claim + implement + integrate per WORKFLOW "Solo owner")
 - **Status:** in-progress (kept open; successive polish changes land under this one task per founder request — do not spin up a new task per tweak)
 - **Branch/worktree:** committed directly to `main` in small, test-backed, `DSN-038:`-prefixed commits (lightweight iteration; founder reviews live)
-- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/ui/Disclosure.tsx`, and their tests; this record. (Declare more as batches touch them.)
+- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/ui/Disclosure.tsx`, `apps/web/src/ui/StepFlowNav.tsx`, `apps/web/src/ui/index.ts`, and their tests; this record. (Declare more as batches touch them.)
 - **Dependencies:** DSN-034 (shell/nav), DSN-037 (breadcrumbs).
 - **PRD references:** Core MVP owner journey (Session, Decision).
 - **Started:** 2026-10-15
@@ -43,10 +43,20 @@ Added an optional `defaultOpen` prop to the shared `ui/Disclosure` (defaults to 
 
 - **Verification:** `apps/web` tsc --noEmit clean; `vitest run` 25 files / **226** tests pass (added an App test asserting the console is up front and the checks/payment disclosures are collapsed until opened).
 
+### Batch 3 — Sequential journey navigation (2026-10-15)
+
+The journey had only the StepRail (a jump list) and breadcrumbs; there was no obvious one-step-at-a-time path, so the 7 steps didn't read as a flow (founder: "it should be a multi step flow with back nav possible").
+
+- Added `ui/StepFlowNav` — a Back / Next footer rendered below the step content wherever the StepRail shows. It moves one step at a time through the journey order: "Back to <prev>" always returns; "Next: <next>" is disabled with the gate's reason shown until the next step's prerequisite is met, so you can't skip a lock. A "Step N of 7" indicator sits between them. The StepRail stays as the overview/jump control; this is the linear path.
+- Footer labels are prefixed ("Back to …" / "Next: …") so they don't collide with the StepRail's bare step-name buttons that tests select by `/^Session/` etc.
+
+- **Verification:** `apps/web` tsc --noEmit clean; `vitest run` 26 files / **230** tests pass (3 StepFlowNav unit tests + 1 App test driving Session → Decision → Session through the footer).
+
 ## Open follow-ups (founder: "we'll work on others next")
 
-- **Full multi-step flow pass (next):** apply the Session-step "one thing at a time" treatment across the remaining journey steps so each step reads as a single focused screen with clear forward/back. The Decision step is now grouped but still a long single page; a future pass may split check vs. decide vs. pay into sub-steps.
-- Playwright e2e should be re-run before this task is marked done (the journey spec drives the Session → Decision transition; Batches 1–2 changed when the "Go to the decision" button appears and moved the Decision panels behind disclosures).
+- The Decision step is grouped (Batch 2) and now has sequential nav (Batch 3) but is still one long page; a future pass could split check vs. decide vs. pay into true sub-steps if the founder wants finer granularity.
+- The Session step keeps its own contextual "Go to the decision" button in addition to the footer "Next: Decision"; intentional (contextual primary vs. consistent linear path) but worth a founder look to decide if the inline one is redundant.
+- Playwright e2e should be re-run before this task is marked done (the journey spec drives the Session → Decision transition; Batches 1–3 changed when the "Go to the decision" button appears, moved the Decision panels behind disclosures, and added the Back/Next footer).
 
 ## Handoff
 

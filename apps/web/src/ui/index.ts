@@ -10,6 +10,8 @@ export { Callout } from './Callout';
 export type { CalloutProps } from './Callout';
 export { StepRail } from './StepRail';
 export type { StepRailProps } from './StepRail';
+export { StepFlowNav } from './StepFlowNav';
+export type { StepFlowNavProps } from './StepFlowNav';
 export { ActionBar } from './ActionBar';
 export type { ActionBarProps } from './ActionBar';
 export { Dialog } from './Dialog';

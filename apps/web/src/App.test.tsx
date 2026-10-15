@@ -200,6 +200,18 @@ describe('App · live transcript bridge (DSN-025)', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(command).not.toHaveBeenCalledWith('POST', expect.stringContaining('/segments'), expect.anything());
   });
+
+  it('provides sequential Back/Next navigation through the journey steps', async () => {
+    await openSession();
+    // The footer shows where you are and offers a forward path.
+    expect(screen.getByText('Step 2 of 7')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: /next: decision/i }));
+    expect(await screen.findByRole('heading', { name: /decide what to do/i })).toBeVisible();
+    expect(screen.getByText('Step 3 of 7')).toBeVisible();
+    // ...and a way back to the previous step.
+    await userEvent.click(screen.getByRole('button', { name: /back to session/i }));
+    expect(screen.getByText('Step 2 of 7')).toBeVisible();
+  });
 });
 
 describe('App · ally session pairing', () => {
