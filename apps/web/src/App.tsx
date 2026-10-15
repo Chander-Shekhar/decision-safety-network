@@ -97,6 +97,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [draftAmount, setDraftAmount] = useState('');
   // DSN-030: a transcript paste/audio submit is in flight.
   const [transcriptBusy, setTranscriptBusy] = useState(false);
+  // Session step: once a call has been added, the transcript (not the input) is
+  // shown; this reveals the "Add the call" input again on demand so the two are
+  // never both visible by default.
+  const [editingCall, setEditingCall] = useState(false);
   // A sample ally is pre-added so setup reads as ready out of the box; pairing a real ally clears the sample flag.
   const [allyStatus, setAllyStatus] = useState<AllyStatus>('ready');
   const [allyIsSample, setAllyIsSample] = useState(true);
@@ -601,32 +605,62 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             )}
             {caseId && (
               <>
-                <SessionScreen
-                  status="processing"
-                  segments={segments}
-                  captureActive={captureActive}
-                  captureOnDevice={captureOnDevice}
-                  onStopProcessing={() =>
-                    run(async () => {
-                      await api.command('POST', `cases/${caseId}/processing/revoke`);
-                      setCaptureEnded(true); // native stops the mic and drops the recording label
-                    })
-                  }
-                />
-                {/* On the web (no live capture) this is how a call is brought in; it also lets a native
-                    session add a pasted/uploaded call. The same switcher appears on the Decision step. */}
-                <SessionInput
-                  busy={transcriptBusy}
-                  disabled={!caseId}
-                  captureActive={captureActive}
-                  onSubmitPaste={(text) => run(() => submitPastedTranscript(text))}
-                  onSubmitAudio={(audioFile) => run(() => submitAudioRecording(audioFile))}
-                />
-                <div>
-                  <Button variant="secondary" onClick={() => setStep('Decision')}>
-                    Go to the decision
-                  </Button>
-                </div>
+                {/* The "Live session" transcript shows while native is capturing, or once any
+                    call has been added. On the web before a call is added it stays hidden so the
+                    step isn't two competing panels at once. */}
+                {(captureActive || segments.length > 0) && (
+                  <SessionScreen
+                    status="processing"
+                    segments={segments}
+                    captureActive={captureActive}
+                    captureOnDevice={captureOnDevice}
+                    onStopProcessing={() =>
+                      run(async () => {
+                        await api.command('POST', `cases/${caseId}/processing/revoke`);
+                        setCaptureEnded(true); // native stops the mic and drops the recording label
+                      })
+                    }
+                  />
+                )}
+
+                {/* The call input is shown only when there's nothing yet, or when the owner
+                    explicitly chooses to add/replace the call - never alongside the transcript
+                    by default. Native capture owns intake, so the paste/upload input is hidden then. */}
+                {!captureActive && (segments.length === 0 || editingCall) ? (
+                  <SessionInput
+                    busy={transcriptBusy}
+                    disabled={!caseId}
+                    captureActive={captureActive}
+                    onSubmitPaste={(text) =>
+                      run(async () => {
+                        await submitPastedTranscript(text);
+                        setEditingCall(false);
+                      })
+                    }
+                    onSubmitAudio={(audioFile) =>
+                      run(async () => {
+                        await submitAudioRecording(audioFile);
+                        setEditingCall(false);
+                      })
+                    }
+                  />
+                ) : (
+                  segments.length > 0 &&
+                  !captureActive && (
+                    <div>
+                      <Button variant="secondary" onClick={() => setEditingCall(true)}>
+                        Add or edit the call
+                      </Button>
+                    </div>
+                  )
+                )}
+
+                {/* Only offer the step forward once there's actually a call to decide on. */}
+                {segments.length > 0 && (
+                  <div>
+                    <Button onClick={() => setStep('Decision')}>Go to the decision</Button>
+                  </div>
+                )}
               </>
             )}
           </section>
@@ -684,13 +718,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 });
                 return res.maskedNumber;
               }}
-            />
-            <SessionInput
-              busy={transcriptBusy}
-              disabled={!caseId}
-              captureActive={captureActive}
-              onSubmitPaste={(text) => run(() => submitPastedTranscript(text))}
-              onSubmitAudio={(audioFile) => run(() => submitAudioRecording(audioFile))}
             />
             <form
               aria-label="Draft a transfer"

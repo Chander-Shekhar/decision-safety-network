@@ -98,13 +98,26 @@ describe('App · live transcript bridge (DSN-025)', () => {
     await userEvent.click(await screen.findByRole('button', { name: /^Session/ }));
   }
 
-  it('gives a web owner a way to bring the call in on the Session step (paste/upload switcher)', async () => {
+  it('shows only the call input before a call is added, then only the transcript (with an edit path) after', async () => {
     await openSession();
-    // The Session step is not a dead wait-screen on the web: the "Add the call" switcher is present
-    // and a route onward to the decision is offered.
+    // Before a call: just the "Add the call" input, no competing transcript panel, and no
+    // premature route onward (nothing to decide on yet).
     expect(screen.getByRole('tab', { name: 'Paste transcript' })).toBeVisible();
     expect(screen.getByLabelText(/paste the call/i)).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Live session' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /go to the decision/i })).toBeNull();
+
+    // Add a call via the live bridge: the transcript appears, the input collapses behind an
+    // explicit edit affordance, and the step-forward button is now offered.
+    fromPage(seg('Move 50,000 to the safe account now', '2026-10-12T10:00:00.000Z'));
+    expect(await screen.findByRole('region', { name: 'Live session' })).toBeVisible();
+    expect(screen.queryByLabelText(/paste the call/i)).toBeNull();
+    expect(screen.getByRole('button', { name: /add or edit the call/i })).toBeVisible();
     expect(screen.getByRole('button', { name: /go to the decision/i })).toBeVisible();
+
+    // The edit affordance brings the input back on demand.
+    await userEvent.click(screen.getByRole('button', { name: /add or edit the call/i }));
+    expect(screen.getByLabelText(/paste the call/i)).toBeVisible();
   });
 
   it('ingests a dsn:transcript-segment through the same segment API and then extracts', async () => {
@@ -146,7 +159,9 @@ describe('App · live transcript bridge (DSN-025)', () => {
     (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage: post };
     try {
       await openSession();
-      await userEvent.click(screen.getByRole('button', { name: /stop processing/i }));
+      // Stop processing only exists during live capture, so bring the session into that state first.
+      fromPage(JSON.stringify({ type: 'dsn:capture-status', active: true }));
+      await userEvent.click(await screen.findByRole('button', { name: /stop processing/i }));
       await waitFor(() => expect(command).toHaveBeenCalledWith('POST', 'cases/c1/processing/revoke'));
       await waitFor(() => {
         const last = JSON.parse(post.mock.calls[post.mock.calls.length - 1][0]);

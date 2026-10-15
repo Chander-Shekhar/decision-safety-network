@@ -105,7 +105,11 @@ export function DecisionMap({
   return (
     <section aria-label="Decision Map">
       <Card title="Decision Map">
-        <p role="status" className="text-sm font-medium">
+        <p className="text-text-muted">
+          The key points from the call, pulled out one by one. Each is something that was said — not a confirmed
+          fact — so check the source, then confirm or correct it before you decide.
+        </p>
+        <p role="status" className="text-xs font-medium text-text-muted">
           {STATUS_COPY[status]}
         </p>
 

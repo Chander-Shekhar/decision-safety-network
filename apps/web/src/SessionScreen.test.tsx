@@ -70,11 +70,15 @@ describe('SessionScreen', () => {
     expect(screen.queryByText(/transcript text is untrusted input/i)).toBeNull();
   });
 
-  it('lets the user stop processing', async () => {
+  it('offers Stop processing only during live capture, and lets the user stop it', async () => {
     const onStopProcessing = vi.fn();
     const user = userEvent.setup();
-    render(<SessionScreen status="processing" segments={[]} onStopProcessing={onStopProcessing} />);
+    // Web (no live capture): there is nothing to stop, so no dead control is shown.
+    const { rerender } = render(<SessionScreen status="processing" segments={[]} onStopProcessing={onStopProcessing} />);
+    expect(screen.queryByRole('button', { name: /stop processing/i })).toBeNull();
 
+    // Native capturing: the control appears and works.
+    rerender(<SessionScreen status="processing" segments={[]} captureActive onStopProcessing={onStopProcessing} />);
     await user.click(screen.getByRole('button', { name: /stop processing/i }));
     expect(onStopProcessing).toHaveBeenCalled();
   });

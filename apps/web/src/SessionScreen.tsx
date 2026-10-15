@@ -74,13 +74,17 @@ export function SessionScreen({ status, segments, onStopProcessing, captureActiv
           ))}
         </ol>
 
-        <div className="flex flex-col gap-space-2">
-          <h3 className="text-sm font-semibold">Session controls</h3>
-          <Button variant="secondary" onClick={() => onStopProcessing?.()}>
-            Stop processing
-          </Button>
-        </div>
-
+        {/* "Stop processing" ends live microphone capture, so it only makes sense while
+            native is actually capturing. On the web (no live capture) there is nothing to
+            stop, so the control is not shown. */}
+        {captureActive && (
+          <div className="flex flex-col gap-space-2">
+            <h3 className="text-sm font-semibold">Session controls</h3>
+            <Button variant="secondary" onClick={() => onStopProcessing?.()}>
+              Stop processing
+            </Button>
+          </div>
+        )}
       </Card>
     </section>
   );
