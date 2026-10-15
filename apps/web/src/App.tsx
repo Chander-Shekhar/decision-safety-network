@@ -455,7 +455,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
           currentCaseId={caseId || undefined}
           onOpenCurrent={() => {
             setView('home');
-            setStep('Decision');
+            setStep('Review');
           }}
           onStartSession={() => {
             setView('home');
@@ -654,19 +654,14 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                     </div>
                   )
                 )}
-
-                {/* Only offer the step forward once there's actually a call to decide on. */}
-                {segments.length > 0 && (
-                  <div>
-                    <Button onClick={() => setStep('Decision')}>Go to the decision</Button>
-                  </div>
-                )}
+                {/* Moving on is handled by the consistent Back/Next footer (StepFlowNav),
+                    so the Session step no longer carries its own step-forward button. */}
               </>
             )}
           </section>
         )}
 
-        {owner && caseId && step === 'Decision' && (
+        {owner && caseId && step === 'Review' && (
           <div className="flex flex-col gap-space-5">
             <DecisionMap
               facts={facts}
@@ -742,10 +737,18 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 </div>
               </Disclosure>
             </section>
+          </div>
+        )}
 
-            {/* The primary action surface for this step: decide what to do with the call. */}
+        {owner && caseId && step === 'Decide' && (
+          <div className="flex flex-col gap-space-5">
+            {/* The decision hub: pause, cancel, continue, or escalate to Verify / Ask ally. */}
             <section aria-label="Decide what to do" className="flex flex-col gap-space-2">
               <h2 className="text-sm font-semibold">Decide what to do</h2>
+              <p className="text-sm text-text-muted">
+                Based on what you reviewed, choose what to do with this call — pause or cancel a transfer, verify through an
+                official channel, or ask your Safety Ally.
+              </p>
               <ActionConsole
                 caseState={{
                   phase: caseView?.phase ?? 'Observe',
@@ -759,15 +762,18 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 onAskAlly={() => setStep('Ally')}
               />
             </section>
+          </div>
+        )}
 
-            {/* Payment is secondary and only matters if the owner proceeds; collapsed unless a draft already exists. */}
+        {owner && caseId && step === 'Pay' && (
+          <div className="flex flex-col gap-space-5">
+            {/* The payment step: draft the transfer the caller asked for; DSN re-checks it before anything is sent. */}
             <section aria-label="Send money" className="flex flex-col gap-space-2">
               <h2 className="text-sm font-semibold">If you decide to send money</h2>
               <p className="text-sm text-text-muted">
                 Draft the transfer the caller is asking for. DSN re-runs its safety checks on the draft before anything is sent.
               </p>
-              <Disclosure summary="Draft a transfer" defaultOpen={!!caseView?.paymentDraft}>
-                <div className="flex flex-col gap-space-4">
+              <div className="flex flex-col gap-space-4">
                   <form
                     aria-label="Draft a transfer"
                     className="flex flex-wrap items-end gap-space-3"
@@ -837,8 +843,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                       })
                     }
                   />
-                </div>
-              </Disclosure>
+              </div>
             </section>
           </div>
         )}

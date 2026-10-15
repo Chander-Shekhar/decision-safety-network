@@ -5,7 +5,7 @@
 - **Owner:** Orchestrator (solo owner — claim + implement + integrate per WORKFLOW "Solo owner")
 - **Status:** in-progress (kept open; successive polish changes land under this one task per founder request — do not spin up a new task per tweak)
 - **Branch/worktree:** committed directly to `main` in small, test-backed, `DSN-038:`-prefixed commits (lightweight iteration; founder reviews live)
-- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/ui/Disclosure.tsx`, `apps/web/src/ui/StepFlowNav.tsx`, `apps/web/src/ui/index.ts`, and their tests; this record. (Declare more as batches touch them.)
+- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/journey.ts`, `apps/web/src/ui/Disclosure.tsx`, `apps/web/src/ui/StepFlowNav.tsx`, `apps/web/src/ui/index.ts`, `apps/web/e2e/journey.spec.ts`, and their tests; this record. (Declare more as batches touch them.)
 - **Dependencies:** DSN-034 (shell/nav), DSN-037 (breadcrumbs).
 - **PRD references:** Core MVP owner journey (Session, Decision).
 - **Started:** 2026-10-15
@@ -52,13 +52,22 @@ The journey had only the StepRail (a jump list) and breadcrumbs; there was no ob
 
 - **Verification:** `apps/web` tsc --noEmit clean; `vitest run` 26 files / **230** tests pass (3 StepFlowNav unit tests + 1 App test driving Session → Decision → Session through the footer).
 
+### Batch 4 — split Decision into Review / Decide / Pay + drop the redundant inline button (2026-10-15)
+
+Two founder directives: "Don't put 2 buttons… keep the one consistently available on all screens" and "definitely break into 3 separate steps."
+
+1. **Removed the Session step's inline "Go to the decision" button.** Moving on is now handled solely by the consistent Back/Next footer (`StepFlowNav`), so there is one forward affordance, present on every step.
+2. **Split the single `Decision` step into three sequential steps** in `journey.ts`: **Review** (Decision Map + on-device signals + the optional check tools behind a `Disclosure`), **Decide** (the `ActionConsole` as its own screen), **Pay** (the transfer-draft form + `PaymentPanel` shown directly — the Pay-step `Disclosure` wrapper was dropped since paying is the whole point of the step). Journey order is now Plan → Session → **Review → Decide → Pay** → Verify → Ally → Recovery → Evidence (9 steps). Pay precedes Verify because `canVerify` requires a payment phase of Check/Pause.
+3. **Gating:** Review unlocks on `caseId`; Decide/Pay/Verify/Ally unlock on `factsExtracted`. `initialStep` for a loaded case is now `Review`; `CasesScreen` "open current" lands on `Review`.
+
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **230** tests pass (journey.test, StepFlowNav.test mock array, and the App split/footer tests updated to Review/Decide/Pay and "Step N of 9").
+- **e2e:** `apps/web/e2e/journey.spec.ts` **structurally reconciled** to the split (call added on Session; Decision Map on Review; transfer on Pay; console on Decide) but the three UI journeys are marked `test.fixme` and were **not run** against the live stack — the emulator+Vite+API boot is deferred per founder ("we'll run the playwright e2e later"). The api-auth-guard test is unaffected and stays active. Re-enable + validate in the deferred e2e pass; likely tweak point is the Pay→Decide hop (post-submit auto-recheck must settle to `Pause` before the Decide console is read) and the no-transcript legitimate-control draft (Pay is facts-gated).
+
 ## Open follow-ups (founder: "we'll work on others next")
 
-- The Decision step is grouped (Batch 2) and now has sequential nav (Batch 3) but is still one long page; a future pass could split check vs. decide vs. pay into true sub-steps if the founder wants finer granularity.
-- The Session step keeps its own contextual "Go to the decision" button in addition to the footer "Next: Decision"; intentional (contextual primary vs. consistent linear path) but worth a founder look to decide if the inline one is redundant.
-- Playwright e2e should be re-run before this task is marked done (the journey spec drives the Session → Decision transition; Batches 1–3 changed when the "Go to the decision" button appears, moved the Decision panels behind disclosures, and added the Back/Next footer).
+- Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).
 
 ## Handoff
 
-- **Next action:** continue polish batches under this record; re-run e2e and move to `done` when the founder is satisfied with the flow.
-- **Unresolved issues:** Decision-step decluttering (above) pending design input.
+- **Next action:** continue polish batches under this record; re-enable + run the e2e journeys and move to `done` when the founder is satisfied with the flow.
+- **Unresolved issues:** Playwright e2e journeys reconciled but unrun (`test.fixme`) — see Open follow-ups.

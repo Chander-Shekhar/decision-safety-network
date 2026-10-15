@@ -30,9 +30,9 @@ describe('journeySteps (owner)', () => {
   it('plan saved: Session unlocks', () => {
     expect(avail(journeySteps({ ...base, planSaved: true }))).toEqual(['Plan', 'Session']);
   });
-  it('case + extracted facts: Decision, Verify, Ally unlock; Evidence needs confirmed facts', () => {
+  it('case + extracted facts: Review, Decide, Pay, Verify, Ally unlock; Evidence needs confirmed facts', () => {
     const steps = journeySteps({ ...base, planSaved: true, caseId: 'c1', factsExtracted: true });
-    expect(avail(steps)).toEqual(expect.arrayContaining(['Plan', 'Session', 'Decision', 'Verify', 'Ally']));
+    expect(avail(steps)).toEqual(expect.arrayContaining(['Plan', 'Session', 'Review', 'Decide', 'Pay', 'Verify', 'Ally']));
     expect(avail(steps)).not.toContain('Evidence');
   });
   it('locked steps carry a reason', () => {
@@ -52,6 +52,6 @@ describe('initialStep', () => {
   it('ally → Ally', () => expect(initialStep({ ...base, role: 'ally' })).toBe('Ally'));
   it('no plan → Plan', () => expect(initialStep(base)).toBe('Plan'));
   it('plan but no case → Session', () => expect(initialStep({ ...base, planSaved: true })).toBe('Session'));
-  it('loaded case → Decision', () => expect(initialStep({ ...base, planSaved: true, caseId: 'c1' })).toBe('Decision'));
+  it('loaded case → Review', () => expect(initialStep({ ...base, planSaved: true, caseId: 'c1' })).toBe('Review'));
   it('recovery entered → Recovery', () => expect(initialStep({ ...base, planSaved: true, caseId: 'c1', recoveryEntered: true })).toBe('Recovery'));
 });

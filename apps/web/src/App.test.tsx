@@ -65,20 +65,20 @@ describe('App', () => {
     expect(command).not.toHaveBeenCalledWith('POST', 'cases/c1/verify', expect.anything());
   });
 
-  it('ingests a dsn:sms-signal posted into the window and shows it in the decision view', async () => {
+  it('ingests a dsn:sms-signal posted into the window and shows it on the Review step', async () => {
     window.history.pushState({}, '', '/cases/c1');
     get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: {}, confirmed: {} });
     render(<App auth={auth} />);
-    await userEvent.click(await screen.findByRole('button', { name: /^Decision/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Review/ }));
     fromPage(JSON.stringify({ type: 'dsn:sms-signal', from: 'VM-DEMOBK', body: 'blocked, call now', receivedAt: '2026-10-07T10:00:00.000Z' }));
     expect(await screen.findByText(/incoming sms/i)).toBeVisible();
   });
 
-  it('on the Decision step, ignores foreign and malformed messages (listener is mounted but rejects)', async () => {
+  it('on the Review step, ignores foreign and malformed messages (listener is mounted but rejects)', async () => {
     window.history.pushState({}, '', '/cases/c1');
     get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: {}, confirmed: {} });
     render(<App auth={auth} />);
-    await userEvent.click(await screen.findByRole('button', { name: /^Decision/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Review/ }));
     // A foreign message and a malformed dsn envelope (missing `from`) must both be dropped.
     fromPage(JSON.stringify({ type: 'webpackHotUpdate' }));
     fromPage(JSON.stringify({ type: 'dsn:sms-signal', body: 'no sender', receivedAt: '2026-10-07T10:00:00.000Z' }));
@@ -86,24 +86,33 @@ describe('App', () => {
     expect(screen.queryByText(/incoming sms/i)).toBeNull();
   });
 
-  it('groups the Decision step: decision console up front, optional checks and payment tucked behind disclosures', async () => {
+  it('splits the old Decision step into Review → Decide → Pay, each its own screen', async () => {
     window.history.pushState({}, '', '/cases/c1');
-    get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: {}, confirmed: {} });
+    get.mockResolvedValue({
+      id: 'c1',
+      version: 2,
+      phase: 'Observe',
+      facts: { payee: { field: 'payee', value: 'safe-new', sourceSegmentIds: ['seg-1'], origin: 'model', uncertainty: 'low' } },
+      confirmed: {},
+    });
     render(<App auth={auth} />);
-    await userEvent.click(await screen.findByRole('button', { name: /^Decision/ }));
 
-    // The decision console is front-and-centre, not buried under forms.
-    expect(screen.getByRole('heading', { name: /decide what to do/i })).toBeVisible();
-
-    // Optional checks sit behind a disclosure: the inner controls aren't shown until it's opened.
-    expect(screen.queryByRole('button', { name: /^check public listings$/i })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: /run a check/i }));
-    expect(screen.getByRole('button', { name: /^check public listings$/i })).toBeVisible();
-
-    // Payment is collapsed by default (no draft yet): the transfer form isn't shown until opened.
+    // Lands on Review: the Decision Map and optional checks, but not the decide console or the payment form.
+    expect(await screen.findByRole('region', { name: 'Decision Map' })).toBeVisible();
+    expect(screen.getByRole('button', { name: /run a check/i })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: /decide what to do/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: /^draft a transfer$/i }));
+
+    // Decide is its own screen: the action console, not the map or the payment form.
+    await userEvent.click(screen.getByRole('button', { name: /^Decide/ }));
+    expect(screen.getByRole('heading', { name: /decide what to do/i })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Decision Map' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
+
+    // Pay is its own screen: the transfer form shown directly (no disclosure to open).
+    await userEvent.click(screen.getByRole('button', { name: /^Pay/ }));
     expect(screen.getByRole('button', { name: /save transfer draft/i })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Decision Map' })).toBeNull();
   });
 });
 
@@ -120,20 +129,17 @@ describe('App · live transcript bridge (DSN-025)', () => {
 
   it('shows only the call input before a call is added, then only the transcript (with an edit path) after', async () => {
     await openSession();
-    // Before a call: just the "Add the call" input, no competing transcript panel, and no
-    // premature route onward (nothing to decide on yet).
+    // Before a call: just the "Add the call" input, no competing transcript panel.
     expect(screen.getByRole('tab', { name: 'Paste transcript' })).toBeVisible();
     expect(screen.getByLabelText(/paste the call/i)).toBeVisible();
     expect(screen.queryByRole('region', { name: 'Live session' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /go to the decision/i })).toBeNull();
 
-    // Add a call via the live bridge: the transcript appears, the input collapses behind an
-    // explicit edit affordance, and the step-forward button is now offered.
+    // Add a call via the live bridge: the transcript appears and the input collapses behind an
+    // explicit edit affordance. (Moving on is the footer's Next, not a per-step button.)
     fromPage(seg('Move 50,000 to the safe account now', '2026-10-12T10:00:00.000Z'));
     expect(await screen.findByRole('region', { name: 'Live session' })).toBeVisible();
     expect(screen.queryByLabelText(/paste the call/i)).toBeNull();
     expect(screen.getByRole('button', { name: /add or edit the call/i })).toBeVisible();
-    expect(screen.getByRole('button', { name: /go to the decision/i })).toBeVisible();
 
     // The edit affordance brings the input back on demand.
     await userEvent.click(screen.getByRole('button', { name: /add or edit the call/i }));
@@ -204,13 +210,13 @@ describe('App · live transcript bridge (DSN-025)', () => {
   it('provides sequential Back/Next navigation through the journey steps', async () => {
     await openSession();
     // The footer shows where you are and offers a forward path.
-    expect(screen.getByText('Step 2 of 7')).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: /next: decision/i }));
-    expect(await screen.findByRole('heading', { name: /decide what to do/i })).toBeVisible();
-    expect(screen.getByText('Step 3 of 7')).toBeVisible();
+    expect(screen.getByText('Step 2 of 9')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: /next: review/i }));
+    expect(await screen.findByRole('region', { name: 'Decision Map' })).toBeVisible();
+    expect(screen.getByText('Step 3 of 9')).toBeVisible();
     // ...and a way back to the previous step.
     await userEvent.click(screen.getByRole('button', { name: /back to session/i }));
-    expect(screen.getByText('Step 2 of 7')).toBeVisible();
+    expect(screen.getByText('Step 2 of 9')).toBeVisible();
   });
 });
 

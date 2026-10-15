@@ -1,6 +1,6 @@
 import type { Phase } from '../../../packages/contracts/src/case';
 
-export const STEPS = ['Plan', 'Session', 'Decision', 'Verify', 'Ally', 'Recovery', 'Evidence'] as const;
+export const STEPS = ['Plan', 'Session', 'Review', 'Decide', 'Pay', 'Verify', 'Ally', 'Recovery', 'Evidence'] as const;
 export type Step = (typeof STEPS)[number];
 
 export interface JourneyState {
@@ -28,7 +28,9 @@ function ownerStep(step: Step, s: JourneyState): StepStatus {
   switch (step) {
     case 'Plan': return { step, available: true };
     case 'Session': return s.planSaved ? { step, available: true } : { step, available: false, reason: 'Save your Safety Plan first.' };
-    case 'Decision': return s.caseId ? { step, available: true } : { step, available: false, reason: 'Start a controlled session first.' };
+    case 'Review': return s.caseId ? { step, available: true } : { step, available: false, reason: 'Start a controlled session first.' };
+    case 'Decide':
+    case 'Pay':
     case 'Verify':
     case 'Ally': return s.factsExtracted ? { step, available: true } : { step, available: false, reason: 'Facts must be extracted first.' };
     case 'Recovery': return s.paymentExists || s.recoveryEntered ? { step, available: true } : { step, available: false, reason: 'Available once a transfer is drafted.' };
@@ -48,5 +50,5 @@ export function initialStep(s: JourneyState): Step {
   if (s.recoveryEntered) return 'Recovery';
   if (!s.planSaved) return 'Plan';
   if (!s.caseId) return 'Session';
-  return 'Decision';
+  return 'Review';
 }
