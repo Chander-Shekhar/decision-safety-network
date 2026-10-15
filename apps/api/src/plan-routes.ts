@@ -4,7 +4,15 @@ import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
 import { ALLY_SHARE_FIELDS, CALL_LISTENING_MODES } from '../../../packages/contracts/src/plan.js';
 import { issuePairingCode } from './ally-pairing.js';
-import { acceptInvitation, createInvitation, getPlan, listInvitationsForAlly, revokeInvitation, savePlan } from './plan.js';
+import {
+  acceptInvitation,
+  createInvitation,
+  getPlan,
+  listInvitationsForAlly,
+  listInvitationsForOwner,
+  revokeInvitation,
+  savePlan,
+} from './plan.js';
 
 const RetentionModeSchema = z.enum(['delete-on-close', 'facts-24h', 'selected-7d']);
 
@@ -86,6 +94,11 @@ export const planRoutes: RouteInstaller = (app, deps: ApiDeps) => {
   app.get('/api/v1/ally/invitations', async (request) => {
     const uid = await requireUser(request, deps.auth);
     return { invitations: await listInvitationsForAlly(deps.db, uid) };
+  });
+
+  app.get('/api/v1/owner/invitations', async (request) => {
+    const uid = await requireUser(request, deps.auth);
+    return { invitations: await listInvitationsForOwner(deps.db, uid) };
   });
 
   app.post('/api/v1/ally-invitations', async (request, reply) => {
