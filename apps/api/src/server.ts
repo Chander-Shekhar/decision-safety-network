@@ -24,7 +24,7 @@ import { createTranscriptionRoutes } from './transcription-routes.js';
 import { createRetentionRoutes, type OidcKeySource, type SchedulerIdentityConfig } from './retention-routes.js';
 import { sessionRoutes } from './session-routes.js';
 import { createVerificationRoutes } from './verification-routes.js';
-import type { GeminiPort } from '../../../packages/contracts/src/facts.js';
+import type { GeminiPort, TranscriptionPort } from '../../../packages/contracts/src/facts.js';
 
 /** Public health check: no authentication, no case data. */
 const healthRoutes: RouteInstaller = (app) => {
@@ -58,13 +58,17 @@ export function selectWebVerificationAdapter(): WebVerificationAdapter {
  * The Gemini port is injected: production passes the live adapter, emulator
  * tests pass `test/fake-gemini.ts`. A test double is refused when
  * `NODE_ENV=production`. `configure` lets the bootstrap (or a test) attach
- * extra hooks/routes before the app is ready.
+ * extra hooks/routes before the app is ready. `transcription` is optional: when
+ * omitted the transcription route lazily builds the live adapter on first use
+ * (production); the local dev harness and tests pass an explicit port so a
+ * faked or live transcription backend stays consistent with the injected Gemini.
  */
 export function buildServer(
   deps: ApiDeps,
   gemini: GeminiPort,
   schedulerConfig: SchedulerIdentityConfig,
   configure?: (app: FastifyInstance) => void,
+  transcription?: TranscriptionPort,
 ): FastifyInstance {
   if (process.env.NODE_ENV === 'production' && (gemini as { isTestDouble?: boolean }).isTestDouble === true) {
     throw new Error('TEST_DOUBLE_REJECTED_IN_PRODUCTION');
@@ -75,7 +79,7 @@ export function buildServer(
     caseRoutes,
     sessionRoutes,
     createFactRoutes(gemini),
-    createTranscriptionRoutes(),
+    createTranscriptionRoutes(transcription),
     createPaymentRoutes(gemini),
     createDecisionRoutes(),
     createVerificationRoutes(selectWebVerificationAdapter()),
