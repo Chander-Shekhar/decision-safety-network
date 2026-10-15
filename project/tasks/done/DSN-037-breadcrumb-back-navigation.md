@@ -38,7 +38,8 @@ Founder choices (recorded at request time): breadcrumb trail **plus** burger (no
 ## Verification evidence
 
 - **Commits:** d93547d (implementation + tests).
-- **Integration commit:** recorded post-merge below.
+- **Integration commit:** fe34658 (`--no-ff` merge of `task/DSN-037-breadcrumb-nav` into `main`).
+- **Post-integration verification:** on `main` after the merge — `apps/web` `vitest run` 25 files / 225 tests pass.
 - **Commands and results:**
   - `apps/web`: `tsc --noEmit` clean; `vitest run` 25 files / 225 tests pass (was 24 / 221; +1 file, +4 AppShell tests).
 - **Changed paths:** `apps/web/src/AppShell.tsx`, `apps/web/src/AppShell.test.tsx`.
