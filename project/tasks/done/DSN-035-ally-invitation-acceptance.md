@@ -34,12 +34,12 @@ Every `allyInvitations` read was keyed on `ownerUid`; the ally had no way to lea
 ## Verification evidence
 
 - **Commits:** bffe34f (implementation + tests + decision 0017).
-- **Integration commit:** (recorded at merge)
+- **Integration commit:** 2eaacb3 (`--no-ff` merge of `task/DSN-035-ally-invitation-discovery` into `main`).
 - **Commands and results:**
   - `apps/web`: `tsc --noEmit` clean; `vitest run` 24 files / 219 tests pass.
   - `apps/api`: `tsc --noEmit` clean; `vitest run` (under `firebase emulators:exec --only auth,firestore`) 22 files / 425 tests pass.
   - `apps/web` Playwright e2e: 8/8 (desktop + mobile-440).
-- **Post-integration verification:** (recorded at merge)
+- **Post-integration verification:** on `main` after the merge — `apps/web` `vitest run` 24 files / 219 tests pass. (API suite + e2e proven on the identical pre-merge branch tree.)
 - **Changed paths:** `apps/api/src/{plan,plan-routes}.ts`, `apps/api/test/plan.test.ts`, `apps/web/src/{App,PlanScreen}.tsx`, `apps/web/src/{App,PlanScreen}.test.tsx`, `project/decisions/0017-ally-invitation-discovery-endpoint.md`.
 - **Limitations or skipped checks:** API tests require the Firestore/Auth emulators + JDK 21 (invocation env only). Real two-party pairing still needs two browser contexts/devices (DSN-014 auth plumbing unchanged).
 
