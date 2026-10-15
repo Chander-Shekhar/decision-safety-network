@@ -5,7 +5,7 @@
 - **Owner:** Orchestrator (solo owner — claim + implement + integrate per WORKFLOW "Solo owner")
 - **Status:** in-progress (kept open; successive polish changes land under this one task per founder request — do not spin up a new task per tweak)
 - **Branch/worktree:** committed directly to `main` in small, test-backed, `DSN-038:`-prefixed commits (lightweight iteration; founder reviews live)
-- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/journey.ts`, `apps/web/src/ui/Disclosure.tsx`, `apps/web/src/ui/Dialog.tsx`, `apps/web/src/ui/StepFlowNav.tsx`, `apps/web/src/ui/index.ts`, `apps/web/e2e/journey.spec.ts`, and their tests; `project/decisions/0016-ally-preview-promotes-selected-evidence.md` (addendum); this record. (Declare more as batches touch them.)
+- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/journey.ts`, `apps/web/src/ui/Disclosure.tsx`, `apps/web/src/ui/Dialog.tsx`, `apps/web/src/ui/StepRail.tsx`, `apps/web/src/ui/StepFlowNav.tsx`, `apps/web/src/ui/index.ts`, `apps/web/e2e/journey.spec.ts`, and their tests; `project/decisions/0016-ally-preview-promotes-selected-evidence.md` (addendum); this record. (Declare more as batches touch them.)
 - **Dependencies:** DSN-034 (shell/nav), DSN-037 (breadcrumbs).
 - **PRD references:** Core MVP owner journey (Session, Decision).
 - **Started:** 2026-10-15
@@ -73,6 +73,13 @@ Founder-reported, testing the live flow: (1) clicking "Preview what my ally woul
 
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **230** tests pass (no owner-Ally-step unit test exercises the auto-generate effect; `AllyEvidenceSelector.test.tsx` still covers the picker in isolation).
 - **e2e:** attack-journey ally section updated to the inline "Ask my ally preview" region (region role, no dialog); still `test.fixme` pending the live run.
+
+### Batch 6 — compact horizontal stepper (2026-10-15)
+
+Founder: the vertical `StepRail` (a full-width list of all 9 step names + lock reasons) took almost the whole screen and is "of no use to the customer." Replaced it with a compact horizontal progress stepper (per the founder's reference image): one small numbered circle per step connected by a thin line — completed steps show a check and a filled/connected line, the current step is ringed, upcoming/locked steps are muted outlines. No visible step labels (the step name is now the button's accessible name + tooltip, and the Back/Next footer already names the adjacent steps in words). Lock reasons moved from inline rail text to the tooltip/screen-reader label.
+
+- Accessible name per circle stays the exact step name (plus a status suffix only when current/locked), so existing `/^Review/`-style selectors and the available-and-not-current exact `Verify` selector keep matching.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **230** tests pass (no selector changes needed).
 
 ## Open follow-ups (founder: "we'll work on others next")
 
