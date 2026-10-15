@@ -34,7 +34,8 @@ The mirror of DSN-035, on the owner side. Redeeming a pairing code set `allyStat
 ## Verification evidence
 
 - **Commits:** ad1672b (implementation + tests + decision 0018).
-- **Integration commit:** recorded post-merge below.
+- **Integration commit:** 09c382f (`--no-ff` merge of `task/DSN-036-owner-sees-acceptance` into `main`).
+- **Post-integration verification:** on `main` after the merge — `apps/web` `vitest run` 24 files / 221 tests pass. (API suite proven on the identical pre-merge branch tree: 22 files / 428 tests under emulators.)
 - **Commands and results:**
   - `apps/web`: `tsc --noEmit` clean; `vitest run` 24 files / 221 tests pass (was 219; +2 owner-session tests).
   - `apps/api`: `tsc --noEmit` clean; `vitest run` (under `firebase emulators:exec --only auth,firestore`) 22 files / 428 tests pass (was 425; +3 owner-read tests).
