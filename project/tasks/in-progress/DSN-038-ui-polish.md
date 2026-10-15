@@ -91,6 +91,19 @@ Founder: the "Number the caller is using" input was invisible until focused, and
 
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **230** tests pass.
 
+### Batch 8 — Decision Map goes read-only; "Confirm" endorsement removed; View source fixed (2026-10-15)
+
+The founder asked what the Decision Map is for and why it demanded inputs, and caught a genuine trust inversion: a per-fact **"Confirm claimed identity"** button reads as *endorsing the caller's claim* ("I'd never confirm that — I don't know if they're right"). The map's job is the opposite: show the call as a short list of discrete, **unverified** claims to inspect, not a form to complete. Real Gemini improved the extracted content but the form-shaped layout (every one of ~8 facts carrying an always-open "Correct …" input + a Confirm button) still read as a ~24-input chore.
+
+1. **Read-only map.** `DecisionMap` is now purely presentational: label · value · provenance tag (`Caller claimed` / `You confirmed what was said` / `You corrected this`) · uncertainty · inline **View source**. The per-fact Correct inputs and per-fact Confirm buttons are gone. Intro reworded to state plainly that each point is only what the caller *said* and none of it is independently verified.
+2. **"Confirm" endorsement removed.** No per-fact confirm. The step's single primary action — **"This matches the call — continue"** — bulk-attests the model-extracted facts (promoting `origin: 'model'`, known-value, source-linked facts into the trusted `confirmed` map so the Pause's conversation signals and the ₹1930 report draft still work) and advances to Decide. Framed as *accuracy of capture*, never endorsement of the claim. Backend semantics are unchanged — `confirmFact` already means "affirms what was said" (`fact-validator.ts:357`); only the owner-facing framing/wording changed. Each confirm is version-gated, so the handler runs them sequentially, bumping the expected version per hop (both `confirmFact` and `correctFact` do `version + 1`).
+3. **One consolidated correction path.** A single on-demand **"Not right? Correct it"** disclosure (collapsed by default) reveals one input per fact (placeholdered with the current value); the owner fixes as many as needed and applies them in one batch (`FactCorrectionPanel`). This is the PRD line 773 "that is not what happened" path, now an exception rather than a per-row chore. Corrections write `user-corrected` (already trusted), so they don't need the attest step.
+4. **View source was dead.** The button called an `onViewSource` prop that App never passed → nothing happened. Now the map resolves a fact's cited segment ids to the live transcript excerpts and reveals them **inline** (speaker + text) on demand — no modal, so no repeat of the Batch 5 freeze.
+
+- **Owned paths touched:** `apps/web/src/DecisionMap.tsx`, `apps/web/src/DecisionMap.test.tsx`, `apps/web/src/App.tsx`, `apps/web/e2e/journey.spec.ts`.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **233** tests pass (DecisionMap.test rewritten for the read-only component + the new `FactCorrectionPanel`; adds inline View-source reveal, multi-correction apply, and the "confirmed = what was said, not endorsement" labeling).
+- **e2e:** the attack + near-neighbor `test.fixme` journeys updated to the new Review controls (consolidated correction panel, "This matches the call — continue" attest button) in place of the per-fact Correct/Confirm; still `test.fixme` pending the live pass.
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).

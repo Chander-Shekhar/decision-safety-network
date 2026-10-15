@@ -90,27 +90,26 @@ test.describe('attack journey', () => {
     // Enter the call transcript on the Session step (paste path, DSN-030).
     await addCall(page, ATTACK_TRANSCRIPT);
 
-    // Review step holds the Decision Map. The fake Gemini extracts the claim, labeled as a caller claim (not truth).
+    // Review step holds the read-only Decision Map. The fake Gemini extracts the claim, labeled as a caller claim (not truth).
     await goToStep(page, 'Review');
     await expect(page.getByRole('heading', { name: 'Decision Map' })).toBeVisible();
     await expect(factRow(page, 'Claimed identity').getByText('Demo Bank fraud team')).toBeVisible();
     await expect(factRow(page, 'Central claim').getByText('Account compromised')).toBeVisible();
 
-    // Correct the seeded "Unknown" Observed tactics fact -> turns on the `cues` signal.
-    const tactics = factRow(page, 'Observed tactics');
-    await tactics.getByLabel('Correct observed tactics').fill('urgency-pressure');
-    await tactics.getByRole('button', { name: 'Correct', exact: true }).click();
-    await expect(tactics.getByText('urgency-pressure')).toBeVisible();
+    // Correct the observed-tactics value via the single consolidated correction panel (DSN-038:
+    // the per-fact Correct inputs were removed) -> writes a `user-corrected` fact, turning on `cues`.
+    await page.getByRole('button', { name: /Not right\? Correct it/i }).click();
+    await page.getByLabel('Observed tactics').fill('urgency-pressure');
+    await page.getByRole('button', { name: /^Apply/ }).click();
 
-    // Confirm a fact so the Evidence step is reachable and provenance reads "User confirmed".
-    // Wait for the provenance flip before drafting: `confirmFact` bumps the shared case
-    // version, and `payment/draft` rejects a stale expectedVersion with VERSION_CONFLICT.
-    // A bare click() returns on dispatch, not after the refresh — so synchronize here.
-    await factRow(page, 'Claimed identity').getByRole('button', { name: 'Confirm claimed identity' }).click();
-    await expect(factRow(page, 'Claimed identity').getByText('User confirmed')).toBeVisible();
+    // Attest that the extraction matches the call. This replaces the per-fact "Confirm" endorsement
+    // (DSN-038): it bulk-promotes the model facts into the trusted `confirmed` map — which the Pause's
+    // conversation signals and the report draft read — framed as accuracy, never endorsement of the
+    // claim. It also advances to Decide; the version is refreshed before any later version-gated draft.
+    await page.getByRole('button', { name: 'This matches the call — continue' }).click();
 
-    // Pay step holds the transfer form. Draft a large transfer to the new payee the caller
-    // named. ("Amount" is exact: the Decision Map also renders a "Correct amount" fact field.)
+    // Pay step holds the transfer form. Draft a large transfer to the new payee the caller named.
+    // ("Amount" is exact to avoid matching other amount-bearing text on the step.)
     await goToStep(page, 'Pay');
     await page.getByLabel('Beneficiary').selectOption('__new__');
     await page.getByLabel('New payee account').fill('safe-new');
@@ -214,10 +213,10 @@ test.describe('near-neighbor check control', () => {
     // loosened to include Check, this would trip; the far Observe control would not.
     await addCall(page, ATTACK_TRANSCRIPT);
     await goToStep(page, 'Review');
-    const tactics = factRow(page, 'Observed tactics');
-    await tactics.getByLabel('Correct observed tactics').fill('urgency-pressure');
-    await tactics.getByRole('button', { name: 'Correct', exact: true }).click();
-    await expect(tactics.getByText('urgency-pressure')).toBeVisible();
+    // Correct observed tactics via the consolidated panel (DSN-038) -> `user-corrected` fact, `cues` on.
+    await page.getByRole('button', { name: /Not right\? Correct it/i }).click();
+    await page.getByLabel('Observed tactics').fill('urgency-pressure');
+    await page.getByRole('button', { name: /^Apply/ }).click();
 
     await goToStep(page, 'Pay');
     await page.getByLabel('Beneficiary').selectOption('__new__');

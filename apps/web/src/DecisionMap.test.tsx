@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DecisionMap } from './DecisionMap';
+import { DecisionMap, FactCorrectionPanel } from './DecisionMap';
 import type { Fact } from '../../../packages/contracts/src/facts';
 
 const claimedPayee: Fact = {
@@ -36,21 +36,38 @@ describe('DecisionMap', () => {
     expect(screen.getByText('safe-new')).toBeVisible();
   });
 
-  it('shows an explicit Unknown label for a field with no model candidate, and no view-source or confirm control', () => {
+  it('is read-only: no per-fact confirm or correct control', () => {
+    render(<DecisionMap facts={[claimedPayee]} />);
+    expect(screen.queryByRole('button', { name: /^confirm/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^correct$/i })).toBeNull();
+    expect(screen.queryByLabelText(/^correct /i)).toBeNull();
+  });
+
+  it('shows an explicit Unknown label for a field with no model candidate, and no view-source control', () => {
     render(<DecisionMap facts={[unknownDeadline]} />);
     expect(screen.getByText('Unknown')).toBeVisible();
     expect(screen.queryByRole('button', { name: /view source/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^confirm/i })).toBeNull();
   });
 
-  it('offers a source excerpt link when a citation exists and source is retained', async () => {
-    const onViewSource = vi.fn();
+  it('reveals the backing transcript excerpt inline when View source is pressed', async () => {
+    const resolveSource = vi.fn().mockReturnValue([{ speaker: 'Caller', text: 'Move it to safe-new now.' }]);
     const user = userEvent.setup();
-    render(<DecisionMap facts={[claimedPayee]} sourceRetained onViewSource={onViewSource} />);
+    render(<DecisionMap facts={[claimedPayee]} sourceRetained resolveSource={resolveSource} />);
 
     const button = screen.getByRole('button', { name: /view source/i });
     await user.click(button);
-    expect(onViewSource).toHaveBeenCalledWith('payee', ['s1']);
+
+    expect(resolveSource).toHaveBeenCalledWith(['s1']);
+    expect(screen.getByText(/move it to safe-new now/i)).toBeVisible();
+    // The control flips to a "Hide source" toggle, signalling the expanded state via its label.
+    expect(screen.getByRole('button', { name: /hide source/i })).toBeVisible();
+  });
+
+  it('shows a plain fallback when the citation resolves to no excerpt', async () => {
+    const user = userEvent.setup();
+    render(<DecisionMap facts={[claimedPayee]} sourceRetained resolveSource={() => []} />);
+    await user.click(screen.getByRole('button', { name: /view source/i }));
+    expect(screen.getByText(/source excerpt unavailable/i)).toBeVisible();
   });
 
   it('drops the source link and quietly marks the source not retained once it has expired', () => {
@@ -68,43 +85,60 @@ describe('DecisionMap', () => {
     expect(screen.queryByText(/unconfirmed|low confidence/i)).toBeNull();
   });
 
-  it('lets the owner confirm a model-extracted fact', async () => {
-    const onConfirm = vi.fn();
-    const user = userEvent.setup();
-    render(<DecisionMap facts={[claimedPayee]} onConfirm={onConfirm} />);
-
-    await user.click(screen.getByRole('button', { name: /^confirm/i }));
-    expect(onConfirm).toHaveBeenCalledWith('payee');
-  });
-
-  it('lets the owner correct a fact to a new value', async () => {
-    const onCorrect = vi.fn();
-    const user = userEvent.setup();
-    render(<DecisionMap facts={[claimedPayee]} onCorrect={onCorrect} />);
-
-    await user.type(screen.getByLabelText(/correct payee/i), 'Known safe payee');
-    await user.click(screen.getByRole('button', { name: /^correct$/i }));
-    expect(onCorrect).toHaveBeenCalledWith('payee', 'Known safe payee');
-  });
-
-  it('labels a user-confirmed fact distinctly from a caller claim or correction', () => {
+  it('labels a confirmed fact as "you confirmed what was said", not an endorsement of the claim', () => {
     const confirmed: Fact = { ...claimedPayee, origin: 'user-confirmed' };
     render(<DecisionMap facts={[confirmed]} />);
-    expect(screen.getByText(/user confirmed/i)).toBeVisible();
+    expect(screen.getByText(/you confirmed what was said/i)).toBeVisible();
     expect(screen.queryByText(/caller claimed/i)).toBeNull();
-    // Confirming is not re-confirmable through the same control.
-    expect(screen.queryByRole('button', { name: /^confirm/i })).toBeNull();
   });
 
   it('labels a user-corrected fact distinctly, with no source link since it is not transcript-linked', () => {
     const corrected: Fact = { field: 'payee', value: 'Known safe payee', origin: 'user-corrected', sourceSegmentIds: [], uncertainty: 'low' };
     render(<DecisionMap facts={[corrected]} />);
-    expect(screen.getByText(/user corrected/i)).toBeVisible();
+    expect(screen.getByText(/you corrected this/i)).toBeVisible();
     expect(screen.queryByRole('button', { name: /view source/i })).toBeNull();
   });
 
   it('never shows a scam probability or mental-state label', () => {
     render(<DecisionMap facts={[claimedPayee, unknownDeadline]} />);
     expect(screen.queryByText(/scam probability|risk score|likely (a )?scam|mental state/i)).toBeNull();
+  });
+});
+
+describe('FactCorrectionPanel', () => {
+  it('is collapsed behind one on-demand control, not a per-fact input wall', () => {
+    render(<FactCorrectionPanel facts={[claimedPayee, unknownDeadline]} onApply={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /not right\? correct it/i })).toBeVisible();
+    // The inputs live inside the collapsed disclosure, not shown until opened.
+    expect(screen.queryByLabelText('Payee')).toBeNull();
+  });
+
+  it('applies several corrections at once, framed as what was said', async () => {
+    const onApply = vi.fn();
+    const user = userEvent.setup();
+    render(<FactCorrectionPanel facts={[claimedPayee, { ...unknownDeadline }]} onApply={onApply} />);
+
+    await user.click(screen.getByRole('button', { name: /not right\? correct it/i }));
+    await user.type(screen.getByLabelText('Payee'), 'Known safe payee');
+    await user.type(screen.getByLabelText('Deadline'), 'No deadline given');
+
+    const apply = screen.getByRole('button', { name: /apply 2 corrections/i });
+    expect(apply).toBeEnabled();
+    await user.click(apply);
+
+    expect(onApply).toHaveBeenCalledWith([
+      { field: 'payee', value: 'Known safe payee' },
+      { field: 'deadline', value: 'No deadline given' },
+    ]);
+  });
+
+  it('ignores blank/whitespace-only inputs', async () => {
+    const onApply = vi.fn();
+    const user = userEvent.setup();
+    render(<FactCorrectionPanel facts={[claimedPayee]} onApply={onApply} />);
+
+    await user.click(screen.getByRole('button', { name: /not right\? correct it/i }));
+    await user.type(screen.getByLabelText('Payee'), '   ');
+    expect(screen.getByRole('button', { name: /apply/i })).toBeDisabled();
   });
 });

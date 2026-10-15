@@ -17,7 +17,7 @@ import { AllySharePreview } from './AllySharePreview';
 import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken } from './api-client';
 import { AppShell, type AppView } from './AppShell';
 import { CasesScreen } from './CasesScreen';
-import { DecisionMap } from './DecisionMap';
+import { DecisionMap, FactCorrectionPanel } from './DecisionMap';
 import { EvidenceScreen, type ReportDraftView } from './EvidenceScreen';
 import { HomeScreen } from './HomeScreen';
 import { ConfirmFraudPanel, IncomingCallScreen } from './ScreeningScreen';
@@ -29,7 +29,7 @@ import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
-import { Button, Callout, Card, Disclosure, Field, StepFlowNav, StepRail } from './ui';
+import { ActionBar, Button, Callout, Card, Disclosure, Field, StepFlowNav, StepRail } from './ui';
 import { VerifyPanel, WebEvidenceList, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
@@ -716,24 +716,33 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
         {owner && caseId && step === 'Review' && (
           <div className="flex flex-col gap-space-5">
+            {/* Read-only map: it reframes the call into discrete, unverified claims. "View source" reveals the
+                exact transcript excerpt inline (resolved from this case's live segments). */}
             <DecisionMap
               facts={facts}
               webEvidence={webEvidence}
-              onConfirm={(field) =>
-                run(async () => {
-                  await api.command('POST', `cases/${caseId}/facts/${field}/confirm`, { expectedVersion: version });
-                  await refreshCase(caseId);
-                })
-              }
-              onCorrect={(field, value) =>
-                run(async () => {
-                  await api.command('POST', `cases/${caseId}/facts/${field}/correct`, { value, expectedVersion: version });
-                  await refreshCase(caseId);
-                })
+              resolveSource={(ids) =>
+                segments.filter((s) => ids.includes(s.id)).map((s) => ({ speaker: s.speaker, text: s.text }))
               }
             />
             {/* On-device signals surface themselves only once one has arrived (the list renders nothing when empty). */}
             <DeviceSignalList signals={deviceSignals} />
+
+            {/* The single, on-demand correction path (collapsed by default). Corrections apply in one batch;
+                each is version-gated server-side, so run them sequentially and bump the expected version per hop. */}
+            <FactCorrectionPanel
+              facts={facts}
+              onApply={(corrections) =>
+                run(async () => {
+                  let v = version;
+                  for (const { field, value } of corrections) {
+                    await api.command('POST', `cases/${caseId}/facts/${field}/correct`, { value, expectedVersion: v });
+                    v += 1;
+                  }
+                  await refreshCase(caseId);
+                })
+              }
+            />
 
             {/* Optional investigative tools, tucked behind a disclosure so the step isn't a wall of forms. */}
             <section aria-label="Check what the caller said" className="flex flex-col gap-space-2">
@@ -801,6 +810,34 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 </div>
               </Disclosure>
             </section>
+
+            {/* The one forward action for this step. It attests — in bulk — that the model-extracted facts match
+                what was said (promoting them into the trusted `confirmed` map so the Pause's conversation signals
+                and the report draft work), then advances. It is NOT an endorsement of the caller's claims; the
+                wording says "matches the call", and corrected facts already carry their own `user-corrected` trust.
+                Only confirmable facts are touched (model-origin, known value, source-linked); each confirm is
+                version-gated server-side, so bump the expected version per hop. */}
+            <ActionBar>
+              <Button
+                disabled={facts.length === 0}
+                onClick={() =>
+                  run(async () => {
+                    let v = version;
+                    const attestable = facts
+                      .filter((f) => f.origin === 'model' && f.value !== 'unknown' && f.sourceSegmentIds.length > 0)
+                      .map((f) => f.field);
+                    for (const field of attestable) {
+                      await api.command('POST', `cases/${caseId}/facts/${field}/confirm`, { expectedVersion: v });
+                      v += 1;
+                    }
+                    await refreshCase(caseId);
+                    setStep('Decide');
+                  })
+                }
+              >
+                This matches the call — continue
+              </Button>
+            </ActionBar>
           </div>
         )}
 
