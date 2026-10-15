@@ -85,6 +85,26 @@ describe('App', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByText(/incoming sms/i)).toBeNull();
   });
+
+  it('groups the Decision step: decision console up front, optional checks and payment tucked behind disclosures', async () => {
+    window.history.pushState({}, '', '/cases/c1');
+    get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: {}, confirmed: {} });
+    render(<App auth={auth} />);
+    await userEvent.click(await screen.findByRole('button', { name: /^Decision/ }));
+
+    // The decision console is front-and-centre, not buried under forms.
+    expect(screen.getByRole('heading', { name: /decide what to do/i })).toBeVisible();
+
+    // Optional checks sit behind a disclosure: the inner controls aren't shown until it's opened.
+    expect(screen.queryByRole('button', { name: /^check public listings$/i })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /run a check/i }));
+    expect(screen.getByRole('button', { name: /^check public listings$/i })).toBeVisible();
+
+    // Payment is collapsed by default (no draft yet): the transfer form isn't shown until opened.
+    expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /^draft a transfer$/i }));
+    expect(screen.getByRole('button', { name: /save transfer draft/i })).toBeVisible();
+  });
 });
 
 describe('App · live transcript bridge (DSN-025)', () => {

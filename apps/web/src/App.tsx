@@ -29,7 +29,7 @@ import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
-import { Button, Callout, Dialog, StepRail } from './ui';
+import { Button, Callout, Dialog, Disclosure, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
@@ -667,7 +667,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
         )}
 
         {owner && caseId && step === 'Decision' && (
-          <>
+          <div className="flex flex-col gap-space-5">
             <DecisionMap
               facts={facts}
               webEvidence={webEvidence}
@@ -684,123 +684,163 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 })
               }
             />
-            {/* DSN-026: untrusted public-web check of the claimed identity. Supporting evidence only; never the official route. */}
-            <form
-              aria-label="Check public listings"
-              className="flex flex-wrap items-end gap-space-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!claimedIdentity || !webCheckNumber) return;
-                run(async () => {
-                  await api.command('POST', `cases/${caseId}/web-verification`, {
-                    claimedIdentity,
-                    callerNumber: webCheckNumber,
-                  });
-                  await loadWebEvidence(caseId);
-                });
-              }}
-            >
-              <label>
-                Number the caller is using
-                <input inputMode="tel" value={webCheckNumber} onChange={(e) => setWebCheckNumber(e.target.value)} />
-              </label>
-              <Button type="submit" variant="secondary" disabled={!claimedIdentity || !webCheckNumber}>
-                Check public listings
-              </Button>
-            </form>
+            {/* On-device signals surface themselves only once one has arrived (the list renders nothing when empty). */}
             <DeviceSignalList signals={deviceSignals} />
-            <ConfirmFraudPanel
-              initialNumber={screenedNumber}
-              onConfirm={async (callerNumber) => {
-                const res = await api.command<{ maskedNumber: string }>('POST', `cases/${caseId}/fraud-confirmation`, {
-                  callerNumber,
-                  basis: 'user-confirmed',
-                });
-                return res.maskedNumber;
-              }}
-            />
-            <form
-              aria-label="Draft a transfer"
-              className="flex flex-wrap items-end gap-space-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                run(async () => {
-                  const beneficiaryId = (draftPayee === '__new__' ? newPayeeId : draftPayee).trim();
-                  if (!beneficiaryId) return;
-                  await api.command(
-                    'POST',
-                    `cases/${caseId}/payment/draft`,
-                    withKey({ beneficiaryId, amountMinor: Math.round(Number(draftAmount) * 100), expectedVersion: version }),
-                  );
-                  await refreshCase(caseId);
-                });
-              }}
-            >
-              <label>
-                Beneficiary
-                <select value={draftPayee} onChange={(e) => setDraftPayee(e.target.value)}>
-                  {(plan?.bankAccounts ?? []).map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.label} · ending {account.last4}
-                    </option>
-                  ))}
-                  <option value="__new__">New payee…</option>
-                </select>
-              </label>
-              {draftPayee === '__new__' && (
-                <label>
-                  New payee account
-                  <input
-                    value={newPayeeId}
-                    onChange={(e) => setNewPayeeId(e.target.value)}
-                    placeholder="account the caller gave you"
+
+            {/* Optional investigative tools, tucked behind a disclosure so the step isn't a wall of forms. */}
+            <section aria-label="Check what the caller said" className="flex flex-col gap-space-2">
+              <h2 className="text-sm font-semibold">Check what the caller said</h2>
+              <p className="text-sm text-text-muted">
+                Optional. These help you test the caller&apos;s claims; any results show up against the facts above.
+              </p>
+              <Disclosure summary="Run a check — public listings or mark as fraud">
+                <div className="flex flex-col gap-space-4">
+                  <div className="flex flex-col gap-space-2">
+                    <p className="text-sm text-text-muted">
+                      Look the caller&apos;s number up in public listings for the organisation they claim to be from.
+                    </p>
+                    {/* DSN-026: untrusted public-web check of the claimed identity. Supporting evidence only; never the official route. */}
+                    <form
+                      aria-label="Check public listings"
+                      className="flex flex-wrap items-end gap-space-3"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!claimedIdentity || !webCheckNumber) return;
+                        run(async () => {
+                          await api.command('POST', `cases/${caseId}/web-verification`, {
+                            claimedIdentity,
+                            callerNumber: webCheckNumber,
+                          });
+                          await loadWebEvidence(caseId);
+                        });
+                      }}
+                    >
+                      <label>
+                        Number the caller is using
+                        <input inputMode="tel" value={webCheckNumber} onChange={(e) => setWebCheckNumber(e.target.value)} />
+                      </label>
+                      <Button type="submit" variant="secondary" disabled={!claimedIdentity || !webCheckNumber}>
+                        Check public listings
+                      </Button>
+                    </form>
+                  </div>
+                  <div className="flex flex-col gap-space-2">
+                    <p className="text-sm text-text-muted">
+                      If you&apos;re sure this is a scam, record the caller&apos;s number as fraud for this case.
+                    </p>
+                    <ConfirmFraudPanel
+                      initialNumber={screenedNumber}
+                      onConfirm={async (callerNumber) => {
+                        const res = await api.command<{ maskedNumber: string }>('POST', `cases/${caseId}/fraud-confirmation`, {
+                          callerNumber,
+                          basis: 'user-confirmed',
+                        });
+                        return res.maskedNumber;
+                      }}
+                    />
+                  </div>
+                </div>
+              </Disclosure>
+            </section>
+
+            {/* The primary action surface for this step: decide what to do with the call. */}
+            <section aria-label="Decide what to do" className="flex flex-col gap-space-2">
+              <h2 className="text-sm font-semibold">Decide what to do</h2>
+              <ActionConsole
+                caseState={{
+                  phase: caseView?.phase ?? 'Observe',
+                  paymentState: caseView?.paymentState,
+                  reasons: caseView?.reasons,
+                }}
+                onPause={() => run(() => act('pause'))}
+                onCancel={() => run(() => act('cancel'))}
+                onVerify={() => setStep('Verify')}
+                onContinue={() => run(() => act('continue'))}
+                onAskAlly={() => setStep('Ally')}
+              />
+            </section>
+
+            {/* Payment is secondary and only matters if the owner proceeds; collapsed unless a draft already exists. */}
+            <section aria-label="Send money" className="flex flex-col gap-space-2">
+              <h2 className="text-sm font-semibold">If you decide to send money</h2>
+              <p className="text-sm text-text-muted">
+                Draft the transfer the caller is asking for. DSN re-runs its safety checks on the draft before anything is sent.
+              </p>
+              <Disclosure summary="Draft a transfer" defaultOpen={!!caseView?.paymentDraft}>
+                <div className="flex flex-col gap-space-4">
+                  <form
+                    aria-label="Draft a transfer"
+                    className="flex flex-wrap items-end gap-space-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      run(async () => {
+                        const beneficiaryId = (draftPayee === '__new__' ? newPayeeId : draftPayee).trim();
+                        if (!beneficiaryId) return;
+                        await api.command(
+                          'POST',
+                          `cases/${caseId}/payment/draft`,
+                          withKey({ beneficiaryId, amountMinor: Math.round(Number(draftAmount) * 100), expectedVersion: version }),
+                        );
+                        await refreshCase(caseId);
+                      });
+                    }}
+                  >
+                    <label>
+                      Beneficiary
+                      <select value={draftPayee} onChange={(e) => setDraftPayee(e.target.value)}>
+                        {(plan?.bankAccounts ?? []).map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.label} · ending {account.last4}
+                          </option>
+                        ))}
+                        <option value="__new__">New payee…</option>
+                      </select>
+                    </label>
+                    {draftPayee === '__new__' && (
+                      <label>
+                        New payee account
+                        <input
+                          value={newPayeeId}
+                          onChange={(e) => setNewPayeeId(e.target.value)}
+                          placeholder="account the caller gave you"
+                        />
+                      </label>
+                    )}
+                    <label>
+                      Amount
+                      <input inputMode="numeric" value={draftAmount} onChange={(e) => setDraftAmount(e.target.value)} />
+                    </label>
+                    <Button type="submit" variant="secondary">Save transfer draft</Button>
+                  </form>
+                  <PaymentPanel
+                    draft={caseView?.paymentDraft}
+                    paymentState={caseView?.paymentState ?? 'draft'}
+                    segmentIds={caseView?.segmentIds}
+                    onSubmit={() =>
+                      run(async () => {
+                        const draftId = caseView?.paymentDraft?.id;
+                        if (!draftId) return;
+                        await api.command('POST', `cases/${caseId}/payment/submit`, withKey({ draftId, expectedVersion: version }));
+                        await refreshCase(caseId);
+                      })
+                    }
+                    onRecheck={async () => {
+                      await api.command('POST', `cases/${caseId}/payment/recheck`, {});
+                      await refreshCase(caseId);
+                    }}
+                    onAlreadyPaid={() =>
+                      run(async () => {
+                        setRecovery(await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/enter`, withKey({})));
+                        await refreshCase(caseId); // keep caseView.phase current so phase-gated UI (e.g. the 1930 handoff) is accurate
+                        window.history.pushState({}, '', `/cases/${caseId}/recover`);
+                        setStep('Recovery');
+                      })
+                    }
                   />
-                </label>
-              )}
-              <label>
-                Amount
-                <input inputMode="numeric" value={draftAmount} onChange={(e) => setDraftAmount(e.target.value)} />
-              </label>
-              <Button type="submit" variant="secondary">Save transfer draft</Button>
-            </form>
-            <PaymentPanel
-              draft={caseView?.paymentDraft}
-              paymentState={caseView?.paymentState ?? 'draft'}
-              segmentIds={caseView?.segmentIds}
-              onSubmit={() =>
-                run(async () => {
-                  const draftId = caseView?.paymentDraft?.id;
-                  if (!draftId) return;
-                  await api.command('POST', `cases/${caseId}/payment/submit`, withKey({ draftId, expectedVersion: version }));
-                  await refreshCase(caseId);
-                })
-              }
-              onRecheck={async () => {
-                await api.command('POST', `cases/${caseId}/payment/recheck`, {});
-                await refreshCase(caseId);
-              }}
-              onAlreadyPaid={() =>
-                run(async () => {
-                  setRecovery(await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/enter`, withKey({})));
-                  await refreshCase(caseId); // keep caseView.phase current so phase-gated UI (e.g. the 1930 handoff) is accurate
-                  window.history.pushState({}, '', `/cases/${caseId}/recover`);
-                  setStep('Recovery');
-                })
-              }
-            />
-            <ActionConsole
-              caseState={{
-                phase: caseView?.phase ?? 'Observe',
-                paymentState: caseView?.paymentState,
-                reasons: caseView?.reasons,
-              }}
-              onPause={() => run(() => act('pause'))}
-              onCancel={() => run(() => act('cancel'))}
-              onVerify={() => setStep('Verify')}
-              onContinue={() => run(() => act('continue'))}
-              onAskAlly={() => setStep('Ally')}
-            />
-          </>
+                </div>
+              </Disclosure>
+            </section>
+          </div>
         )}
 
         {owner && caseId && step === 'Verify' && (

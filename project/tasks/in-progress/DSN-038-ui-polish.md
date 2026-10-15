@@ -5,7 +5,7 @@
 - **Owner:** Orchestrator (solo owner — claim + implement + integrate per WORKFLOW "Solo owner")
 - **Status:** in-progress (kept open; successive polish changes land under this one task per founder request — do not spin up a new task per tweak)
 - **Branch/worktree:** committed directly to `main` in small, test-backed, `DSN-038:`-prefixed commits (lightweight iteration; founder reviews live)
-- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, and their tests; this record. (Declare more as batches touch them.)
+- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/ui/Disclosure.tsx`, and their tests; this record. (Declare more as batches touch them.)
 - **Dependencies:** DSN-034 (shell/nav), DSN-037 (breadcrumbs).
 - **PRD references:** Core MVP owner journey (Session, Decision).
 - **Started:** 2026-10-15
@@ -29,10 +29,24 @@ Founder-reported issues addressed:
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 25 files / 225 tests pass (updated SessionScreen + App Session tests for the capture-gated control and the input/transcript toggle; DecisionMap intro worded to avoid colliding with the "Caller claimed" provenance tag).
 - **Not re-run:** API suite (web-only); Playwright e2e — see "Open follow-ups".
 
+### Batch 2 — Decision step decluttering (2026-10-15)
+
+The Decision step was a flat stack of seven panels with no hierarchy (founder: "a lot of others… I understand none of them"). Regrouped into a clear read → check → decide → pay flow:
+
+1. **Decision Map** stays at the top (what the call was about).
+2. **On-device signals** render only when one has arrived (self-gating; unchanged).
+3. **"Check what the caller said"** — the optional investigative tools (public-listings lookup, mark-as-fraud) moved behind a collapsed `Disclosure` with a one-line explanation each, so they're available but not in the way.
+4. **"Decide what to do"** — the `ActionConsole` (pause / cancel / continue / verify / ask ally) promoted to its own labelled section as the primary action surface, ahead of payment.
+5. **"If you decide to send money"** — the transfer-draft form + `PaymentPanel` moved behind a `Disclosure` that is collapsed by default and auto-opens when a payment draft already exists.
+
+Added an optional `defaultOpen` prop to the shared `ui/Disclosure` (defaults to collapsed; existing SettingsScreen usage unaffected).
+
+- **Verification:** `apps/web` tsc --noEmit clean; `vitest run` 25 files / **226** tests pass (added an App test asserting the console is up front and the checks/payment disclosures are collapsed until opened).
+
 ## Open follow-ups (founder: "we'll work on others next")
 
-- The Decision step still stacks several panels at once (Check public listings, device signals, Confirm fraud, Draft a transfer) — candidate for progressive disclosure / sub-steps. Not yet touched; needs a design pass with the founder.
-- Playwright e2e should be re-run before this task is marked done (the journey spec drives the Session → Decision transition; Batch 1 changed when the "Go to the decision" button appears).
+- **Full multi-step flow pass (next):** apply the Session-step "one thing at a time" treatment across the remaining journey steps so each step reads as a single focused screen with clear forward/back. The Decision step is now grouped but still a long single page; a future pass may split check vs. decide vs. pay into sub-steps.
+- Playwright e2e should be re-run before this task is marked done (the journey spec drives the Session → Decision transition; Batches 1–2 changed when the "Go to the decision" button appears and moved the Decision panels behind disclosures).
 
 ## Handoff
 
