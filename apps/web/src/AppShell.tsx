@@ -10,6 +10,13 @@ const NAV: { view: AppView; label: string }[] = [
   { view: 'about', label: 'About this demo' },
 ];
 
+/** Short labels for the breadcrumb trail (the menu uses the fuller NAV labels). */
+const CRUMB_LABEL: Record<Exclude<AppView, 'home'>, string> = {
+  cases: 'Cases',
+  settings: 'Settings',
+  about: 'About',
+};
+
 export interface AppShellProps {
   /** Highlighted nav item (owner mode only). */
   view: AppView;
@@ -59,8 +66,37 @@ export function AppShell({ view, onNavigate, allyMode = false, onExitAllyView, b
               ☰
             </button>
           )}
-          <span className="font-semibold tracking-tight">Decision Safety Network</span>
-          {allyMode && <span className="ml-auto text-sm text-text-muted">Safety Ally</span>}
+          {allyMode ? (
+            <>
+              <span className="truncate font-semibold tracking-tight">Decision Safety Network</span>
+              <span className="ml-auto whitespace-nowrap text-sm text-text-muted">Safety Ally</span>
+            </>
+          ) : view === 'home' ? (
+            // Home is the root: no "up" to show, so keep the wordmark here.
+            <span className="truncate font-semibold tracking-tight">Decision Safety Network</span>
+          ) : (
+            // Secondary views (Settings/Cases/About) get a trail back to Home.
+            // Small, single-line, and truncating so it never overlaps the burger.
+            <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
+              <ol className="flex items-center gap-space-1 overflow-hidden text-sm">
+                <li className="shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => go('home')}
+                    className="rounded px-space-1 text-primary underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    Home
+                  </button>
+                </li>
+                <li aria-hidden="true" className="shrink-0 text-text-muted">
+                  ›
+                </li>
+                <li aria-current="page" className="truncate font-semibold">
+                  {CRUMB_LABEL[view]}
+                </li>
+              </ol>
+            </nav>
+          )}
         </header>
 
         {banner && <div className="px-space-3 pt-space-3">{banner}</div>}
