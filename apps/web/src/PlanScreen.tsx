@@ -211,27 +211,54 @@ function OwnerPlanView({
 
 function AllyPairingView({
   pairingCode,
+  allyStatus = 'none',
   onRequestPairingCode,
   onAcceptInvitation,
 }: PlanScreenProps): React.JSX.Element {
+  if (allyStatus === 'ready') {
+    return (
+      <section aria-label="Safety Ally pairing">
+        <Card title="You're connected as a Safety Ally">
+          <p>You can now help with cases the person you support chooses to share with you.</p>
+        </Card>
+      </section>
+    );
+  }
+  const invited = allyStatus === 'invited';
   return (
     <section aria-label="Safety Ally pairing">
       <Card title="Pair as a Safety Ally">
-        <div>
-          <Button variant="secondary" onClick={() => onRequestPairingCode?.()}>
-            Get pairing code
-          </Button>
-        </div>
-        {pairingCode && (
-          <p>
-            Share this code with the person who invited you: <strong data-testid="pairing-code">{pairingCode}</strong>
-          </p>
-        )}
-        <div>
-          <Button variant="primary" onClick={() => onAcceptInvitation?.()}>
-            Accept invitation
-          </Button>
-        </div>
+        <ol className="flex list-decimal flex-col gap-space-2 pl-space-4">
+          <li>
+            Get a pairing code and share it with the person who invited you.
+            <div className="mt-space-2">
+              <Button variant="secondary" onClick={() => onRequestPairingCode?.()}>
+                {pairingCode ? 'Get a new code' : 'Get pairing code'}
+              </Button>
+            </div>
+            {pairingCode && (
+              <p className="mt-space-2">
+                Your code: <strong data-testid="pairing-code">{pairingCode}</strong>
+              </p>
+            )}
+          </li>
+          <li>
+            {invited ? (
+              <p className="font-semibold text-primary" role="status">
+                You&apos;ve been invited. Accept to connect.
+              </p>
+            ) : (
+              <p className="text-text-muted" role="status">
+                Waiting for an invitation. Once they add your code, this updates on its own.
+              </p>
+            )}
+            <div className="mt-space-2">
+              <Button variant="primary" disabled={!invited} onClick={() => onAcceptInvitation?.()}>
+                Accept invitation
+              </Button>
+            </div>
+          </li>
+        </ol>
       </Card>
     </section>
   );

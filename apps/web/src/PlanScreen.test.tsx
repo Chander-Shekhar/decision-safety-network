@@ -85,19 +85,36 @@ describe('PlanScreen · ally view', () => {
   it('lets the ally request a pairing code and shows it with a stable test id', async () => {
     const onRequestPairingCode = vi.fn();
     const user = userEvent.setup();
-    render(<PlanScreen role="ally" pairingCode="abc12345" onRequestPairingCode={onRequestPairingCode} />);
+    render(<PlanScreen role="ally" onRequestPairingCode={onRequestPairingCode} />);
 
     await user.click(screen.getByRole('button', { name: 'Get pairing code' }));
     expect(onRequestPairingCode).toHaveBeenCalled();
+  });
+
+  it('shows an issued pairing code with a stable test id', () => {
+    render(<PlanScreen role="ally" pairingCode="abc12345" />);
     expect(screen.getByTestId('pairing-code')).toHaveTextContent('abc12345');
   });
 
-  it('lets the ally accept an invitation', async () => {
+  it('cannot accept until an invitation has arrived, then can once invited', async () => {
     const onAcceptInvitation = vi.fn();
     const user = userEvent.setup();
-    render(<PlanScreen role="ally" onAcceptInvitation={onAcceptInvitation} />);
+    const { rerender } = render(<PlanScreen role="ally" allyStatus="none" onAcceptInvitation={onAcceptInvitation} />);
 
+    // Waiting state: the accept button is present but inert.
+    expect(screen.getByText(/waiting for an invitation/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Accept invitation' })).toBeDisabled();
+
+    // Once the discovery poll flips status to invited, accept becomes actionable.
+    rerender(<PlanScreen role="ally" allyStatus="invited" onAcceptInvitation={onAcceptInvitation} />);
+    expect(screen.getByText(/you've been invited/i)).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Accept invitation' }));
     expect(onAcceptInvitation).toHaveBeenCalled();
+  });
+
+  it('once connected, confirms the ally relationship instead of showing pairing controls', () => {
+    render(<PlanScreen role="ally" allyStatus="ready" />);
+    expect(screen.getByText(/you're connected as a safety ally/i)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Accept invitation' })).toBeNull();
   });
 });

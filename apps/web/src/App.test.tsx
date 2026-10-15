@@ -167,6 +167,34 @@ describe('App · live transcript bridge (DSN-025)', () => {
   });
 });
 
+describe('App · ally session pairing', () => {
+  it('discovers an invitation addressed to the ally, reflects it, and accepts via the API', async () => {
+    window.history.pushState({}, '', '/?role=ally');
+    get.mockImplementation(async (path: string) =>
+      path === 'ally/invitations' ? { invitations: [{ id: 'inv-1', acceptedAt: null }] } : undefined,
+    );
+    command.mockResolvedValue({});
+    render(<App auth={auth} />);
+
+    await waitFor(() => expect(auth.signInSynthetic).toHaveBeenCalledWith('ally'));
+    // The ally screen reacts to the incoming invitation (previously it never did).
+    expect(await screen.findByText(/you've been invited/i)).toBeVisible();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith('POST', 'ally-invitations/inv-1/accept'));
+    expect(await screen.findByText(/you're connected as a safety ally/i)).toBeVisible();
+  });
+
+  it('shows a waiting state (no actionable accept) when no invitation has arrived yet', async () => {
+    window.history.pushState({}, '', '/?role=ally');
+    get.mockResolvedValue({ invitations: [] });
+    render(<App auth={auth} />);
+    await waitFor(() => expect(auth.signInSynthetic).toHaveBeenCalledWith('ally'));
+    expect(await screen.findByText(/waiting for an invitation/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Accept invitation' })).toBeDisabled();
+  });
+});
+
 describe('App · first-run setup (DSN-023)', () => {
   const configuredPlan = {
     callListening: 'per-call',

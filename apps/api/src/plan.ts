@@ -135,6 +135,23 @@ export async function revokeInvitation(db: Firestore, invitationId: string, owne
 }
 
 /**
+ * Lists the authenticated ally's own currently-active (unrevoked) invitations.
+ * This is the only ally-keyed read of the invitation collection and the one
+ * way the ally side of pairing works: an ally never learns an invitation's id
+ * from the owner, so until this query returns it, the ally has nothing to
+ * accept. Scoped strictly to `allyUid` (never the owner), and returns the
+ * detail-free invitation records only - they carry no case data.
+ */
+export async function listInvitationsForAlly(db: Firestore, allyUid: string): Promise<AllyInvitation[]> {
+  const snap = await db
+    .collection('allyInvitations')
+    .where('allyUid', '==', allyUid)
+    .where('revokedAt', '==', null)
+    .get();
+  return snap.docs.map((d) => d.data() as AllyInvitation);
+}
+
+/**
  * The readiness predicate: true only if `ownerUid` and `allyUid` have a
  * currently-active (unrevoked) invitation that has been accepted. Never
  * caches between calls - every call re-queries Firestore, so revocation
