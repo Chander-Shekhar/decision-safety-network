@@ -139,8 +139,36 @@ function modelId(): string {
 }
 
 /**
- * Concrete `GeminiPort` adapter over `@google/genai` (Vertex AI mode, Google
- * Cloud service identity - no API key handled by this process). Segments
+ * Constructs the `@google/genai` client for whichever Gemini backend is
+ * configured, so the identical adapters run both locally and in the cloud and
+ * only the credential source differs:
+ *
+ * - If `GEMINI_API_KEY` is set, use the Gemini Developer API (Google AI Studio)
+ *   with that key. No Google Cloud project, ADC, or billing wiring is required -
+ *   the simplest path for local live-LLM testing and a key-based demo. The key
+ *   is a secret: it is read only from the environment, never logged, never
+ *   persisted, and in the cloud must come from Secret Manager, never the image.
+ * - Otherwise use Vertex AI mode (Google Cloud identity via ADC,
+ *   `GOOGLE_CLOUD_PROJECT` + `location: 'global'`) - decision 0001/0003's
+ *   original enterprise path, which does need a GCP project.
+ *
+ * Both backends serve the same models and return the same response shape, so the
+ * choice here changes nothing downstream (the Zod re-validation and
+ * owner-confirmation safety boundary are backend-independent). Set `GEMINI_MODEL`
+ * to a model id the chosen backend exposes.
+ */
+function createGenAiClient(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    return new GoogleGenAI({ apiKey });
+  }
+  return new GoogleGenAI({ vertexai: true, project: process.env.GOOGLE_CLOUD_PROJECT ?? '', location: 'global' });
+}
+
+/**
+ * Concrete `GeminiPort` adapter over `@google/genai`. The backend (Gemini
+ * Developer API key or Vertex AI identity) is chosen by `createGenAiClient`
+ * from the environment; this adapter is identical either way. Segments
  * are sent as structured prompt content (the `segments` field of a JSON
  * request body) rather than concatenated into free-form instruction text,
  * but that framing alone does not prove hostile transcript text can never
@@ -163,7 +191,7 @@ function modelId(): string {
  * instead. Live calls are gated to DSN-014 (cloud auth/deployment).
  */
 export function createGeminiPort(): GeminiPort {
-  const ai = new GoogleGenAI({ vertexai: true, project: process.env.GOOGLE_CLOUD_PROJECT ?? '', location: 'global' });
+  const ai = createGenAiClient();
 
   return {
     async extract(segments: FactSegmentInput[]): Promise<CandidateFact[]> {
@@ -221,7 +249,7 @@ export function createGeminiPort(): GeminiPort {
  * transcription route tests inject a fake); live calls need DSN-014 cloud auth.
  */
 export function createGeminiTranscriptionPort(): TranscriptionPort {
-  const ai = new GoogleGenAI({ vertexai: true, project: process.env.GOOGLE_CLOUD_PROJECT ?? '', location: 'global' });
+  const ai = createGenAiClient();
 
   return {
     async transcribe(audio: AudioInput): Promise<TranscriptTurn[]> {
@@ -266,7 +294,7 @@ export function createGeminiTranscriptionPort(): TranscriptionPort {
 export function createGeminiOfficialSourceGrounding(): OfficialSourceGrounding {
   return {
     async checkNumber({ displayName, officialDomain, normalizedNumber }): Promise<NumberMatch> {
-      const ai = new GoogleGenAI({ vertexai: true, project: process.env.GOOGLE_CLOUD_PROJECT ?? '', location: 'global' });
+      const ai = createGenAiClient();
       const response = await ai.models.generateContent({
         model: modelId(),
         contents: JSON.stringify({

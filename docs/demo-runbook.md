@@ -51,6 +51,15 @@ Fully local: Firebase emulators + the deterministic fake Gemini (no real Gemini/
 
 Smoke check (with the dev servers up): `curl http://localhost:5173/healthz` → `{"status":"ok"}`; `curl http://localhost:5173/api/v1/cases/x` → `401 {"error":"UNAUTHENTICATED"}`. The automated two-browser Playwright journey (`apps/web/e2e/journey.spec.ts`) stays `test.skip` pending the Playwright dependency decision.
 
+## Run locally with a LIVE LLM (real model, emulated auth/db)
+
+Exercises the same `gemini.ts` adapters that run in the cloud; only Auth and Firestore stay on the emulators, so the one live dependency is the model (a real, billable call). See decision 0019. Pick ONE backend:
+
+- **Gemini Developer API key (no GCP project needed):** get a key at `aistudio.google.com` → API keys. Then `export GEMINI_API_KEY=<your-key>` and `export GEMINI_MODEL=gemini-flash-latest` (verified working on the Developer API; the code default `gemini-3.5-flash-lite` targets Vertex naming and does not resolve here). The key is a secret — shell env only, never committed. Validate the key end-to-end first with `npm run smoke:llm` (one real call through the adapter; retries transient free-tier 503s).
+- **Vertex AI (needs a GCP project):** `gcloud auth application-default login` and `export GOOGLE_CLOUD_PROJECT=<project>` (leave `GEMINI_API_KEY` unset). The principal needs `roles/aiplatform.user`.
+
+Then: Terminal A `npm run dev:api:live` (same emulators + dev API on `:8787`, but the real Gemini + transcription adapters); Terminal B `npm run dev:web`. The API logs the active backend on boot. `DSN_LIVE_GEMINI=1` with neither backend configured fails fast with a clear error.
+
 ## Native Android companion (DSN-020, optional demo add-on)
 
 A sideloaded **debug** Android app (`apps/android/`) hosts the same local web UI in a full-screen WebView and forwards consented, session-scoped incoming SMS into the Decision view as a message **claim** — never a verified fact or a completed payment. No backend/API/contract change; it points at the local web + API dev servers. Synthetic demo data only; call audio stays **Simulated** (the app never records calls). This is an add-on to the web demo, not a replacement.
