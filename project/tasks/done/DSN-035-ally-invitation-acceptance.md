@@ -33,7 +33,7 @@ Every `allyInvitations` read was keyed on `ownerUid`; the ally had no way to lea
 
 ## Verification evidence
 
-- **Commits:** (implementation commit recorded at integration)
+- **Commits:** bffe34f (implementation + tests + decision 0017).
 - **Integration commit:** (recorded at merge)
 - **Commands and results:**
   - `apps/web`: `tsc --noEmit` clean; `vitest run` 24 files / 219 tests pass.
