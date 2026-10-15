@@ -86,6 +86,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [deselectedEvidenceIds, setDeselectedEvidenceIds] = useState<ReadonlySet<string>>(() => new Set());
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [allyUid, setAllyUid] = useState<string | null>(null);
+  // Ally session: the id of the invitation addressed to this ally (null until the
+  // owner redeems this ally's pairing code and the discovery poll finds it).
+  const [allyInvitationId, setAllyInvitationId] = useState<string | null>(null);
   // Payee picker (DSN-030): the owner's registered accounts plus a free-text
   // "new payee" the caller named. `newPayee` stays server-derived - the id is
   // only input. '__new__' selects the free-text field.
@@ -164,6 +167,37 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
       }
     })();
   }, [auth, role]);
+
+  // Ally session: discover and track the invitation addressed to this ally. The
+  // owner usually invites AFTER the ally window is already open, so poll until an
+  // invitation appears and is accepted; this is what makes the ally screen react
+  // to an invitation and gives "Accept" a real invitation id to act on.
+  useEffect(() => {
+    if (role !== 'ally') return;
+    let cancelled = false;
+    const sync = async () => {
+      try {
+        const { invitations } = await api.get<{ invitations: { id: string; acceptedAt?: string | null }[] }>('ally/invitations');
+        if (cancelled) return;
+        const active = invitations[0];
+        if (!active) {
+          setAllyInvitationId(null);
+          setAllyStatus('none');
+        } else {
+          setAllyInvitationId(active.id);
+          setAllyStatus(active.acceptedAt ? 'ready' : 'invited');
+        }
+      } catch {
+        // Transient read failure: leave the current state; the next poll retries.
+      }
+    };
+    void sync();
+    const timer = window.setInterval(() => void sync(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [role, api]);
 
   const run = useCallback(async (work: () => Promise<void>) => {
     setError(null);
@@ -497,7 +531,13 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   setPairingCode(issued.code);
                 })
               }
-              onAcceptInvitation={() => run(async () => setAllyStatus('ready'))}
+              onAcceptInvitation={() =>
+                run(async () => {
+                  if (!allyInvitationId) return; // nothing to accept until an invitation has arrived
+                  await api.command('POST', `ally-invitations/${allyInvitationId}/accept`);
+                  setAllyStatus('ready');
+                })
+              }
               onSavePlan={() => run(async () => setStep('Ally'))}
             />
           )}
