@@ -55,7 +55,7 @@ Smoke check (with the dev servers up): `curl http://localhost:5173/healthz` → 
 
 Exercises the same `gemini.ts` adapters that run in the cloud; only Auth and Firestore stay on the emulators, so the one live dependency is the model (a real, billable call). See decision 0019. Pick ONE backend:
 
-- **Gemini Developer API key (no GCP project needed):** get a key at `aistudio.google.com` → API keys. Then `export GEMINI_API_KEY=<your-key>` and `export GEMINI_MODEL=<a-model-your-key-exposes>` (the default `gemini-3.5-flash-lite` targets Vertex naming; set a Developer-API model id such as a current `gemini-*-flash`). The key is a secret — shell env only, never committed.
+- **Gemini Developer API key (no GCP project needed):** get a key at `aistudio.google.com` → API keys. Then `export GEMINI_API_KEY=<your-key>` and `export GEMINI_MODEL=gemini-flash-latest` (verified working on the Developer API; the code default `gemini-3.5-flash-lite` targets Vertex naming and does not resolve here). The key is a secret — shell env only, never committed. Validate the key end-to-end first with `npm run smoke:llm` (one real call through the adapter; retries transient free-tier 503s).
 - **Vertex AI (needs a GCP project):** `gcloud auth application-default login` and `export GOOGLE_CLOUD_PROJECT=<project>` (leave `GEMINI_API_KEY` unset). The principal needs `roles/aiplatform.user`.
 
 Then: Terminal A `npm run dev:api:live` (same emulators + dev API on `:8787`, but the real Gemini + transcription adapters); Terminal B `npm run dev:web`. The API logs the active backend on boot. `DSN_LIVE_GEMINI=1` with neither backend configured fails fast with a clear error.

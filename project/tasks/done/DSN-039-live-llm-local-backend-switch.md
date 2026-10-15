@@ -25,15 +25,16 @@ Enables running the local end-to-end journey against the **real** Gemini model w
 - [x] `npm run typecheck` clean across contracts/api/web.
 - [x] Full API suite green under emulators — the new optional `transcription` param is backward-compatible: 22 files, 428/428.
 - [x] Fake Gemini remains the default (`DSN_LIVE_GEMINI` unset); the API-key path needs no GCP project; `DSN_LIVE_GEMINI=1` with no backend fails fast.
-- [ ] Real live call walked through the journey — **deferred to founder** (no key in-session). Resume: `GEMINI_API_KEY=... GEMINI_MODEL=... npm run dev:api:live` + `npm run dev:web`.
+- [x] Real live call verified by the founder: `npm run smoke:llm` with a personal Gemini Developer API key → **PASS** on `gemini-flash-latest` (8 source-grounded facts, `relate` `directedAction=true` with amount + beneficiary matches). Full two-browser UI journey remains the founder's optional click-through via `npm run dev:api:live` + `npm run dev:web`.
 
 ## Verification evidence
 
 - **Commands and results (worktree, JDK 21 at `/opt/homebrew/opt/openjdk@21`):**
   - `npm run typecheck` → exit 0, all three workspaces.
   - `npx firebase emulators:exec --project demo-dsn --only auth,firestore 'npm --workspace apps/api run test'` → `22 passed (22)`, `428 passed (428)`, script exit 0.
-- **Changed paths:** `apps/api/src/gemini.ts`, `apps/api/src/dev-server.ts`, `apps/api/src/server.ts`, `package.json`, `docs/demo-runbook.md`, `project/decisions/0019-gemini-api-key-backend-for-local-and-demo.md`.
-- **Limitations / skipped checks:** Emulator requires JDK 21+ (machine default is 17; a Homebrew `openjdk@21` was used via `JAVA_HOME`). No real model call made in-session (no key present); `gcloud` is not installed on the machine, so the Vertex path is untested here — the API-key path is the recommended one for the founder's setup. The pre-existing `npm run build` TS6059 defect (DSN-014 blocker 5) is unchanged and still blocks the Docker image.
+  - LIVE (founder's terminal, personal Developer API key): `npm run smoke:llm` → RESULT PASS on `gemini-flash-latest`; `extract` returned 8 well-formed, source-grounded facts and `relate` returned `directedAction=true` with `amountMinor` + `beneficiaryId` matches. Transient free-tier 503s were retried and succeeded. Finding: the code default model id `gemini-3.5-flash-lite` is Vertex-style and does NOT resolve on the Developer API — `gemini-flash-latest` works and is now the runbook recommendation.
+- **Changed paths:** `apps/api/src/gemini.ts`, `apps/api/src/dev-server.ts`, `apps/api/src/server.ts`, `apps/api/scripts/live-gemini-smoke.ts`, `package.json`, `docs/demo-runbook.md`, `project/decisions/0019-gemini-api-key-backend-for-local-and-demo.md`.
+- **Limitations / skipped checks:** Emulator requires JDK 21+ (machine default is 17; a Homebrew `openjdk@21` was used via `JAVA_HOME`). The live call was validated via the direct `smoke:llm` round-trip, not the full two-browser UI journey (left as the founder's optional click-through). `gcloud` is not installed, so the Vertex path is untested here — the API-key path is the one in use. The pre-existing `npm run build` TS6059 defect (DSN-014 blocker 5) is unchanged and still blocks the Docker image.
 
 ## Handoff
 
