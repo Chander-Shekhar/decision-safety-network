@@ -29,7 +29,7 @@ import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
-import { Button, Callout, Dialog, Disclosure, StepFlowNav, StepRail } from './ui';
+import { Button, Callout, Card, Disclosure, StepFlowNav, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
@@ -107,6 +107,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [registry, setRegistry] = useState<VerifyPanelRegistry | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerifyPanelResult | undefined>();
   const [preview, setPreview] = useState<AllyPreview | null>(null);
+  const [allyPreviewPending, setAllyPreviewPending] = useState(false);
   const [allyPacket, setAllyPacket] = useState<AllyPacket | null>(null);
   // DSN-027: owner-side WhatsApp summary (minimum packet only) + ally-side contact-caller script.
   const [allyShared, setAllyShared] = useState(false);
@@ -146,6 +147,8 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const segmentsRef = useRef<SessionSegmentView[]>(segments);
   segmentsRef.current = segments;
   const seenLiveRef = useRef(new Set<string>());
+  // Guards the one-shot auto-generation of the ally summary on entering the Ally step.
+  const allyAutoPreviewRef = useRef(false);
 
   // Auto sign-in on first load: the demo opens straight into the app, no role picker.
   // Role comes from the URL (`?role=ally` for the ally's own window/device, per the
@@ -266,6 +269,47 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
       return next;
     });
   }, []);
+
+  // Build the ally summary the owner reviews on the Ally step. We DON'T ask a person under
+  // pressure to hand-pick excerpts: a sensible default (all current excerpts, capped at the
+  // server limit) is promoted and summarised automatically; the owner reviews the result and
+  // consents by Sharing. The optional "Adjust what your ally sees" picker re-runs this.
+  const generateAllyPreview = useCallback(() => {
+    if (!caseId) return;
+    const ids = selectedEvidenceIds.slice(0, MAX_ALLY_EVIDENCE);
+    if (ids.length === 0) return;
+    setAllyPreviewPending(true);
+    void run(async () => {
+      try {
+        // Promote each chosen segment into the case's `evidence` subcollection (idempotent per
+        // segment) so the preview can resolve the ids, then summarise exactly those ids.
+        for (const id of ids) {
+          await api.command('POST', `cases/${caseId}/evidence/${id}/promote`, {});
+        }
+        const result = await api.command<{ packetContent: AllyPacketContent; packetHash: string; caseVersion: number }>(
+          'POST',
+          `cases/${caseId}/ally-share-preview`,
+          { selectedEvidenceIds: ids },
+        );
+        setPreview({ packet: result.packetContent, packetHash: result.packetHash, caseVersion: result.caseVersion, selectedEvidenceIds: ids });
+      } finally {
+        setAllyPreviewPending(false);
+      }
+    });
+  }, [api, caseId, selectedEvidenceIds, run]);
+
+  // Auto-generate the summary once when the owner lands on the Ally step with a call present.
+  // The ref makes it one-shot per visit; leaving the step rearms it. "Not now" navigates away
+  // without clearing `preview`, so returning shows the same summary rather than regenerating.
+  useEffect(() => {
+    if (!(role === 'owner' && caseId && step === 'Ally')) {
+      allyAutoPreviewRef.current = false;
+      return;
+    }
+    if (preview || allyPreviewPending || segments.length === 0 || allyAutoPreviewRef.current) return;
+    allyAutoPreviewRef.current = true;
+    generateAllyPreview();
+  }, [role, caseId, step, preview, allyPreviewPending, segments.length, generateAllyPreview]);
 
   // DSN-026: fetch the case's stored untrusted web evidence. Supporting evidence only; never the official route.
   const loadWebEvidence = useCallback(
@@ -880,49 +924,20 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
         )}
 
         {owner && caseId && step === 'Ally' && (
-          <>
-            <AllyEvidenceSelector
-              segments={segments}
-              selectedIds={selectedEvidenceIds}
-              onToggle={toggleEvidence}
-              onPreview={() =>
-                run(async () => {
-                  // Guard the server cap BEFORE promoting anything: the preview endpoint
-                  // rejects >MAX_ALLY_EVIDENCE ids, and promoting first would persist
-                  // evidence for a request we know will 400. The button is already
-                  // disabled over the cap; this makes the side-effect-free path explicit.
-                  if (selectedEvidenceIds.length > MAX_ALLY_EVIDENCE) {
-                    setError(`Choose at most ${MAX_ALLY_EVIDENCE} excerpts to share before previewing.`);
-                    return;
-                  }
-                  // Promote each chosen segment into the case's `evidence` subcollection
-                  // (idempotent per segment) so the preview can resolve the selected ids,
-                  // then preview with exactly those ids.
-                  for (const id of selectedEvidenceIds) {
-                    await api.command('POST', `cases/${caseId}/evidence/${id}/promote`, {});
-                  }
-                  const result = await api.command<{ packetContent: AllyPacketContent; packetHash: string; caseVersion: number }>(
-                    'POST',
-                    `cases/${caseId}/ally-share-preview`,
-                    { selectedEvidenceIds },
-                  );
-                  // The preview endpoint returns `packetContent` (ally.ts previewAllyPacket);
-                  // map it to the `packet` the dialog renders.
-                  setPreview({
-                    packet: result.packetContent,
-                    packetHash: result.packetHash,
-                    caseVersion: result.caseVersion,
-                    selectedEvidenceIds,
-                  });
-                })
-              }
-            />
-            <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)} title="What your ally would see">
-              {preview && (
+          <div className="flex flex-col gap-space-5">
+            {segments.length === 0 ? (
+              <Card title="Ask your Safety Ally">
+                <p className="text-sm text-text-muted">
+                  There's nothing to summarise yet. Add the call on the Session step first, then come back to share it with your ally.
+                </p>
+              </Card>
+            ) : preview ? (
+              <>
+                {/* The summary is prepared automatically — the owner reviews it and consents by Sharing. */}
                 <AllySharePreview
                   allyName="your Safety Ally"
                   packet={preview.packet}
-                  onNotNow={() => setPreview(null)}
+                  onNotNow={() => setStep('Decide')}
                   onShare={() =>
                     run(async () => {
                       // The ally's uid comes from the invitation response; the owner UI never types it.
@@ -948,9 +963,17 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   }
                   whatsappSummary={whatsappSummary}
                 />
-              )}
-            </Dialog>
-          </>
+                {/* Optional, not required: the owner can narrow the excerpts the summary includes. */}
+                <Disclosure summary="Adjust which excerpts your ally sees">
+                  <AllyEvidenceSelector segments={segments} selectedIds={selectedEvidenceIds} onToggle={toggleEvidence} onPreview={generateAllyPreview} />
+                </Disclosure>
+              </>
+            ) : (
+              <Card title="Ask your Safety Ally">
+                <p className="text-sm text-text-muted">Preparing a short summary of this call for your ally…</p>
+              </Card>
+            )}
+          </div>
         )}
 
         {role === 'ally' && step === 'Ally' && (

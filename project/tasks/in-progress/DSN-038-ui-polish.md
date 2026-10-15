@@ -5,7 +5,7 @@
 - **Owner:** Orchestrator (solo owner — claim + implement + integrate per WORKFLOW "Solo owner")
 - **Status:** in-progress (kept open; successive polish changes land under this one task per founder request — do not spin up a new task per tweak)
 - **Branch/worktree:** committed directly to `main` in small, test-backed, `DSN-038:`-prefixed commits (lightweight iteration; founder reviews live)
-- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/journey.ts`, `apps/web/src/ui/Disclosure.tsx`, `apps/web/src/ui/StepFlowNav.tsx`, `apps/web/src/ui/index.ts`, `apps/web/e2e/journey.spec.ts`, and their tests; this record. (Declare more as batches touch them.)
+- **Owned paths (this task):** `apps/web/src/App.tsx`, `apps/web/src/SessionScreen.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/journey.ts`, `apps/web/src/ui/Disclosure.tsx`, `apps/web/src/ui/Dialog.tsx`, `apps/web/src/ui/StepFlowNav.tsx`, `apps/web/src/ui/index.ts`, `apps/web/e2e/journey.spec.ts`, and their tests; `project/decisions/0016-ally-preview-promotes-selected-evidence.md` (addendum); this record. (Declare more as batches touch them.)
 - **Dependencies:** DSN-034 (shell/nav), DSN-037 (breadcrumbs).
 - **PRD references:** Core MVP owner journey (Session, Decision).
 - **Started:** 2026-10-15
@@ -62,6 +62,17 @@ Two founder directives: "Don't put 2 buttons… keep the one consistently availa
 
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **230** tests pass (journey.test, StepFlowNav.test mock array, and the App split/footer tests updated to Review/Decide/Pay and "Step N of 9").
 - **e2e:** `apps/web/e2e/journey.spec.ts` **structurally reconciled** to the split (call added on Session; Decision Map on Review; transfer on Pay; console on Decide) but the three UI journeys are marked `test.fixme` and were **not run** against the live stack — the emulator+Vite+API boot is deferred per founder ("we'll run the playwright e2e later"). The api-auth-guard test is unaffected and stays active. Re-enable + validate in the deferred e2e pass; likely tweak point is the Pay→Decide hop (post-submit auto-recheck must settle to `Pause` before the Decide console is read) and the no-transcript legitimate-control draft (Pay is facts-gated).
+
+### Batch 5 — Ally step: fix the modal freeze + auto-generate the summary (2026-10-15)
+
+Founder-reported, testing the live flow: (1) clicking "Preview what my ally would see" froze the whole app — nothing clickable or scrollable, burger included; (2) "why ask a person under stress to select the exact excerpts — a summary should be generated and shown in preview."
+
+1. **Freeze (root cause):** `ui/Dialog` content had no height bound and Radix locks body scroll while a modal is open, so the tall ally packet overflowed off-screen with the close button unreachable — modal behaviour + no way out reads as a frozen app. Fixed `ui/Dialog` with `max-h-[85vh] overflow-y-auto` (defensive for any modal).
+2. **Auto-summary (the real fix for this flow):** the Ally step now **auto-generates** the summary on entry and renders the `AllySharePreview` packet **inline** (no modal). No stress-time excerpt triage: a default selection (all excerpts, capped at `MAX_ALLY_EVIDENCE`) is promoted + summarised automatically; the owner reviews and consents by **Share**. The `AllyEvidenceSelector` picker is retained but demoted to an optional "Adjust which excerpts your ally sees" disclosure that re-runs the generation. "Not now" now navigates back to Decide instead of closing a modal.
+3. Privacy model unchanged (PRD C8): preview shows exactly what will be sent, full transcript stays private, grant still binds to the previewed version+hash. Recorded as an addendum on decision 0016.
+
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **230** tests pass (no owner-Ally-step unit test exercises the auto-generate effect; `AllyEvidenceSelector.test.tsx` still covers the picker in isolation).
+- **e2e:** attack-journey ally section updated to the inline "Ask my ally preview" region (region role, no dialog); still `test.fixme` pending the live run.
 
 ## Open follow-ups (founder: "we'll work on others next")
 

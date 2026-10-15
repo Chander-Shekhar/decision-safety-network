@@ -150,26 +150,18 @@ test.describe('attack journey', () => {
     // "Central claim" (asserted above), and the Pause OFFERS the ally route rather than
     // acting on the caller's demand.
     //
-    // Owner-side ally reach (DSN-033): the Pause offers "Ask my ally", which opens the
-    // Ally step's evidence selector (all transcript excerpts selected by default). The
-    // owner previews EXACTLY the allowlisted packet the ally would receive — the caller's
-    // words appear under a "Caller claimed" label and a "Verification gap", never as an
-    // instruction. (This exercises the full promote-then-preview path end to end; the gap
-    // the DSN-032 harness had to document is now resolved.)
+    // Owner-side ally reach (DSN-033/DSN-038): the Pause offers "Ask my ally", which opens the
+    // Ally step and AUTO-GENERATES the summary inline (no stress-time excerpt triage; the picker
+    // is now optional behind "Adjust which excerpts your ally sees"). The owner reviews EXACTLY
+    // the allowlisted packet the ally would receive — the caller's words appear under a "Caller
+    // claimed" label and a "Verification gap", never as an instruction. The raw transcript is
+    // never shared.
     await actionConsole.getByRole('button', { name: 'Ask my ally' }).click();
-    await expect(page.getByRole('heading', { name: 'Choose what your ally sees' })).toBeVisible();
-    await page.getByRole('button', { name: 'Preview what my ally would see' }).click();
-
-    const previewDialog = page.getByRole('dialog', { name: 'What your ally would see' });
-    await expect(previewDialog.getByText('Caller claimed')).toBeVisible();
-    await expect(previewDialog.getByText('Account compromised')).toBeVisible();
-    await expect(previewDialog.getByText('Verification gap')).toBeVisible();
-    // The raw transcript is never shared — only the allowlisted packet + chosen excerpts.
-    await expect(previewDialog.getByText(/full transcript and other evidence are not included/i)).toBeVisible();
-
-    // Close the modal preview before leaving for the official-verification route.
-    await previewDialog.getByRole('button', { name: 'Not now' }).click();
-    await expect(previewDialog).toBeHidden();
+    const allyPreview = page.getByRole('region', { name: 'Ask my ally preview' });
+    await expect(allyPreview.getByText('Caller claimed')).toBeVisible();
+    await expect(allyPreview.getByText('Account compromised')).toBeVisible();
+    await expect(allyPreview.getByText('Verification gap')).toBeVisible();
+    await expect(allyPreview.getByText(/full transcript and other evidence are not included/i)).toBeVisible();
 
     // Official verification is a SEALED, simulated route sourced from the Demo Bank
     // registry (never caller data); it reports the claim is not supported.

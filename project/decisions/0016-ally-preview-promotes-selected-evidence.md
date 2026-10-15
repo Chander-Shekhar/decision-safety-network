@@ -34,6 +34,15 @@ Would keep "preview creates nothing" literally true. Rejected: the preview endpo
 
 A single `POST .../evidence/promote` accepting many ids. Rejected as out of scope: per-segment idempotent promote is adequate for the demo's small segment counts, and adding an endpoint is an API change.
 
+## Addendum (2026-10-15, DSN-038): auto-generate the summary; don't make a stressed owner triage excerpts
+
+Founder feedback: asking a person mid-scam to hand-pick which transcript excerpts to share is the wrong moment for that work — "a summary should have been generated and shown in preview." The promotion/preview/grant mechanics above are unchanged; only the owner-facing interaction changed:
+
+- Landing on the Ally step (including via the Action console's "Ask my ally") now **auto-generates** the preview: a sensible default selection (all current excerpts, capped at `MAX_ALLY_EVIDENCE`) is promoted and summarised automatically, and the resulting allowlisted packet (claim, proposed action, amount, verification gap, selected excerpts) renders **inline** — not behind a checkbox step the owner must complete first.
+- The owner still consents deliberately by pressing **Share** (PRD C8 / "full transcript private unless the user deliberately shares it" is preserved — the preview shows exactly what will be sent, and nothing is granted until Share binds to the previewed version+hash).
+- The excerpt picker (`AllyEvidenceSelector`) is retained but demoted to an optional "Adjust which excerpts your ally sees" disclosure that re-runs the same generation. The ≤10 cap and server re-validation are unchanged.
+- The inline rendering also removes the modal preview for this flow, which fixed a freeze: the `ui/Dialog` content had no height bound, so a tall packet overflowed off-screen while Radix locked body scroll, leaving the whole app unresponsive. `ui/Dialog` additionally gained `max-h-[85vh] overflow-y-auto` as a defensive fix for any future modal.
+
 ## Verification
 
 - `apps/web/e2e/journey.spec.ts` attack journey drives Ask my ally → preview and asserts the allowlisted packet renders (claim under "Caller claimed", "Verification gap") and that the full transcript is not included — green across desktop + mobile-440.
