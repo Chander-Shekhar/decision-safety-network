@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Fact, FactOrigin } from '../../../packages/contracts/src/facts';
 import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
 import { WebEvidenceList } from './VerifyPanel';
@@ -35,27 +35,17 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 /**
- * Provenance label per the wireframes README's "Provenance is not truth"
- * rule: `Caller claimed`, `You confirmed`, and `You corrected` are different
- * states, and none of them means the underlying claim is genuine. Shown as a
- * quiet inline tag (glyph + label, never color alone) on every fact.
- *
- * Note the owner-facing wording: `user-confirmed` reads "You confirmed what
- * was said" — attesting the extraction captured the call accurately, never
- * that the claim is true. The UI no longer offers a per-fact "Confirm"
- * endorsement control (it read as endorsing the caller's claim); the single
- * step-level "This matches the call" action attests accuracy in bulk.
+ * Owner-facing marker for a fact the owner has acted on. Only the non-default
+ * states are shown — a model-extracted fact carries no per-row tag (the map
+ * header already frames every point as an unverified caller claim, and a pill
+ * on all ~8 rows was just clutter). `user-confirmed` reads "You confirmed what
+ * was said" — attesting the extraction captured the call accurately, never that
+ * the claim is true. There is no per-fact "Confirm" endorsement control; the
+ * single step-level "This matches the call" action attests accuracy in bulk.
  */
-const PROVENANCE_COPY: Record<FactOrigin, string> = {
-  model: 'Caller claimed',
+const PROVENANCE_COPY: Partial<Record<FactOrigin, string>> = {
   'user-confirmed': 'You confirmed what was said',
   'user-corrected': 'You corrected this',
-};
-
-const PROVENANCE_GLYPH: Record<FactOrigin, string> = {
-  model: '?',
-  'user-confirmed': '✓',
-  'user-corrected': '✎',
 };
 
 /** A displayable transcript excerpt backing a fact, resolved by the caller from cited segment ids. */
@@ -143,20 +133,24 @@ interface FactCardProps {
 }
 
 function FactCard({ fact, sourceRetained, webEvidence, resolveSource }: FactCardProps): React.JSX.Element {
-  const [showSource, setShowSource] = useState(false);
   const isUnknown = fact.value === 'unknown';
   const hasSource = fact.sourceSegmentIds.length > 0;
   const label = FIELD_LABELS[fact.field] ?? fact.field;
-  const excerpts = showSource ? (resolveSource?.(fact.sourceSegmentIds) ?? []) : [];
+  const provenance = PROVENANCE_COPY[fact.origin];
+  const excerpts = hasSource ? (resolveSource?.(fact.sourceSegmentIds) ?? []) : [];
 
   return (
-    <div className="flex flex-col gap-space-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-space-2">
-        <h3 className="text-sm font-medium text-text-muted">{label}</h3>
-        <span className="inline-flex items-center gap-space-1 rounded-pill bg-surface-sunken px-space-2 text-xs text-text-muted">
-          <span aria-hidden="true">{PROVENANCE_GLYPH[fact.origin]}</span>
-          {PROVENANCE_COPY[fact.origin]}
-        </span>
+    <div className="flex flex-col gap-space-1">
+      {/* Label is the hero — it tells you WHAT this is (a claimed identity, a requested action).
+          "View source" sits quietly in the corner as a hover/focus popover, out of the reading flow. */}
+      <div className="flex items-start justify-between gap-space-3">
+        <h3 className="text-sm font-semibold text-text">{label}</h3>
+        {hasSource &&
+          (sourceRetained ? (
+            <SourceHover label={label} excerpts={excerpts} />
+          ) : (
+            <span className="shrink-0 text-xs text-text-muted">Source not retained</span>
+          ))}
       </div>
       {fact.uncertainty !== 'low' && (
         <p className="text-xs text-text-muted">
@@ -164,36 +158,51 @@ function FactCard({ fact, sourceRetained, webEvidence, resolveSource }: FactCard
           {fact.uncertainty === 'high' ? 'Low confidence' : 'Unconfirmed'}
         </p>
       )}
-      <p className="text-base font-medium">{isUnknown ? 'Unknown' : fact.value}</p>
+      {/* The value, read calmly: not shouting (the label carries the emphasis). */}
+      <p className="text-base font-normal text-text">{isUnknown ? 'Unknown' : fact.value}</p>
+      {provenance && <p className="text-xs text-text-muted">{provenance}</p>}
       <WebEvidenceList evidence={webEvidence} />
-
-      {hasSource &&
-        (sourceRetained ? (
-          <div className="flex flex-col gap-space-2">
-            <ActionBar>
-              <Button variant="secondary" size="sm" onClick={() => setShowSource((v) => !v)}>
-                {showSource ? 'Hide source' : 'View source'}
-              </Button>
-            </ActionBar>
-            {showSource && (
-              <div className="rounded-md bg-surface-sunken p-space-3 text-sm" aria-label={`Source for ${label.toLowerCase()}`}>
-                {excerpts.length > 0 ? (
-                  excerpts.map((e, i) => (
-                    <p key={i}>
-                      <span className="text-text-muted">{e.speaker}: </span>
-                      {e.text}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-text-muted">Source excerpt unavailable.</p>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <span className="text-xs text-text-muted">Source not retained</span>
-        ))}
     </div>
+  );
+}
+
+/**
+ * The source excerpt as a corner affordance: a small "View source" link that
+ * reveals the backing transcript on hover or keyboard focus (role="tooltip"),
+ * instead of an inline block that pushed every fact apart. The panel is a child
+ * of the hover group, so moving the pointer into it to read/scroll keeps it
+ * open; it is width- and height-bounded so a long excerpt scrolls rather than
+ * sprawling across the map.
+ */
+function SourceHover({ label, excerpts }: { label: string; excerpts: readonly SourceExcerpt[] }): React.JSX.Element {
+  const panelId = useId();
+  return (
+    <span className="group relative inline-block shrink-0">
+      <button
+        type="button"
+        aria-describedby={panelId}
+        className="text-xs text-primary underline underline-offset-2 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        View source
+      </button>
+      <span
+        id={panelId}
+        role="tooltip"
+        aria-label={`Source for ${label.toLowerCase()}`}
+        className="absolute right-0 top-full z-20 mt-space-1 hidden max-h-64 w-80 max-w-[80vw] overflow-y-auto rounded-md border border-border bg-surface-raised p-space-3 text-left text-sm font-normal text-text shadow-md group-hover:block group-focus-within:block"
+      >
+        {excerpts.length > 0 ? (
+          excerpts.map((e, i) => (
+            <span key={i} className="block">
+              <span className="text-text-muted">{e.speaker}: </span>
+              {e.text}
+            </span>
+          ))
+        ) : (
+          <span className="text-text-muted">Source excerpt unavailable.</span>
+        )}
+      </span>
+    </span>
   );
 }
 

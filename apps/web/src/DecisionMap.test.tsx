@@ -29,11 +29,12 @@ describe('DecisionMap', () => {
     expect(screen.getByText(/degraded/i)).toBeVisible();
   });
 
-  it('frames a model-extracted fact as a caller claim via an inline provenance tag', () => {
+  it('frames facts as unverified caller claims in the header, without a per-row pill', () => {
     render(<DecisionMap facts={[claimedPayee]} />);
-    expect(screen.getByText(/caller claimed/i)).toBeVisible();
-    expect(screen.queryByText(/not independently verified/i)).toBeNull();
+    // The "unverified claims" framing lives once in the header, not as a pill on every row.
+    expect(screen.getByText(/none of it is independently verified/i)).toBeInTheDocument();
     expect(screen.getByText('safe-new')).toBeVisible();
+    expect(screen.queryByText(/caller claimed/i)).toBeNull();
   });
 
   it('is read-only: no per-fact confirm or correct control', () => {
@@ -49,25 +50,20 @@ describe('DecisionMap', () => {
     expect(screen.queryByRole('button', { name: /view source/i })).toBeNull();
   });
 
-  it('reveals the backing transcript excerpt inline when View source is pressed', async () => {
+  it('exposes the backing transcript excerpt behind a corner View source popover', () => {
     const resolveSource = vi.fn().mockReturnValue([{ speaker: 'Caller', text: 'Move it to safe-new now.' }]);
-    const user = userEvent.setup();
     render(<DecisionMap facts={[claimedPayee]} sourceRetained resolveSource={resolveSource} />);
 
-    const button = screen.getByRole('button', { name: /view source/i });
-    await user.click(button);
-
+    expect(screen.getByRole('button', { name: /view source/i })).toBeInTheDocument();
     expect(resolveSource).toHaveBeenCalledWith(['s1']);
-    expect(screen.getByText(/move it to safe-new now/i)).toBeVisible();
-    // The control flips to a "Hide source" toggle, signalling the expanded state via its label.
-    expect(screen.getByRole('button', { name: /hide source/i })).toBeVisible();
+    // The excerpt is rendered in a role="tooltip" popover revealed on hover/focus.
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    expect(screen.getByText(/move it to safe-new now/i)).toBeInTheDocument();
   });
 
-  it('shows a plain fallback when the citation resolves to no excerpt', async () => {
-    const user = userEvent.setup();
+  it('shows a plain fallback when the citation resolves to no excerpt', () => {
     render(<DecisionMap facts={[claimedPayee]} sourceRetained resolveSource={() => []} />);
-    await user.click(screen.getByRole('button', { name: /view source/i }));
-    expect(screen.getByText(/source excerpt unavailable/i)).toBeVisible();
+    expect(screen.getByText(/source excerpt unavailable/i)).toBeInTheDocument();
   });
 
   it('drops the source link and quietly marks the source not retained once it has expired', () => {

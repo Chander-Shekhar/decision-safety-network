@@ -104,6 +104,17 @@ The founder asked what the Decision Map is for and why it demanded inputs, and c
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **233** tests pass (DecisionMap.test rewritten for the read-only component + the new `FactCorrectionPanel`; adds inline View-source reveal, multi-correction apply, and the "confirmed = what was said, not endorsement" labeling).
 - **e2e:** the attack + near-neighbor `test.fixme` journeys updated to the new Review controls (consolidated correction panel, "This matches the call — continue" attest button) in place of the per-fact Correct/Confirm; still `test.fixme` pending the live pass.
 
+### Batch 9 — condense the Decision Map: label-forward rows, hover View source (2026-10-15)
+
+Founder feedback on the read-only map: the inline source block ate the screen when an excerpt was long (and source is low-value — the owner was on the call), the field labels (Claimed identity, Central claim, Requested action) were grayed out when they are the key signal, and the value text was oversized/bold.
+
+1. **View source → corner hover/focus popover.** Replaced the click-to-expand inline block with a small "View source" link in the row's top-right (where the per-fact tag used to sit). The excerpt now appears in a width/height-bounded `role="tooltip"` popover on hover or keyboard focus (`SourceHover`, built with Tailwind `group-hover`/`group-focus-within` — no new dependency, no modal, so no Batch 5 freeze). Long excerpts scroll inside the popover instead of pushing the facts apart.
+2. **Label is the hero.** Field labels are now full-color and `font-semibold` (`text-text`), not muted gray — they tell the owner *what* each fact is. The value renders calm: `text-base font-normal` (no longer big/bold), so the row reads "this is the **Claimed identity**: Rajesh from the Demo Bank fraud team".
+3. **Dropped the per-row "Caller claimed" pill.** It appeared on all ~8 rows and was clutter; the "none of it is independently verified" framing lives once in the map header. A quiet marker remains only for the non-default states a fact can reach — "You corrected this" / "You confirmed what was said" — shown as small muted text, not a pill.
+
+- **Owned paths touched:** `apps/web/src/DecisionMap.tsx`, `apps/web/src/DecisionMap.test.tsx`.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **233** tests pass (DecisionMap.test updated: header-level claim framing instead of per-row pill, `role="tooltip"` source popover, fallback when a citation resolves to no excerpt).
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).
