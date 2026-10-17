@@ -155,9 +155,23 @@ Still open (founder will check separately): what "Verify officially" actually do
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **238** tests pass (ActionConsole test for the old "Before you enter an OTP" title rewritten to assert the OTP assumption and simulated stamp are both absent and the stop-transfer decision framing shows).
 - **e2e:** attack journey reconciled — the reasons locator moved from the removed `section[aria-label="Why slow down"]` to the console's list items; still `test.fixme` pending the live pass.
 
+### Batch 13 — "What we heard" rename, LLM procedure check, scoped alert-red, single forward action (2026-10-17)
+
+Founder follow-ups: "Decision Map" is a poor name for a step that shows extracted claims + our observations; the procedure check was hardcoded (regex) and must be LLM-driven across scenarios ("I told you many times, do not hardcode"); the "Contradicts public listing" pill and the "What we noticed" manipulation block should use a strong warning red; and "This matches the call — continue" duplicated the footer's "Next: Decide".
+
+1. **Renamed the panel to "What we heard"** (founder-chosen). Card title + region aria-label updated; the status caption dropped its "Decision Map ·" prefix. Pairs with the "What we noticed" observations block below it. (Component/file keep the `DecisionMap` name internally.)
+2. **Procedure check is now LLM-produced, not a regex.** Added `procedureCheck` to `REQUIRED_FACT_FIELDS`; bumped the extraction prompt to `facts-extract-v2` and gave Gemini explicit per-field guidance (`EXTRACT_FIELD_GUIDANCE`) for every field — including a procedure-legitimacy judgment that reasons from *this* call, not a keyword list. Deleted the web-side `assessProcedure`/`ILLEGITIMATE_PROCEDURE` regex; `DecisionMap` now just renders the model's `procedureCheck` as an observation alongside `observedTactics`. Recorded as decision 0020. (Confirmed via `fake-gemini.ts` + the server wiring that **observed tactics were already live-LLM** — the fake emits no tactics at all, so a populated "What we noticed" can only be the live model.)
+3. **Scoped `alert` red.** New `--color-alert` / `--color-alert-soft` tokens (a deliberate, narrow override of decision 0008's amber-not-red rule). Applied to the `contradicts` web-evidence pill (`STANCE_PILL`) and the "What we noticed" block (border + heading). Decision 0020 covers the override.
+4. **One forward action.** Removed the Review-step "This matches the call — continue" button; advancing out of Review (via the footer Next or the stepper) now runs the bulk attest in `goToStep` — leaving the facts uncorrected *is* the attestation. Both `StepRail` and `StepFlowNav` route through `goToStep`.
+
+- **Owned paths touched:** `packages/contracts/src/facts.ts`, `apps/api/src/gemini.ts`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/DecisionMap.test.tsx`, `apps/web/src/VerifyPanel.tsx`, `apps/web/src/ui/tokens.css`, `apps/web/tailwind.config.js`, `apps/web/src/App.tsx` (goToStep + attest fold — note: those App.tsx/e2e edits were swept into the parallel Batch 12 commit `61cf472`), `apps/web/src/App.test.tsx`, `apps/web/e2e/journey.spec.ts`, `project/decisions/0020-*`.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **238** tests pass. `apps/api` `tsc --noEmit` clean. The emulator-backed `apps/api` suite was **not run here** (no `firebase` CLI in this environment); the change is `REQUIRED_FACT_FIELDS`-driven, which `facts.test` asserts dynamically. Run `npm run test:api` locally to confirm.
+- **Follow-up:** the live Gemini smoke (DSN-039 runbook / `npm run smoke:llm`) should be re-run after the prompt-version bump to confirm the model returns a useful `procedureCheck`; the running live dev server must be restarted to pick up v2.
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).
+- Re-run the live Gemini smoke after the `facts-extract-v2` prompt change (Batch 13) before the task is marked done.
 
 ## Handoff
 

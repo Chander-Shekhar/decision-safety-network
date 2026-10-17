@@ -14,6 +14,8 @@ export default {
         'primary-contrast': 'var(--color-primary-contrast)',
         pause: 'var(--color-pause)',
         'pause-soft': 'var(--color-pause-soft)',
+        alert: 'var(--color-alert)',
+        'alert-soft': 'var(--color-alert-soft)',
         safe: 'var(--color-safe)',
         'safe-soft': 'var(--color-safe-soft)',
         info: 'var(--color-info)',

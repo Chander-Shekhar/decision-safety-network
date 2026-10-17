@@ -97,21 +97,21 @@ describe('App', () => {
     });
     render(<App auth={auth} />);
 
-    // Lands on Review: the Decision Map, but not the decide console or the payment form.
-    expect(await screen.findByRole('region', { name: 'Decision Map' })).toBeVisible();
+    // Lands on Review: the "What we heard" panel, but not the decide console or the payment form.
+    expect(await screen.findByRole('region', { name: 'What we heard' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: /decide what to do/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
 
     // Decide is its own screen: the action console, not the map or the payment form.
     await userEvent.click(screen.getByRole('button', { name: /^Decide/ }));
     expect(screen.getByRole('heading', { name: /decide what to do/i })).toBeVisible();
-    expect(screen.queryByRole('region', { name: 'Decision Map' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'What we heard' })).toBeNull();
     expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
 
     // Pay is its own screen: the transfer form shown directly (no disclosure to open).
     await userEvent.click(screen.getByRole('button', { name: /^Pay/ }));
     expect(screen.getByRole('button', { name: /save transfer draft/i })).toBeVisible();
-    expect(screen.queryByRole('region', { name: 'Decision Map' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'What we heard' })).toBeNull();
   });
 });
 
@@ -211,7 +211,7 @@ describe('App · live transcript bridge (DSN-025)', () => {
     // The footer shows where you are and offers a forward path.
     expect(screen.getByText('Step 2 of 9')).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: /next: review/i }));
-    expect(await screen.findByRole('region', { name: 'Decision Map' })).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'What we heard' })).toBeVisible();
     expect(screen.getByText('Step 3 of 9')).toBeVisible();
     // ...and a way back to the previous step.
     await userEvent.click(screen.getByRole('button', { name: /back to session/i }));

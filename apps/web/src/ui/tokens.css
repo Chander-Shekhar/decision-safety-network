@@ -20,6 +20,13 @@
   --color-pause: #b45309;
   --color-pause-soft: #fff4e0;
 
+  /* Alert: reserved red for the few genuine danger signals the founder asked to
+     stand out — a caller claim contradicted by public listings, and detected
+     manipulation. A deliberate, scoped override of decision 0008's amber-not-red
+     rule; not for general state (see decision 0020). */
+  --color-alert: #b42318;
+  --color-alert-soft: #fdeceb;
+
   --color-safe: #1f7a4d;
   --color-safe-soft: #e5f4ec;
 

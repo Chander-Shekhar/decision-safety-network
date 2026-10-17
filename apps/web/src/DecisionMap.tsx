@@ -13,8 +13,8 @@ import { ActionBar, Button, Card, Disclosure, Field } from './ui';
 export type DecisionMapStatus = 'live' | 'degraded';
 
 const STATUS_COPY: Record<DecisionMapStatus, string> = {
-  live: 'Decision Map · Live processing',
-  degraded: 'Decision Map · Live processing degraded',
+  live: 'Live processing',
+  degraded: 'Live processing degraded',
 };
 
 /**
@@ -32,15 +32,19 @@ const FIELD_LABELS: Record<string, string> = {
   deadline: 'Deadline',
   observedTactics: 'Observed tactics',
   verificationStatus: 'Verification status',
+  procedureCheck: 'Procedure check',
 };
 
 /**
- * Fields that are *our* read of the conversation — the manipulation patterns we
- * recognised — not something the caller said. Pulled out of the caller-claims
- * list and shown as highlighted observations so the owner doesn't mistake our
- * analysis for an extracted quote.
+ * Fields that are the model's *read* of the conversation — the manipulation
+ * patterns it recognised and its judgment of whether what was asked is a
+ * legitimate procedure — not something the caller said. Pulled out of the
+ * caller-claims list and shown as highlighted observations so the owner doesn't
+ * mistake analysis for an extracted quote. Both are LLM-produced per call (see
+ * `EXTRACT_FIELD_GUIDANCE` in apps/api/src/gemini.ts), never a fixed keyword
+ * list, so they generalise across scam shapes.
  */
-const OBSERVATION_FIELDS = new Set(['observedTactics']);
+const OBSERVATION_FIELDS = new Set(['observedTactics', 'procedureCheck']);
 
 /**
  * Fields kept out of the map entirely. `verificationStatus` is the model's
@@ -52,34 +56,14 @@ const OBSERVATION_FIELDS = new Set(['observedTactics']);
 const HIDDEN_FROM_MAP = new Set(['verificationStatus']);
 
 /**
- * Known-illegitimate "do this now" instructions. A real bank or government
- * office never asks you to move money to a "safe"/"quarantine" account, read
- * back an OTP, or install remote-access software — so if the call's requested
- * action or tactics match, we say so plainly (vision step 4: "is that a normal,
- * legitimate procedure? No."). This is general safety guidance triggered by the
- * extracted text, not a verified claim about this specific caller.
- */
-const ILLEGITIMATE_PROCEDURE =
-  /safe account|quarantine|move (your |the |everything|funds|money)|transfer (your |the )?(money|funds|balance|everything)|\botp\b|one[\s-]?time password|remote access|anydesk|teamviewer|install .*(app|software)|gift card|verify.*(upi|pin)/i;
-
-/** A plain-language procedure warning when the requested action is a classic coercive-transfer pattern, else null. */
-function assessProcedure(facts: Fact[]): string | null {
-  const text = facts
-    .filter((f) => ['requestedAction', 'observedTactics', 'centralClaim'].includes(f.field) && f.value !== 'unknown')
-    .map((f) => f.value)
-    .join(' ');
-  if (!ILLEGITIMATE_PROCEDURE.test(text)) return null;
-  return 'Banks and government offices never ask you to move money to a “safe” or “quarantine” account, read back an OTP, or install an app to fix a problem. A genuine fraud team secures your account on their side — they never need you to transfer funds. What was asked here is a scam signal, not a real security step.';
-}
-
-/**
  * Owner-facing marker for a fact the owner has acted on. Only the non-default
  * states are shown — a model-extracted fact carries no per-row tag (the map
  * header already frames every point as an unverified caller claim, and a pill
  * on all ~8 rows was just clutter). `user-confirmed` reads "You confirmed what
  * was said" — attesting the extraction captured the call accurately, never that
- * the claim is true. There is no per-fact "Confirm" endorsement control; the
- * single step-level "This matches the call" action attests accuracy in bulk.
+ * the claim is true. There is no per-fact "Confirm" endorsement control, and no
+ * separate attest button: advancing out of the step (the single Next action)
+ * attests the facts in bulk.
  */
 const PROVENANCE_COPY: Partial<Record<FactOrigin, string>> = {
   'user-confirmed': 'You confirmed what was said',
@@ -118,15 +102,16 @@ export interface DecisionMapProps {
 }
 
 /**
- * The "Decision Map" panel from wireframe frame 02 — now read-only. It reframes
- * a persuasive live call into a short, scannable list of discrete claims: each
+ * The "What we heard" panel from wireframe frame 02 — read-only. It reframes a
+ * persuasive live call into a short, scannable list of discrete claims: each
  * fact is labeled as something the caller *said* (not verified truth), tagged
  * with its provenance and uncertainty, and backed by the exact transcript
- * excerpt (revealed inline via "View source"). It never displays a scam
- * probability or mental-state label and never implies a claim is independently
- * verified. Correcting a misheard fact and attesting the facts are a good match
- * for the call are both handled at the step level (see `FactCorrectionPanel`
- * and the Review step's "This matches the call" action), not per-fact here.
+ * excerpt (revealed via "View source"). Below the claims sits "What we noticed"
+ * — the model's observations (tactics, procedure check). It never displays a
+ * scam probability or mental-state label and never implies a claim is
+ * independently verified. Correcting a misheard fact and attesting the facts
+ * match the call are handled at the step level (see `FactCorrectionPanel` and
+ * the Review step's forward action), not per-fact here.
  */
 export function DecisionMap({
   status = 'live',
@@ -135,14 +120,13 @@ export function DecisionMap({
   webEvidence,
   resolveSource,
 }: DecisionMapProps): React.JSX.Element {
-  // Caller claims (shown as fact rows) vs our own observations (shown highlighted, separately).
+  // Caller claims (shown as fact rows) vs the model's observations (shown highlighted, separately).
   const extracted = facts.filter((f) => !OBSERVATION_FIELDS.has(f.field) && !HIDDEN_FROM_MAP.has(f.field));
   const observations = facts.filter((f) => OBSERVATION_FIELDS.has(f.field) && f.value !== 'unknown');
-  const procedureWarning = assessProcedure(facts);
 
   return (
-    <section aria-label="Decision Map">
-      <Card title="Decision Map">
+    <section aria-label="What we heard">
+      <Card title="What we heard">
         <p className="text-text-muted">
           The key points pulled from the call, one by one. Each is only what the caller <em>said</em> — none of it is
           independently verified. Open a source to see the exact words.
@@ -164,7 +148,7 @@ export function DecisionMap({
           ))}
         </ol>
 
-        <ObservationList observations={observations} procedureWarning={procedureWarning} />
+        <ObservationList observations={observations} />
       </Card>
     </section>
   );
@@ -174,27 +158,20 @@ export function DecisionMap({
  * Our read of the conversation — the manipulation patterns we recognised plus a
  * plain-language procedure check — rendered as highlighted observations, visually
  * distinct from the caller-claim fact rows above. These are our analysis, not
- * quotes, so they carry no "View source" and no caller-claim framing. Calm (info)
- * styling, not alarm.
+ * quotes, so they carry no "View source" and no caller-claim framing. This is a
+ * warning surface — it tells the owner they may be being manipulated — so it uses
+ * the scoped alert (red) treatment, not the calm info blue.
  */
-function ObservationList({
-  observations,
-  procedureWarning,
-}: {
-  observations: Fact[];
-  procedureWarning?: string | null;
-}): React.JSX.Element | null {
-  if (observations.length === 0 && !procedureWarning) return null;
+function ObservationList({ observations }: { observations: Fact[] }): React.JSX.Element | null {
+  if (observations.length === 0) return null;
   return (
     <section
       aria-label="What we noticed"
-      className="mt-space-4 flex flex-col gap-space-2 rounded-md border-l-4 border-info bg-info-soft p-space-3"
+      className="mt-space-4 flex flex-col gap-space-2 rounded-md border-l-4 border-alert bg-alert-soft p-space-3"
     >
       <div>
-        <h3 className="text-sm font-semibold text-text">What we noticed</h3>
-        <p className="text-xs text-text-muted">
-          Patterns we recognised from the conversation
-        </p>
+        <h3 className="text-sm font-semibold text-alert">What we noticed</h3>
+        <p className="text-xs text-text-muted">Signs the caller may be trying to manipulate you</p>
       </div>
       <ul className="flex flex-col gap-space-2">
         {observations.map((o) => (
@@ -203,12 +180,6 @@ function ObservationList({
             <p className="text-base font-normal text-text">{o.value}</p>
           </li>
         ))}
-        {procedureWarning && (
-          <li className="flex flex-col gap-space-1">
-            <p className="text-sm font-semibold text-text">Procedure check</p>
-            <p className="text-base font-normal text-text">{procedureWarning}</p>
-          </li>
-        )}
       </ul>
     </section>
   );

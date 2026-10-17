@@ -21,8 +21,12 @@ export type FactOrigin = 'model' | 'user-confirmed' | 'user-corrected';
 /**
  * The fixed set of structured fields Gemini extracts, per PRD C3: claimed
  * identity, central claim/threat, requested action, amount, payee, deadline,
- * observed tactics, and verification status. `validateFacts` guarantees one
- * entry per field, even if only a placeholder `'unknown'` value.
+ * observed tactics, verification status, and a procedure-legitimacy check.
+ * `validateFacts` guarantees one entry per field, even if only a placeholder
+ * `'unknown'` value. The last three (observedTactics, verificationStatus,
+ * procedureCheck) are the model's *assessment* of the call rather than a
+ * verbatim caller claim; they are still source-grounded and still untrusted
+ * until the owner acts on them.
  */
 export const REQUIRED_FACT_FIELDS = [
   'claimedIdentity',
@@ -33,6 +37,7 @@ export const REQUIRED_FACT_FIELDS = [
   'deadline',
   'observedTactics',
   'verificationStatus',
+  'procedureCheck',
 ] as const;
 
 export type RequiredFactField = (typeof REQUIRED_FACT_FIELDS)[number];

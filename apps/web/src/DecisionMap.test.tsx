@@ -115,17 +115,27 @@ describe('DecisionMap', () => {
     expect(screen.queryByText(/verification status/i)).toBeNull();
   });
 
-  it('flags an illegitimate "move money to a safe account" procedure as a scam signal', () => {
-    const requestedAction: Fact = { field: 'requestedAction', value: 'Move everything to the safe account safe-new immediately', origin: 'model', sourceSegmentIds: ['s1'], uncertainty: 'low' };
-    render(<DecisionMap facts={[claimedPayee, requestedAction]} />);
+  it('renders the LLM-produced procedure check as an observation (not a hardcoded verdict)', () => {
+    // procedureCheck is a model-extracted field; the component just displays whatever the LLM returned.
+    const procedureCheck: Fact = {
+      field: 'procedureCheck',
+      value: 'Not a legitimate process — a real bank never asks you to move money to a "safe account".',
+      origin: 'model',
+      sourceSegmentIds: ['s1'],
+      uncertainty: 'low',
+    };
+    render(<DecisionMap facts={[claimedPayee, procedureCheck]} />);
     const observations = screen.getByRole('region', { name: /what we noticed/i });
     expect(within(observations).getByText(/procedure check/i)).toBeVisible();
-    expect(within(observations).getByText(/never ask you to move money/i)).toBeVisible();
+    expect(within(observations).getByText(/never asks you to move money/i)).toBeVisible();
+    // It is our analysis, not a caller claim, so it stays out of the case-facts list.
+    expect(within(screen.getByRole('list', { name: /case facts/i })).queryByText(/safe account/i)).toBeNull();
   });
 
-  it('omits the observations block entirely when there are no tactics and no procedure flag', () => {
+  it('omits the observations block entirely when there are no tactics and no procedure check', () => {
     const emptyTactics: Fact = { field: 'observedTactics', value: 'unknown', origin: 'model', sourceSegmentIds: [], uncertainty: 'high' };
-    render(<DecisionMap facts={[claimedPayee, emptyTactics]} />);
+    const emptyProcedure: Fact = { field: 'procedureCheck', value: 'unknown', origin: 'model', sourceSegmentIds: [], uncertainty: 'high' };
+    render(<DecisionMap facts={[claimedPayee, emptyTactics, emptyProcedure]} />);
     expect(screen.queryByRole('region', { name: /what we noticed/i })).toBeNull();
   });
 

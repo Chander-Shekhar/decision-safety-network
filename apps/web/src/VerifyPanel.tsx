@@ -6,8 +6,14 @@ const STANCE_LABEL: Record<WebEvidenceStance, string> = {
   contradicts: 'Contradicts public listing',
   inconclusive: 'No public match',
 };
-// Distinguished by glyph and label, never color alone.
+// Distinguished by glyph and label, with a red fill reserved for the one strong
+// signal: public listings that CONTRADICT the caller's claimed identity.
 const STANCE_GLYPH: Record<WebEvidenceStance, string> = { corroborates: '✓', contradicts: '✕', inconclusive: '?' };
+const STANCE_PILL: Record<WebEvidenceStance, string> = {
+  corroborates: 'bg-surface-sunken text-text-muted',
+  contradicts: 'bg-alert-soft text-alert',
+  inconclusive: 'bg-surface-sunken text-text-muted',
+};
 
 /**
  * Quiet, labeled supporting evidence from public web sources (DSN-026). It is
@@ -25,7 +31,7 @@ export function WebEvidenceList({ evidence }: { evidence?: readonly WebVerificat
       <ul className="flex flex-col gap-space-2">
         {evidence.map((item, index) => (
           <li key={`${item.checkedAt}-${index}`} className="flex flex-col gap-space-1">
-            <span className="inline-flex w-fit items-center gap-space-1 rounded-pill bg-surface-sunken px-space-2 text-xs text-text-muted">
+            <span className={`inline-flex w-fit items-center gap-space-1 rounded-pill px-space-2 text-xs ${STANCE_PILL[item.stance]}`}>
               <span aria-hidden="true">{STANCE_GLYPH[item.stance]}</span>
               {STANCE_LABEL[item.stance]}
             </span>
