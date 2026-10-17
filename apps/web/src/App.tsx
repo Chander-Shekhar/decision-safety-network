@@ -30,7 +30,7 @@ import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
 import { ActionBar, Button, Callout, Card, Disclosure, Field, StepFlowNav, StepRail } from './ui';
-import { VerifyPanel, WebEvidenceList, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
+import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
 const SAMPLE_ALLY_NAME = 'Priya Nair';
@@ -136,7 +136,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [screenedNumber, setScreenedNumber] = useState('');
   // DSN-026: untrusted public-web supporting evidence about the claimed identity, and the number to check.
   const [webEvidence, setWebEvidence] = useState<readonly WebVerificationEvidence[]>([]);
-  const [webCheckNumber, setWebCheckNumber] = useState('');
   const stepInitialised = useRef(false);
   const [captureActive, setCaptureActive] = useState(false);
   // Processing revoked / segment refused for this case: tell native to stop the mic (allowed:false).
@@ -445,13 +444,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     if (owner && caseId) void run(() => refreshCase(caseId));
   }, [owner, caseId, run, refreshCase]);
 
-  // DSN-026: load any stored web evidence when the case opens; default the lookup number to the screened one.
+  // DSN-026: load any stored web evidence when the case opens.
   useEffect(() => {
     if (owner && caseId) void run(() => loadWebEvidence(caseId));
   }, [owner, caseId, run, loadWebEvidence]);
-  useEffect(() => {
-    if (screenedNumber) setWebCheckNumber(screenedNumber);
-  }, [screenedNumber]);
 
   // Review-step auto-verification (vision step 4): when the call came in through the
   // screening path we already have the caller's number, so check the claimed identity
@@ -701,15 +697,17 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                     busy={transcriptBusy}
                     disabled={!caseId}
                     captureActive={captureActive}
-                    onSubmitPaste={(text) =>
+                    onSubmitPaste={(text, callerNumber) =>
                       run(async () => {
                         await submitPastedTranscript(text);
+                        if (callerNumber) setScreenedNumber(callerNumber); // drives the Review auto-verification
                         setEditingCall(false);
                       })
                     }
-                    onSubmitAudio={(audioFile) =>
+                    onSubmitAudio={(audioFile, callerNumber) =>
                       run(async () => {
                         await submitAudioRecording(audioFile);
+                        if (callerNumber) setScreenedNumber(callerNumber);
                         setEditingCall(false);
                       })
                     }
@@ -761,53 +759,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               }
             />
 
-            {/* Caller verification. When the call came through screening we already have the number and
-                the check runs automatically (see the auto-verification effect); the result shows under
-                Claimed identity in the map above. For a pasted transcript or upload there's no number, so
-                offer a single inline input to add it and run the same public-listings check. */}
-            {!screenedNumber && (
-              <section aria-label="Verify the caller's number" className="flex flex-col gap-space-2">
-                <p className="text-sm text-text-muted">
-                  Add the number the caller used and we&apos;ll check it against public listings for the organisation
-                  they claimed to be from.
-                </p>
-                {/* DSN-026: untrusted public-web check of the claimed identity. Supporting evidence only; never the official route. */}
-                <form
-                  aria-label="Check public listings"
-                  className="flex flex-wrap items-end gap-space-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!claimedIdentity || !webCheckNumber) return;
-                    run(async () => {
-                      await api.command('POST', `cases/${caseId}/web-verification`, {
-                        claimedIdentity,
-                        callerNumber: webCheckNumber,
-                      });
-                      await loadWebEvidence(caseId);
-                    });
-                  }}
-                >
-                  <Field label="Number the caller used" htmlFor="web-check-number">
-                    <input
-                      id="web-check-number"
-                      inputMode="tel"
-                      placeholder="+91…"
-                      value={webCheckNumber}
-                      onChange={(e) => setWebCheckNumber(e.target.value)}
-                      className="rounded-md border border-border bg-surface-raised px-space-3 py-space-2 text-text"
-                    />
-                  </Field>
-                  <Button type="submit" variant="secondary" disabled={!claimedIdentity || !webCheckNumber}>
-                    Check
-                  </Button>
-                </form>
-                {!claimedIdentity && (
-                  <p className="text-xs text-text-muted">We need the caller&apos;s claimed identity first — it comes from the facts above.</p>
-                )}
-                {/* Result shows here where the action happened; it also attaches to Claimed identity in the map. */}
-                <WebEvidenceList evidence={webEvidence} />
-              </section>
-            )}
+            {/* Caller verification is automatic: the number is captured at intake (Session step, with the
+                transcript/recording) or from screening, so the public-listings check runs on entry (see the
+                auto-verification effect) and its result shows under Claimed identity in the map above. No
+                number input lives on this step. */}
 
             {/* The one forward action for this step. It attests — in bulk — that the model-extracted facts match
                 what was said (promoting them into the trusted `confirmed` map so the Pause's conversation signals

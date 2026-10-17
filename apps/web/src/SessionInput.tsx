@@ -10,10 +10,11 @@ export interface SessionInputProps {
   disabled?: boolean;
   /** Native shell is capturing the live call right now (DSN-025 bridge). */
   captureActive?: boolean;
-  /** Pasted call text: one turn per non-empty line, with an optional "Name:" speaker prefix. */
-  onSubmitPaste: (text: string) => void;
-  /** An uploaded audio recording of the call, to be transcribed server-side. */
-  onSubmitAudio: (file: File) => void;
+  /** Pasted call text: one turn per non-empty line, with an optional "Name:" speaker prefix. The
+   *  caller's number (empty if the operator left it blank) rides along so it can be verified later. */
+  onSubmitPaste: (text: string, callerNumber: string) => void;
+  /** An uploaded audio recording of the call, to be transcribed server-side; plus the caller's number. */
+  onSubmitAudio: (file: File, callerNumber: string) => void;
 }
 
 const MODES: { value: SessionInputMode; label: string }[] = [
@@ -39,6 +40,7 @@ export function SessionInput({
 }: SessionInputProps): React.JSX.Element {
   const [mode, setMode] = useState<SessionInputMode>('paste');
   const [pasted, setPasted] = useState('');
+  const [callerNumber, setCallerNumber] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const tablistRef = useRef<HTMLDivElement>(null);
@@ -62,12 +64,12 @@ export function SessionInput({
   function submitPaste(): void {
     const text = pasted.trim();
     if (!text || blocked) return;
-    onSubmitPaste(text);
+    onSubmitPaste(text, callerNumber.trim());
     setPasted('');
   }
   function submitAudio(): void {
     if (!file || blocked) return;
-    onSubmitAudio(file);
+    onSubmitAudio(file, callerNumber.trim());
     setFile(null);
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -160,6 +162,27 @@ export function SessionInput({
             </Button>
           </div>
         </div>
+      )}
+
+      {/* The caller's number is captured here, alongside the transcript/recording, so the Decision
+          Map can verify it against public listings automatically. The live/device path already has
+          the screened number, so this is only shown for paste and upload. Optional. */}
+      {mode !== 'live' && (
+        <Field
+          label="Caller's number"
+          htmlFor="caller-number"
+          hint="Optional. We’ll check it against public listings for the organisation they claimed to be from."
+        >
+          <input
+            id="caller-number"
+            inputMode="tel"
+            placeholder="+91…"
+            value={callerNumber}
+            disabled={blocked}
+            onChange={(e) => setCallerNumber(e.target.value)}
+            className="rounded-md border border-border bg-surface p-space-3 text-text"
+          />
+        </Field>
       )}
     </Card>
   );

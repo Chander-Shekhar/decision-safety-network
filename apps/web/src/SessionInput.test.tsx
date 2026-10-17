@@ -20,8 +20,20 @@ describe('SessionInput', () => {
     await user.type(box, 'Caller: hello');
     await user.click(screen.getByRole('button', { name: /add transcript/i }));
 
-    expect(onSubmitPaste).toHaveBeenCalledWith('Caller: hello');
+    expect(onSubmitPaste).toHaveBeenCalledWith('Caller: hello', '');
     expect(box).toHaveValue('');
+  });
+
+  it('passes the caller number captured at intake alongside the transcript', async () => {
+    const user = userEvent.setup();
+    const onSubmitPaste = vi.fn();
+    render(<SessionInput onSubmitPaste={onSubmitPaste} onSubmitAudio={() => {}} />);
+
+    await user.type(screen.getByLabelText(/paste the call/i), 'Caller: hello');
+    await user.type(screen.getByLabelText(/caller's number/i), '+91 90000 00000');
+    await user.click(screen.getByRole('button', { name: /add transcript/i }));
+
+    expect(onSubmitPaste).toHaveBeenCalledWith('Caller: hello', '+91 90000 00000');
   });
 
   it('uploads a selected recording to the transcribe handler', async () => {

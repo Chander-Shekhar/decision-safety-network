@@ -95,24 +95,35 @@ describe('DecisionMap', () => {
     expect(screen.queryByRole('button', { name: /view source/i })).toBeNull();
   });
 
-  it('shows observed tactics and verification status as highlighted observations, not caller-claim fact rows', () => {
+  it('shows observed tactics as a highlighted observation, not a caller-claim fact row', () => {
     const tactics: Fact = { field: 'observedTactics', value: 'urgency-pressure, authority-impersonation', origin: 'model', sourceSegmentIds: ['s1'], uncertainty: 'low' };
-    const verification: Fact = { field: 'verificationStatus', value: 'claimed bank number does not match public listing', origin: 'model', sourceSegmentIds: [], uncertainty: 'low' };
-    render(<DecisionMap facts={[claimedPayee, tactics, verification]} sourceRetained resolveSource={() => [{ speaker: 'Caller', text: 'x' }]} />);
+    render(<DecisionMap facts={[claimedPayee, tactics]} sourceRetained resolveSource={() => [{ speaker: 'Caller', text: 'x' }]} />);
 
-    // They live in a distinct "What we noticed" observations region (our analysis), not the case-facts list.
+    // Tactics live in a distinct "What we noticed" observations region (our analysis), not the case-facts list.
     const observations = screen.getByRole('region', { name: /what we noticed/i });
-    expect(observations).toBeInTheDocument();
     expect(within(observations).getByText(/urgency-pressure/i)).toBeVisible();
-    expect(within(observations).getByText(/does not match public listing/i)).toBeVisible();
-    // The case-facts list carries only genuine caller claims, not the observations.
     const caseFacts = screen.getByRole('list', { name: /case facts/i });
     expect(within(caseFacts).queryByText(/urgency-pressure/i)).toBeNull();
     // Observations are our read, so they get no per-row "View source".
     expect(within(observations).queryByRole('button', { name: /view source/i })).toBeNull();
   });
 
-  it('omits an observation whose value is unknown rather than highlighting an empty read', () => {
+  it('does not surface the terse "verification status" field anywhere in the map', () => {
+    const verification: Fact = { field: 'verificationStatus', value: 'Unverified', origin: 'model', sourceSegmentIds: [], uncertainty: 'low' };
+    render(<DecisionMap facts={[claimedPayee, verification]} />);
+    expect(screen.queryByText('Unverified')).toBeNull();
+    expect(screen.queryByText(/verification status/i)).toBeNull();
+  });
+
+  it('flags an illegitimate "move money to a safe account" procedure as a scam signal', () => {
+    const requestedAction: Fact = { field: 'requestedAction', value: 'Move everything to the safe account safe-new immediately', origin: 'model', sourceSegmentIds: ['s1'], uncertainty: 'low' };
+    render(<DecisionMap facts={[claimedPayee, requestedAction]} />);
+    const observations = screen.getByRole('region', { name: /what we noticed/i });
+    expect(within(observations).getByText(/procedure check/i)).toBeVisible();
+    expect(within(observations).getByText(/never ask you to move money/i)).toBeVisible();
+  });
+
+  it('omits the observations block entirely when there are no tactics and no procedure flag', () => {
     const emptyTactics: Fact = { field: 'observedTactics', value: 'unknown', origin: 'model', sourceSegmentIds: [], uncertainty: 'high' };
     render(<DecisionMap facts={[claimedPayee, emptyTactics]} />);
     expect(screen.queryByRole('region', { name: /what we noticed/i })).toBeNull();

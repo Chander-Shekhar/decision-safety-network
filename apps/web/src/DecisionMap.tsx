@@ -35,12 +35,42 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 /**
- * Fields that are *our* read of the conversation — manipulation patterns we
- * recognised, our verification status — not something the caller said. They are
- * pulled out of the caller-claims list and shown as highlighted observations so
- * the owner doesn't mistake our analysis for an extracted quote.
+ * Fields that are *our* read of the conversation — the manipulation patterns we
+ * recognised — not something the caller said. Pulled out of the caller-claims
+ * list and shown as highlighted observations so the owner doesn't mistake our
+ * analysis for an extracted quote.
  */
-const OBSERVATION_FIELDS = new Set(['observedTactics', 'verificationStatus']);
+const OBSERVATION_FIELDS = new Set(['observedTactics']);
+
+/**
+ * Fields kept out of the map entirely. `verificationStatus` is the model's
+ * terse note on the caller's own verification gap (e.g. "Unverified") — it reads
+ * as meaningless to the owner and duplicates the real, automatic public-listings
+ * check shown under Claimed identity, so we don't surface it here. It still
+ * flows to the report/ally packet via the facts projection.
+ */
+const HIDDEN_FROM_MAP = new Set(['verificationStatus']);
+
+/**
+ * Known-illegitimate "do this now" instructions. A real bank or government
+ * office never asks you to move money to a "safe"/"quarantine" account, read
+ * back an OTP, or install remote-access software — so if the call's requested
+ * action or tactics match, we say so plainly (vision step 4: "is that a normal,
+ * legitimate procedure? No."). This is general safety guidance triggered by the
+ * extracted text, not a verified claim about this specific caller.
+ */
+const ILLEGITIMATE_PROCEDURE =
+  /safe account|quarantine|move (your |the |everything|funds|money)|transfer (your |the )?(money|funds|balance|everything)|\botp\b|one[\s-]?time password|remote access|anydesk|teamviewer|install .*(app|software)|gift card|verify.*(upi|pin)/i;
+
+/** A plain-language procedure warning when the requested action is a classic coercive-transfer pattern, else null. */
+function assessProcedure(facts: Fact[]): string | null {
+  const text = facts
+    .filter((f) => ['requestedAction', 'observedTactics', 'centralClaim'].includes(f.field) && f.value !== 'unknown')
+    .map((f) => f.value)
+    .join(' ');
+  if (!ILLEGITIMATE_PROCEDURE.test(text)) return null;
+  return 'Banks and government offices never ask you to move money to a “safe” or “quarantine” account, read back an OTP, or install an app to fix a problem. A genuine fraud team secures your account on their side — they never need you to transfer funds. What was asked here is a scam signal, not a real security step.';
+}
 
 /**
  * Owner-facing marker for a fact the owner has acted on. Only the non-default
@@ -106,8 +136,9 @@ export function DecisionMap({
   resolveSource,
 }: DecisionMapProps): React.JSX.Element {
   // Caller claims (shown as fact rows) vs our own observations (shown highlighted, separately).
-  const extracted = facts.filter((f) => !OBSERVATION_FIELDS.has(f.field));
+  const extracted = facts.filter((f) => !OBSERVATION_FIELDS.has(f.field) && !HIDDEN_FROM_MAP.has(f.field));
   const observations = facts.filter((f) => OBSERVATION_FIELDS.has(f.field) && f.value !== 'unknown');
+  const procedureWarning = assessProcedure(facts);
 
   return (
     <section aria-label="Decision Map">
@@ -133,20 +164,27 @@ export function DecisionMap({
           ))}
         </ol>
 
-        <ObservationList observations={observations} />
+        <ObservationList observations={observations} procedureWarning={procedureWarning} />
       </Card>
     </section>
   );
 }
 
 /**
- * Our read of the conversation — manipulation patterns and verification status —
- * rendered as highlighted observations, visually distinct from the caller-claim
- * fact rows above. These are our analysis, not quotes, so they carry no "View
- * source" and no caller-claim framing. Calm (info) styling, not alarm.
+ * Our read of the conversation — the manipulation patterns we recognised plus a
+ * plain-language procedure check — rendered as highlighted observations, visually
+ * distinct from the caller-claim fact rows above. These are our analysis, not
+ * quotes, so they carry no "View source" and no caller-claim framing. Calm (info)
+ * styling, not alarm.
  */
-function ObservationList({ observations }: { observations: Fact[] }): React.JSX.Element | null {
-  if (observations.length === 0) return null;
+function ObservationList({
+  observations,
+  procedureWarning,
+}: {
+  observations: Fact[];
+  procedureWarning?: string | null;
+}): React.JSX.Element | null {
+  if (observations.length === 0 && !procedureWarning) return null;
   return (
     <section
       aria-label="What we noticed"
@@ -155,7 +193,7 @@ function ObservationList({ observations }: { observations: Fact[] }): React.JSX.
       <div>
         <h3 className="text-sm font-semibold text-text">What we noticed</h3>
         <p className="text-xs text-text-muted">
-          Patterns we recognised in the conversation — our read, not something the caller said.
+          Patterns we recognised from the conversation
         </p>
       </div>
       <ul className="flex flex-col gap-space-2">
@@ -165,6 +203,12 @@ function ObservationList({ observations }: { observations: Fact[] }): React.JSX.
             <p className="text-base font-normal text-text">{o.value}</p>
           </li>
         ))}
+        {procedureWarning && (
+          <li className="flex flex-col gap-space-1">
+            <p className="text-sm font-semibold text-text">Procedure check</p>
+            <p className="text-base font-normal text-text">{procedureWarning}</p>
+          </li>
+        )}
       </ul>
     </section>
   );

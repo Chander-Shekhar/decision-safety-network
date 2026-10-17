@@ -128,6 +128,18 @@ Founder: Observed Tactics / Verification Status aren't facts the caller said —
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **235** tests pass (2 new DecisionMap tests for the observations split + the unknown-omission; App Review test updated from the removed "Run a check" disclosure to the inline caller-number verification region).
 - **e2e:** no change needed — the `test.fixme` journeys correct `observedTactics` through the consolidated `FactCorrectionPanel` (which still receives all facts) and only assert the Claimed identity / Central claim fact rows.
 
+### Batch 11 — number capture at intake, drop confusing verification status, add procedure check (2026-10-17)
+
+Founder follow-ups on Batch 10: the caller-number input was still on the Review step (they'd asked for it at intake, with the transcript/recording); "Verification status: Unverified" was meaningless; and the vision's procedure-legitimacy call-out ("move your money to a safe account" is not a normal bank process) was missing.
+
+1. **Caller number captured at intake, not on Review.** `SessionInput` now has an optional "Caller's number" field shown with Paste transcript / Upload recording (not the live path, which already has the screened number). It rides along on `onSubmitPaste`/`onSubmitAudio`; `App` stores it as `screenedNumber`, so the Review auto-verification fires for every path. The Review-step number input and its leftover `webCheckNumber` state/effect and the unused `WebEvidenceList` import are gone.
+2. **`verificationStatus` dropped from the map.** It is the model's terse note on the caller's verification gap ("Unverified") — uninformative to the owner and duplicating the real automatic public-listings check under Claimed identity. `HIDDEN_FROM_MAP` keeps it off the UI; it still flows to the report/ally packet via the facts projection. "What we noticed" now carries only the observed tactics.
+3. **Procedure check added** (vision step 4). `assessProcedure` matches the extracted requested action / tactics / central claim against known coercive-transfer patterns (safe/quarantine account, move money, OTP read-back, remote-access install, gift card, verify-UPI) and, when hit, adds a plain-language "Procedure check" observation: banks/government never ask you to move money to a "safe"/"quarantine" account, read back an OTP, or install an app — a genuine fraud team secures the account on their side. General guidance keyed off the extracted text, framed as our read under "What we noticed", not a verified per-caller claim.
+
+- **Owned paths touched:** `apps/web/src/SessionInput.tsx`, `apps/web/src/SessionInput.test.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/DecisionMap.test.tsx`, `apps/web/src/App.tsx`, `apps/web/src/App.test.tsx`.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **238** tests pass (SessionInput: caller-number passed with the transcript; DecisionMap: tactics-only observation, verificationStatus hidden, procedure-check flag, empty-block omission; App Review test no longer expects the removed verify region).
+- **e2e:** no change — the `test.fixme` journeys don't drive the web-check UI and the paste path's caller number is optional.
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).

@@ -97,10 +97,8 @@ describe('App', () => {
     });
     render(<App auth={auth} />);
 
-    // Lands on Review: the Decision Map and (for this transcript-loaded case with no screened number)
-    // the inline caller-number verification, but not the decide console or the payment form.
+    // Lands on Review: the Decision Map, but not the decide console or the payment form.
     expect(await screen.findByRole('region', { name: 'Decision Map' })).toBeVisible();
-    expect(screen.getByRole('region', { name: /verify the caller's number/i })).toBeVisible();
     expect(screen.queryByRole('heading', { name: /decide what to do/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
 
