@@ -47,7 +47,7 @@ const SHARE_LABELS: Record<AllyShareField, string> = {
   proposedAction: 'What they asked me to do',
   amount: 'The amount involved',
   verificationGap: 'What has not been verified yet',
-  selectedEvidence: 'Selected evidence excerpts',
+  summary: 'A short AI summary of the call',
 };
 
 const RETENTION_OPTIONS: { value: RetentionMode; title: string; detail: string }[] = [

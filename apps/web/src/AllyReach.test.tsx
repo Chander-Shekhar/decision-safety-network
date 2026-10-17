@@ -11,14 +11,14 @@ const packet: AllyPacket = {
   proposedAction: 'Transfer to a safe account',
   amountMinor: 5_000_000,
   verificationGap: 'Caller not independently verified',
-  selectedEvidence: [{ id: 'e1', excerpt: 'Transfer 50,000 to safe-new' }],
+  summary: 'A caller contacted them, claiming account compromised. The caller has not been independently verified.',
 };
 const content: AllyPacketContent = {
   claim: packet.claim,
   proposedAction: packet.proposedAction,
   amountMinor: packet.amountMinor,
   verificationGap: packet.verificationGap,
-  selectedEvidence: packet.selectedEvidence,
+  summary: packet.summary,
 };
 
 describe('Ally reach (DSN-027)', () => {

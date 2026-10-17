@@ -3,23 +3,19 @@
 // Firestore-touching preview/grant/revoke/read/respond logic lives in
 // apps/api/src/{ally,ally-routes}.ts and must not be duplicated here.
 
-/** One selected excerpt in the packet: the id and exact text only - no speaker, order, or segment link. */
-export interface AllyPacketEvidence {
-  id: string;
-  excerpt: string;
-}
-
 /**
  * The minimum allowlisted packet content (PRD C8). Built field-by-field,
  * never by deleting fields from a case object, so a new case field can
  * never leak by default. `amountMinor` is `null` when no draft exists.
+ * `summary` is a short, AI-derived gist of the call (composed from the
+ * extracted facts) - never raw transcript excerpts.
  */
 export interface AllyPacketContent {
   claim: string;
   proposedAction: string;
   amountMinor: number | null;
   verificationGap: string;
-  selectedEvidence: AllyPacketEvidence[];
+  summary: string;
 }
 
 /** What the ally receives: the frozen content plus the case and grant-expiry identifiers. */
@@ -35,9 +31,16 @@ export const ALLY_PACKET_KEYS = [
   'claim',
   'expiresAt',
   'proposedAction',
-  'selectedEvidence',
+  'summary',
   'verificationGap',
 ] as const;
+
+/** One case shared with the signed-in ally, for the ally's auto-discovered list. Lightweight: no packet body. */
+export interface AllyGrantedCase {
+  caseId: string;
+  claim: string;
+  expiresAt: string;
+}
 
 /**
  * The owner-only preview: the exact content an ally would see, bound to the
@@ -58,7 +61,6 @@ export interface AllyPreview {
 export interface AllyGrant {
   caseId: string;
   allyUid: string;
-  selectedEvidenceIds: string[];
   packetSnapshot: AllyPacketContent | null;
   packetHash: string;
   expiresAt: string;

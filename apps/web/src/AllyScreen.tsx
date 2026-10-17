@@ -75,15 +75,9 @@ export function AllyScreen({ packet, accessState = 'active', onContactRequest, o
           <dt className="text-sm text-text-muted">Verification gap</dt>
           <dd>{packet.verificationGap}</dd>
         </dl>
-        <h4 className="text-sm font-semibold">Selected evidence</h4>
-        <ul className="flex flex-col gap-space-2">
-          {packet.selectedEvidence.map((item) => (
-            <li key={item.id}>
-              <blockquote className="rounded-md border-l-4 border-border bg-surface-sunken p-space-3">{item.excerpt}</blockquote>
-            </li>
-          ))}
-        </ul>
-        <p className="text-sm text-text-muted">No full transcript or unselected evidence is shared.</p>
+        <h4 className="text-sm font-semibold">Short summary</h4>
+        <p className="rounded-md border-l-4 border-border bg-surface-sunken p-space-3 text-sm">{packet.summary}</p>
+        <p className="text-sm text-text-muted">A short AI summary of the call. No recording or full transcript is shared — reach out to them for more.</p>
 
         <h3 className="text-base font-semibold">Your response</h3>
         <ActionBar>

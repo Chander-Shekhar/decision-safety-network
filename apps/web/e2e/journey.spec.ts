@@ -149,18 +149,17 @@ test.describe('attack journey', () => {
     // "Central claim" (asserted above), and the Pause OFFERS the ally route rather than
     // acting on the caller's demand.
     //
-    // Owner-side ally reach (DSN-033/DSN-038): the Pause offers "Ask my ally", which opens the
-    // Ally step and AUTO-GENERATES the summary inline (no stress-time excerpt triage; the picker
-    // is now optional behind "Adjust which excerpts your ally sees"). The owner reviews EXACTLY
-    // the allowlisted packet the ally would receive — the caller's words appear under a "Caller
-    // claimed" label and a "Verification gap", never as an instruction. The raw transcript is
-    // never shared.
+    // Owner-side ally reach (DSN-033/DSN-038): the Decide step offers "Ask my ally", which opens
+    // the Ally step and AUTO-GENERATES a short AI summary inline (no stress-time excerpt triage).
+    // The owner reviews EXACTLY the allowlisted packet the ally would receive — the caller's words
+    // appear under a "Caller claimed" label and a "Verification gap", plus a brief summary, never
+    // as an instruction. The raw transcript and recording are never shared.
     await actionConsole.getByRole('button', { name: 'Ask my ally' }).click();
     const allyPreview = page.getByRole('region', { name: 'Ask my ally preview' });
     await expect(allyPreview.getByText('Caller claimed')).toBeVisible();
-    await expect(allyPreview.getByText('Account compromised')).toBeVisible();
+    await expect(allyPreview.getByText('Account compromised', { exact: false })).toBeVisible();
     await expect(allyPreview.getByText('Verification gap')).toBeVisible();
-    await expect(allyPreview.getByText(/full transcript and other evidence are not included/i)).toBeVisible();
+    await expect(allyPreview.getByText(/short ai summary of the call/i)).toBeVisible();
 
     // Official verification is a SEALED, simulated route sourced from the Demo Bank
     // registry (never caller data); it reports the claim is not supported.

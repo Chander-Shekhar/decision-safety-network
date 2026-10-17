@@ -3,14 +3,11 @@ import type { FastifyReply } from 'fastify';
 import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
 import { assertCaseOwner, buildWhatsAppSummary, prepareCallerContact } from './ally-reach.js';
-import { createAllyGrant, previewAllyPacket, readAllyPacket, respondAsAlly, revokeGrant } from './ally.js';
+import { createAllyGrant, listAllyCases, previewAllyPacket, readAllyPacket, respondAsAlly, revokeGrant } from './ally.js';
 
-const SelectionSchema = z.array(z.string().min(1)).min(1).max(10);
-const PreviewBodySchema = z.object({ selectedEvidenceIds: SelectionSchema }).strict();
 const GrantBodySchema = z
   .object({
     allyUid: z.string().min(1),
-    selectedEvidenceIds: SelectionSchema,
     expectedCaseVersion: z.number().int().nonnegative(),
     expectedPacketHash: z.string().min(1),
   })
@@ -27,8 +24,6 @@ const ContactCallerBodySchema = z.object({ idempotencyKey: z.uuid() }).strict();
 const LOCAL_ERROR_STATUS: Record<string, number> = {
   STALE_PREVIEW: 409,
   STALE_GRANT: 409,
-  UNKNOWN_EVIDENCE: 400,
-  INVALID_SELECTION: 400,
   INVALID_RESPONSE: 400,
 };
 
@@ -53,13 +48,8 @@ export function createAllyRoutes(): RouteInstaller {
     app.post('/api/v1/cases/:id/ally-share-preview', async (request, reply) => {
       const uid = await requireUser(request, deps.auth);
       const { id: caseId } = request.params as { id: string };
-      const parsed = PreviewBodySchema.safeParse(request.body);
-      if (!parsed.success) {
-        reply.code(400).send({ error: 'INVALID_BODY' });
-        return undefined;
-      }
       try {
-        const preview = await previewAllyPacket(deps.db, uid, caseId, parsed.data, deps.now);
+        const preview = await previewAllyPacket(deps.db, uid, caseId, deps.now);
         reply.header('cache-control', 'no-store');
         return preview;
       } catch (error) {
@@ -96,6 +86,18 @@ export function createAllyRoutes(): RouteInstaller {
         await revokeGrant(deps.db, uid, caseId, parsed.data.allyUid, deps.now);
         reply.code(204);
         return undefined;
+      } catch (error) {
+        return replyOrRethrow(reply, error);
+      }
+    });
+
+    // The ally window auto-discovers the cases shared with it (no case id to type).
+    app.get('/api/v1/ally/cases', async (request, reply) => {
+      const uid = await requireUser(request, deps.auth);
+      try {
+        const cases = await listAllyCases(deps.db, uid, deps.now);
+        reply.header('cache-control', 'no-store');
+        return { cases };
       } catch (error) {
         return replyOrRethrow(reply, error);
       }

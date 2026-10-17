@@ -37,6 +37,7 @@ describe('plan contract v2 (DSN-023)', () => {
     expect(plan.callListening).toBe('per-call');
     expect(plan.bankAccounts).toEqual([]);
     expect(plan.allyShareFields).not.toContain('selectedEvidence');
+    expect(plan.allyShareFields).toContain('summary');
     expect(plan.setupCompletedAt).toBeUndefined();
   });
 

@@ -8,18 +8,18 @@ const packet: AllyPacketContent = {
   proposedAction: 'Transfer to a safe account',
   amountMinor: 5_000_000,
   verificationGap: 'Caller not independently verified',
-  selectedEvidence: [{ id: 'e1', excerpt: 'Transfer ₹50,000 to safe-new' }],
+  summary: 'A caller contacted them, claiming account compromised. The caller has not been independently verified.',
 };
 
 describe('AllySharePreview', () => {
-  it('shows the exact packet including the selected excerpt, and says what is excluded', () => {
+  it('shows the exact packet including the AI summary, and says the transcript is excluded', () => {
     render(<AllySharePreview allyName="Alex" packet={packet} />);
-    expect(screen.getByText(/account compromised/i)).toBeVisible();
-    expect(screen.getByText(/transfer to a safe account/i)).toBeVisible();
+    expect(screen.getByText(/account compromised/i, { selector: 'dd' })).toBeVisible();
+    expect(screen.getByText(/transfer to a safe account/i, { selector: 'dd' })).toBeVisible();
     expect(screen.getByText(/50,000/, { selector: 'dd' })).toBeVisible();
     expect(screen.getByText(/caller not independently verified/i)).toBeVisible();
-    expect(screen.getByText(/Transfer ₹50,000 to safe-new/)).toBeVisible();
-    expect(screen.getByText(/full transcript and other evidence are not included/i)).toBeVisible();
+    expect(screen.getByText(/has not been independently verified/i)).toBeVisible();
+    expect(screen.getByText(/short ai summary of the call/i)).toBeVisible();
   });
 
   it('says the ally cannot see the case yet without a per-panel simulated stamp', () => {

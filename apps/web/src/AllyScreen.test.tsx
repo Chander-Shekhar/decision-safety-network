@@ -10,23 +10,23 @@ const packet: AllyPacket = {
   proposedAction: 'Transfer to a safe account',
   amountMinor: 5_000_000,
   verificationGap: 'Caller not independently verified',
-  selectedEvidence: [{ id: 'e1', excerpt: 'Transfer ₹50,000 to safe-new' }],
+  summary: 'A caller contacted them, claiming account compromised. They were pushed to transfer to a safe account. The caller has not been independently verified.',
 };
 
 describe('AllyScreen', () => {
-  it('shows only claim, action, amount, verification gap, and selected evidence', () => {
+  it('shows only claim, action, amount, verification gap, and the AI summary', () => {
     render(<AllyScreen packet={packet} />);
-    expect(screen.getByText(/account compromised/i)).toBeVisible();
-    expect(screen.getByText(/transfer to a safe account/i)).toBeVisible();
+    expect(screen.getByText(/account compromised/i, { selector: 'dd' })).toBeVisible();
+    expect(screen.getByText(/transfer to a safe account/i, { selector: 'dd' })).toBeVisible();
     expect(screen.getByText(/50,000/, { selector: 'dd' })).toBeVisible();
     expect(screen.getByText(/caller not independently verified/i)).toBeVisible();
-    expect(screen.getByText(/Transfer ₹50,000 to safe-new/)).toBeVisible();
+    expect(screen.getByText(/short summary/i)).toBeVisible();
   });
 
-  it('hides the full transcript and unselected evidence, and says so', () => {
+  it('hides the full transcript, shares no recording, and says so', () => {
     render(<AllyScreen packet={packet} />);
     expect(screen.queryByText(/HIDDEN-TRANSCRIPT|UNSELECTED-EVIDENCE/)).toBeNull();
-    expect(screen.getByText(/no full transcript or unselected evidence is shared/i)).toBeVisible();
+    expect(screen.getByText(/no recording or full transcript is shared/i)).toBeVisible();
     expect(screen.queryByRole('link')).toBeNull();
   });
 

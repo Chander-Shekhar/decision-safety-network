@@ -102,6 +102,27 @@ export function SessionInput({
         ))}
       </div>
 
+      {/* The caller's number comes first — captured here alongside the transcript/recording so the
+          "What we heard" panel can verify it against public listings automatically. The live/device
+          path already has the screened number, so this is shown only for paste and upload. Optional. */}
+      {mode !== 'live' && (
+        <Field
+          label="Caller's number"
+          htmlFor="caller-number"
+          hint="Optional. We’ll check it against public listings for the organisation they claimed to be from."
+        >
+          <input
+            id="caller-number"
+            inputMode="tel"
+            placeholder="+91…"
+            value={callerNumber}
+            disabled={blocked}
+            onChange={(e) => setCallerNumber(e.target.value)}
+            className="rounded-md border border-border bg-surface p-space-3 text-text"
+          />
+        </Field>
+      )}
+
       {mode === 'live' && (
         <div
           id="session-input-panel-live"
@@ -162,27 +183,6 @@ export function SessionInput({
             </Button>
           </div>
         </div>
-      )}
-
-      {/* The caller's number is captured here, alongside the transcript/recording, so the Decision
-          Map can verify it against public listings automatically. The live/device path already has
-          the screened number, so this is only shown for paste and upload. Optional. */}
-      {mode !== 'live' && (
-        <Field
-          label="Caller's number"
-          htmlFor="caller-number"
-          hint="Optional. We’ll check it against public listings for the organisation they claimed to be from."
-        >
-          <input
-            id="caller-number"
-            inputMode="tel"
-            placeholder="+91…"
-            value={callerNumber}
-            disabled={blocked}
-            onChange={(e) => setCallerNumber(e.target.value)}
-            className="rounded-md border border-border bg-surface p-space-3 text-text"
-          />
-        </Field>
       )}
     </Card>
   );

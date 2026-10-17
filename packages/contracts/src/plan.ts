@@ -26,9 +26,9 @@ export type CallListeningMode = 'all-calls' | 'unverified-only' | 'per-call';
 export const CALL_LISTENING_MODES: readonly CallListeningMode[] = ['all-calls', 'unverified-only', 'per-call'];
 
 /** Case-info fields the owner pre-approves for ally preview; mirrors `AllyPacketContent` keys. A later case-specific grant is still required. */
-export type AllyShareField = 'claim' | 'proposedAction' | 'amount' | 'verificationGap' | 'selectedEvidence';
-export const ALLY_SHARE_FIELDS: readonly AllyShareField[] = ['claim', 'proposedAction', 'amount', 'verificationGap', 'selectedEvidence'];
-export const DEFAULT_ALLY_SHARE_FIELDS: readonly AllyShareField[] = ['claim', 'proposedAction', 'amount', 'verificationGap'];
+export type AllyShareField = 'claim' | 'proposedAction' | 'amount' | 'verificationGap' | 'summary';
+export const ALLY_SHARE_FIELDS: readonly AllyShareField[] = ['claim', 'proposedAction', 'amount', 'verificationGap', 'summary'];
+export const DEFAULT_ALLY_SHARE_FIELDS: readonly AllyShareField[] = ['claim', 'proposedAction', 'amount', 'verificationGap', 'summary'];
 
 /** A registered account for later guided protection. Synthetic/demo only: never a real linked account; `last4` is display-only. */
 export interface RegisteredBankAccount {

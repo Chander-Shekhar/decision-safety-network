@@ -4,6 +4,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import type { CaseEnvelope } from '../../../packages/contracts/src/case.js';
 import type {
   AllyGrant,
+  AllyGrantedCase,
   AllyPacket,
   AllyPacketContent,
   AllyPreview,
@@ -13,11 +14,9 @@ import type { Fact } from '../../../packages/contracts/src/facts.js';
 import type { PaymentDraft } from '../../../packages/contracts/src/payment.js';
 import type { Plan } from '../../../packages/contracts/src/plan.js';
 import { hasAcceptedRelationship } from './plan.js';
-import { readSelectedEvidence } from './retention.js';
 
 /** How long one case grant stays readable, capped by the case's own expiry. */
 const GRANT_TTL_MS = 24 * 60 * 60 * 1000;
-const MAX_SELECTED_EVIDENCE = 10;
 const DEFAULT_VERIFICATION_GAP = 'Caller not independently verified';
 const UNKNOWN_FACT = 'Unknown';
 
@@ -48,25 +47,46 @@ function factValue(current: AllyReadableCase, field: string, fallback: string): 
   return value;
 }
 
+const formatAmountMinor = (amountMinor: number): string => `Rs ${(amountMinor / 100).toLocaleString('en-IN')}`;
+const lowerFirst = (s: string): string => (s.length > 0 ? s[0]!.toLowerCase() + s.slice(1) : s);
+
+/**
+ * A short, plain-language gist of the call for the ally, composed from the
+ * case's AI-extracted facts (never raw transcript excerpts). Deterministic -
+ * a pure function of the stored, allowlisted fields - so the packet hash
+ * stays stable until the underlying facts change. The ally gets the shape of
+ * the situation and can reach the owner for detail; the full transcript is
+ * never shared.
+ */
+function composeSummary(current: AllyReadableCase): string {
+  const who = factValue(current, 'claimedIdentity', '');
+  const claim = factValue(current, 'centralClaim', '');
+  const action = factValue(current, 'requestedAction', '');
+  const tactics = factValue(current, 'observedTactics', '');
+  const amountMinor = typeof current.paymentDraft?.amountMinor === 'number' ? current.paymentDraft.amountMinor : null;
+
+  const parts: string[] = [];
+  parts.push(`${who || 'A caller'} contacted them${claim ? `, claiming ${lowerFirst(claim)}` : ''}.`);
+  if (action) {
+    parts.push(`They were pushed to ${lowerFirst(action)}${amountMinor !== null ? ` (${formatAmountMinor(amountMinor)})` : ''}.`);
+  }
+  if (tactics) parts.push(`Pressure noticed: ${lowerFirst(tactics)}.`);
+  parts.push('The caller has not been independently verified.');
+  return parts.join(' ');
+}
+
 /**
  * Builds the packet content field by field (an allowlist), from the case's
- * current facts/payment draft and only the selected evidence excerpts.
- * Selected ids that no longer exist are silently omitted, so a deleted or
- * changed excerpt changes the hash rather than throwing.
+ * current facts and payment draft. No transcript excerpts are read or sent;
+ * the `summary` is composed from the extracted facts.
  */
-async function buildAllowlistedPacket(
-  db: Firestore,
-  current: AllyReadableCase,
-  selectedEvidenceIds: readonly string[],
-): Promise<AllyPacketContent> {
-  const evidence = await readSelectedEvidence(db, current.id, selectedEvidenceIds);
-  evidence.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+function buildAllowlistedPacket(current: AllyReadableCase): AllyPacketContent {
   return {
     claim: factValue(current, 'centralClaim', UNKNOWN_FACT),
     proposedAction: factValue(current, 'requestedAction', UNKNOWN_FACT),
     amountMinor: typeof current.paymentDraft?.amountMinor === 'number' ? current.paymentDraft.amountMinor : null,
     verificationGap: factValue(current, 'verificationStatus', DEFAULT_VERIFICATION_GAP),
-    selectedEvidence: evidence.map((item) => ({ id: item.id, excerpt: item.text })),
+    summary: composeSummary(current),
   };
 }
 
@@ -77,17 +97,9 @@ export function hashAllyPacket(content: AllyPacketContent): string {
     proposedAction: content.proposedAction,
     amountMinor: content.amountMinor,
     verificationGap: content.verificationGap,
-    selectedEvidence: content.selectedEvidence.map((item) => ({ id: item.id, excerpt: item.excerpt })),
+    summary: content.summary,
   };
   return createHash('sha256').update(JSON.stringify(stable)).digest('hex');
-}
-
-function normalizeSelection(ids: readonly string[]): string[] {
-  const unique = [...new Set(ids)];
-  if (unique.length === 0 || unique.length > MAX_SELECTED_EVIDENCE) {
-    throw new Error('INVALID_SELECTION');
-  }
-  return unique;
 }
 
 /** Loads the case and requires `uid` to own it and the case to be unexpired. Non-owner and missing are indistinguishable. */
@@ -120,30 +132,24 @@ export async function previewAllyPacket(
   db: Firestore,
   ownerUid: string,
   caseId: string,
-  input: { selectedEvidenceIds: readonly string[] },
   now: Now = systemNow,
 ): Promise<AllyPreview> {
   const current = await readOwnedCase(db, ownerUid, caseId, now);
-  const ids = normalizeSelection(input.selectedEvidenceIds);
-  const packetContent = await buildAllowlistedPacket(db, current, ids);
-  if (packetContent.selectedEvidence.length !== ids.length) {
-    throw new Error('UNKNOWN_EVIDENCE');
-  }
+  const packetContent = buildAllowlistedPacket(current);
   return { caseId, caseVersion: current.version, packetHash: hashAllyPacket(packetContent), packetContent };
 }
 
 export interface CreateGrantInput {
   allyUid: string;
-  selectedEvidenceIds: readonly string[];
   expectedCaseVersion: number;
   expectedPacketHash: string;
 }
 
 /**
  * Explicit Share. Rechecks ownership, owner sharing consent, the accepted
- * relationship, the previewed case version, the selected evidence, and the
- * packet hash before storing ONLY the allowlisted snapshot. A stale preview
- * must be refreshed (`STALE_PREVIEW`).
+ * relationship, the previewed case version, and the packet hash before
+ * storing ONLY the allowlisted snapshot. A stale preview must be refreshed
+ * (`STALE_PREVIEW`).
  */
 export async function createAllyGrant(
   db: Firestore,
@@ -157,11 +163,7 @@ export async function createAllyGrant(
   if (!plan?.allySharingConsent || !(await hasAcceptedRelationship(db, ownerUid, input.allyUid))) {
     throw new Error('FORBIDDEN');
   }
-  const ids = normalizeSelection(input.selectedEvidenceIds);
-  const packetSnapshot = await buildAllowlistedPacket(db, current, ids);
-  if (packetSnapshot.selectedEvidence.length !== ids.length) {
-    throw new Error('UNKNOWN_EVIDENCE');
-  }
+  const packetSnapshot = buildAllowlistedPacket(current);
   const packetHash = hashAllyPacket(packetSnapshot);
   if (current.version !== input.expectedCaseVersion || packetHash !== input.expectedPacketHash) {
     throw new Error('STALE_PREVIEW');
@@ -169,7 +171,7 @@ export async function createAllyGrant(
 
   const ttlEnd = new Date(now().getTime() + GRANT_TTL_MS).toISOString();
   const expiresAt = current.expiresAt !== undefined && current.expiresAt < ttlEnd ? current.expiresAt : ttlEnd;
-  const grant: AllyGrant = { caseId, allyUid: input.allyUid, selectedEvidenceIds: ids, packetSnapshot, packetHash, expiresAt };
+  const grant: AllyGrant = { caseId, allyUid: input.allyUid, packetSnapshot, packetHash, expiresAt };
 
   await db.runTransaction(async (tx) => {
     const fresh = await tx.get(caseRef(db, caseId));
@@ -179,6 +181,25 @@ export async function createAllyGrant(
     tx.set(grantRef(db, caseId, input.allyUid), { ...grant, createdAt: now().toISOString() });
   });
   return { caseId, allyUid: input.allyUid, expiresAt, packetHash };
+}
+
+/**
+ * Every unrevoked, unexpired case shared with this ally, so the ally window
+ * can auto-discover shared cases instead of being told a case id. Lightweight:
+ * only the already-allowlisted claim + ids, from the grant snapshots - the
+ * full packet read (`readAllyPacket`) still rechecks every predicate on open.
+ */
+export async function listAllyCases(db: Firestore, allyUid: string, now: Now = systemNow): Promise<AllyGrantedCase[]> {
+  const nowIso = now().toISOString();
+  const snap = await db.collectionGroup('allyGrants').where('allyUid', '==', allyUid).get();
+  const cases: AllyGrantedCase[] = [];
+  for (const doc of snap.docs) {
+    const grant = doc.data() as AllyGrant;
+    if (grant.revokedAt || !grant.packetSnapshot || grant.expiresAt <= nowIso) continue;
+    cases.push({ caseId: grant.caseId, claim: grant.packetSnapshot.claim, expiresAt: grant.expiresAt });
+  }
+  cases.sort((a, b) => a.expiresAt.localeCompare(b.expiresAt) || a.caseId.localeCompare(b.caseId));
+  return cases;
 }
 
 export const createGrant = createAllyGrant;
@@ -195,7 +216,7 @@ export async function revokeGrant(db: Firestore, ownerUid: string, caseId: strin
   if (!snap.exists) {
     return;
   }
-  await ref.update({ revokedAt: now().toISOString(), packetSnapshot: null, selectedEvidenceIds: [] });
+  await ref.update({ revokedAt: now().toISOString(), packetSnapshot: null });
 }
 
 /**
@@ -231,20 +252,12 @@ export async function readAllyPacket(db: Firestore, allyUid: string, caseId: str
     throw new Error('FORBIDDEN');
   }
 
-  const currentContent = await buildAllowlistedPacket(db, current, grant.selectedEvidenceIds);
+  const currentContent = buildAllowlistedPacket(current);
   if (hashAllyPacket(currentContent) !== grant.packetHash) {
     throw new Error('STALE_GRANT');
   }
-  const { claim, proposedAction, amountMinor, verificationGap, selectedEvidence } = grant.packetSnapshot;
-  return {
-    caseId,
-    expiresAt: grant.expiresAt,
-    claim,
-    proposedAction,
-    amountMinor,
-    verificationGap,
-    selectedEvidence: selectedEvidence.map((item) => ({ id: item.id, excerpt: item.excerpt })),
-  };
+  const { claim, proposedAction, amountMinor, verificationGap, summary } = grant.packetSnapshot;
+  return { caseId, expiresAt: grant.expiresAt, claim, proposedAction, amountMinor, verificationGap, summary };
 }
 
 const ResponseSchema = z.discriminatedUnion('kind', [

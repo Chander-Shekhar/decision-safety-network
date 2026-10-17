@@ -9,7 +9,7 @@ import { issuePairingCode } from '../src/ally-pairing.js';
 import { buildApi, type ApiDeps } from '../src/app.js';
 import { createEvidenceRoutes } from '../src/evidence-routes.js';
 import { sessionRoutes } from '../src/session-routes.js';
-import { createAllyGrant, previewAllyPacket, readAllyPacket, respondAsAlly, revokeGrant } from '../src/ally.js';
+import { createAllyGrant, listAllyCases, previewAllyPacket, readAllyPacket, respondAsAlly, revokeGrant } from '../src/ally.js';
 import { createAllyRoutes } from '../src/ally-routes.js';
 import { authHeader } from './test-auth.js';
 
@@ -26,7 +26,7 @@ beforeAll(() => {
 
 const uid = (prefix: string): string => `${prefix}-${randomUUID()}`;
 
-const PACKET_KEYS = ['amountMinor', 'caseId', 'claim', 'expiresAt', 'proposedAction', 'selectedEvidence', 'verificationGap'];
+const PACKET_KEYS = ['amountMinor', 'caseId', 'claim', 'expiresAt', 'proposedAction', 'summary', 'verificationGap'];
 
 interface Seeded {
   owner: string;
@@ -68,9 +68,6 @@ async function seed(opts: { consent?: boolean; accept?: boolean } = {}): Promise
   });
   await ref.collection('segments').doc('s1').set({ id: 's1', speaker: 'caller', text: 'HIDDEN-TRANSCRIPT one', order: 1 });
   await ref.collection('segments').doc('s2').set({ id: 's2', speaker: 'caller', text: 'HIDDEN-TRANSCRIPT two', order: 2 });
-  await ref.collection('evidence').doc('e1').set({
-    id: 'e1', caseId: created.id, segmentId: 's1', speaker: 'caller', text: 'Transfer ₹50,000 to safe-new', order: 1, promotedAt: new Date().toISOString(),
-  });
   await ref.collection('evidence').doc('e2').set({
     id: 'e2', caseId: created.id, segmentId: 's2', speaker: 'caller', text: 'UNSELECTED-EVIDENCE other excerpt', order: 2, promotedAt: new Date().toISOString(),
   });
@@ -78,10 +75,9 @@ async function seed(opts: { consent?: boolean; accept?: boolean } = {}): Promise
 }
 
 async function share(s: Seeded): Promise<{ caseVersion: number; packetHash: string }> {
-  const preview = await previewAllyPacket(db, s.owner, s.caseId, { selectedEvidenceIds: ['e1'] });
+  const preview = await previewAllyPacket(db, s.owner, s.caseId);
   await createAllyGrant(db, s.owner, s.caseId, {
     allyUid: s.ally,
-    selectedEvidenceIds: ['e1'],
     expectedCaseVersion: preview.caseVersion,
     expectedPacketHash: preview.packetHash,
   });
@@ -100,8 +96,10 @@ describe('ally packet (functions)', () => {
     const s = await seed({ accept: false });
     await expect(readAllyPacket(db, s.ally, s.caseId)).rejects.toThrow('FORBIDDEN');
     await acceptInvitation(db, s.invitationId, s.ally);
-    const preview = await previewAllyPacket(db, s.owner, s.caseId, { selectedEvidenceIds: ['e1'] });
-    expect(preview.packetContent.selectedEvidence).toEqual([{ id: 'e1', excerpt: 'Transfer ₹50,000 to safe-new' }]);
+    const preview = await previewAllyPacket(db, s.owner, s.caseId);
+    // The packet carries an AI summary composed from the facts, never raw transcript excerpts.
+    expect(preview.packetContent.summary).toContain('account compromised');
+    expect(preview.packetContent.summary).not.toContain('HIDDEN-TRANSCRIPT');
     // merely opening a preview (and then "Not now": no further call) discloses nothing
     await expect(readAllyPacket(db, s.ally, s.caseId)).rejects.toThrow('FORBIDDEN');
     const grants = await db.collection('cases').doc(s.caseId).collection('allyGrants').get();
@@ -110,16 +108,15 @@ describe('ally packet (functions)', () => {
 
   it('a non-owner cannot preview', async () => {
     const s = await seed();
-    await expect(previewAllyPacket(db, s.ally, s.caseId, { selectedEvidenceIds: ['e1'] })).rejects.toThrow('FORBIDDEN');
+    await expect(previewAllyPacket(db, s.ally, s.caseId)).rejects.toThrow('FORBIDDEN');
   });
 
   it('explicit Share freezes exactly the previewed packet; key set is exact; no transcript', async () => {
     const s = await seed();
-    const preview = await previewAllyPacket(db, s.owner, s.caseId, { selectedEvidenceIds: ['e1'] });
+    const preview = await previewAllyPacket(db, s.owner, s.caseId);
     expect(preview.packetContent).toMatchObject({ claim: 'Account compromised', proposedAction: 'Transfer to a safe account', amountMinor: 5_000_000 });
     await createAllyGrant(db, s.owner, s.caseId, {
       allyUid: s.ally,
-      selectedEvidenceIds: ['e1'],
       expectedCaseVersion: preview.caseVersion,
       expectedPacketHash: preview.packetHash,
     });
@@ -134,29 +131,16 @@ describe('ally packet (functions)', () => {
 
   it('a stale preview (version or hash) cannot create a grant', async () => {
     const s = await seed();
-    const preview = await previewAllyPacket(db, s.owner, s.caseId, { selectedEvidenceIds: ['e1'] });
+    const preview = await previewAllyPacket(db, s.owner, s.caseId);
     await bumpCase(s.caseId, { paymentDraft: { id: 'd2', beneficiaryId: 'safe-new', amountMinor: 9_000_000, newPayee: true, version: 2 } });
     await expect(
-      createAllyGrant(db, s.owner, s.caseId, { allyUid: s.ally, selectedEvidenceIds: ['e1'], expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash }),
+      createAllyGrant(db, s.owner, s.caseId, { allyUid: s.ally, expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash }),
     ).rejects.toThrow('STALE_PREVIEW');
-    const fresh = await previewAllyPacket(db, s.owner, s.caseId, { selectedEvidenceIds: ['e1'] });
+    const fresh = await previewAllyPacket(db, s.owner, s.caseId);
     await expect(
-      createAllyGrant(db, s.owner, s.caseId, { allyUid: s.ally, selectedEvidenceIds: ['e1'], expectedCaseVersion: fresh.caseVersion, expectedPacketHash: preview.packetHash }),
+      createAllyGrant(db, s.owner, s.caseId, { allyUid: s.ally, expectedCaseVersion: fresh.caseVersion, expectedPacketHash: preview.packetHash }),
     ).rejects.toThrow('STALE_PREVIEW');
     await expect(readAllyPacket(db, s.ally, s.caseId)).rejects.toThrow('FORBIDDEN');
-  });
-
-  it('Share for a different evidence selection than previewed is rejected', async () => {
-    const s = await seed();
-    const preview = await previewAllyPacket(db, s.owner, s.caseId, { selectedEvidenceIds: ['e1'] });
-    await expect(
-      createAllyGrant(db, s.owner, s.caseId, { allyUid: s.ally, selectedEvidenceIds: ['e1', 'e2'], expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash }),
-    ).rejects.toThrow('STALE_PREVIEW');
-  });
-
-  it('unknown evidence ids are rejected at preview', async () => {
-    const s = await seed();
-    await expect(previewAllyPacket(db, s.owner, s.caseId, { selectedEvidenceIds: ['nope'] })).rejects.toThrow('UNKNOWN_EVIDENCE');
   });
 
   it.each([
@@ -170,15 +154,8 @@ describe('ally packet (functions)', () => {
     await expect(readAllyPacket(db, s.ally, s.caseId)).rejects.toThrow('STALE_GRANT');
     // re-preview + re-share restores access to the NEW content only
     await share(s);
-    const current = await previewAllyPacket(db, s.owner, s.caseId, { selectedEvidenceIds: ['e1'] });
+    const current = await previewAllyPacket(db, s.owner, s.caseId);
     expect(await readAllyPacket(db, s.ally, s.caseId)).toMatchObject(current.packetContent);
-  });
-
-  it('an evidence change after Share invalidates access', async () => {
-    const s = await seed();
-    await share(s);
-    await db.collection('cases').doc(s.caseId).collection('evidence').doc('e1').update({ text: 'edited excerpt' });
-    await expect(readAllyPacket(db, s.ally, s.caseId)).rejects.toThrow('STALE_GRANT');
   });
 
   it('active ally cannot read another case', async () => {
@@ -210,8 +187,9 @@ describe('ally packet (functions)', () => {
     await expect(readAllyPacket(db, s.ally, s.caseId)).rejects.toThrow('FORBIDDEN');
     const grant = (await db.collection('cases').doc(s.caseId).collection('allyGrants').doc(s.ally).get()).data();
     expect(grant?.revokedAt).toBeTruthy();
+    expect(grant?.packetSnapshot).toBeNull();
     expect(JSON.stringify(grant)).not.toContain('Account compromised');
-    expect(JSON.stringify(grant)).not.toContain('Transfer ₹50,000');
+    expect(JSON.stringify(grant)).not.toContain('safe account');
   });
 
   it('only the owner can revoke a grant', async () => {
@@ -230,29 +208,41 @@ describe('ally packet (functions)', () => {
 
   it('cannot grant without consent, without acceptance, or to a revoked relationship', async () => {
     const noConsent = await seed({ consent: false });
-    const p1 = await previewAllyPacket(db, noConsent.owner, noConsent.caseId, { selectedEvidenceIds: ['e1'] });
+    const p1 = await previewAllyPacket(db, noConsent.owner, noConsent.caseId);
     await expect(
-      createAllyGrant(db, noConsent.owner, noConsent.caseId, { allyUid: noConsent.ally, selectedEvidenceIds: ['e1'], expectedCaseVersion: p1.caseVersion, expectedPacketHash: p1.packetHash }),
+      createAllyGrant(db, noConsent.owner, noConsent.caseId, { allyUid: noConsent.ally, expectedCaseVersion: p1.caseVersion, expectedPacketHash: p1.packetHash }),
     ).rejects.toThrow('FORBIDDEN');
 
     const unaccepted = await seed({ accept: false });
-    const p2 = await previewAllyPacket(db, unaccepted.owner, unaccepted.caseId, { selectedEvidenceIds: ['e1'] });
+    const p2 = await previewAllyPacket(db, unaccepted.owner, unaccepted.caseId);
     await expect(
-      createAllyGrant(db, unaccepted.owner, unaccepted.caseId, { allyUid: unaccepted.ally, selectedEvidenceIds: ['e1'], expectedCaseVersion: p2.caseVersion, expectedPacketHash: p2.packetHash }),
+      createAllyGrant(db, unaccepted.owner, unaccepted.caseId, { allyUid: unaccepted.ally, expectedCaseVersion: p2.caseVersion, expectedPacketHash: p2.packetHash }),
     ).rejects.toThrow('FORBIDDEN');
 
     const declined = await seed();
     await revokeInvitation(db, declined.invitationId, declined.owner);
-    const p3 = await previewAllyPacket(db, declined.owner, declined.caseId, { selectedEvidenceIds: ['e1'] });
+    const p3 = await previewAllyPacket(db, declined.owner, declined.caseId);
     await expect(
-      createAllyGrant(db, declined.owner, declined.caseId, { allyUid: declined.ally, selectedEvidenceIds: ['e1'], expectedCaseVersion: p3.caseVersion, expectedPacketHash: p3.packetHash }),
+      createAllyGrant(db, declined.owner, declined.caseId, { allyUid: declined.ally, expectedCaseVersion: p3.caseVersion, expectedPacketHash: p3.packetHash }),
     ).rejects.toThrow('FORBIDDEN');
 
     const stranger = await seed();
-    const p4 = await previewAllyPacket(db, stranger.owner, stranger.caseId, { selectedEvidenceIds: ['e1'] });
+    const p4 = await previewAllyPacket(db, stranger.owner, stranger.caseId);
     await expect(
-      createAllyGrant(db, stranger.owner, stranger.caseId, { allyUid: uid('other'), selectedEvidenceIds: ['e1'], expectedCaseVersion: p4.caseVersion, expectedPacketHash: p4.packetHash }),
+      createAllyGrant(db, stranger.owner, stranger.caseId, { allyUid: uid('other'), expectedCaseVersion: p4.caseVersion, expectedPacketHash: p4.packetHash }),
     ).rejects.toThrow('FORBIDDEN');
+  });
+
+  it('listAllyCases returns only this ally\'s unrevoked, unexpired grants', async () => {
+    const s = await seed();
+    await share(s);
+    const listed = await listAllyCases(db, s.ally);
+    expect(listed).toEqual([{ caseId: s.caseId, claim: 'Account compromised', expiresAt: expect.any(String) }]);
+    // a stranger sees nothing
+    expect(await listAllyCases(db, uid('stranger'))).toEqual([]);
+    // revocation drops it from the list
+    await revokeGrant(db, s.owner, s.caseId, s.ally);
+    expect(await listAllyCases(db, s.ally)).toEqual([]);
   });
 
   it('ally responses persist without touching the case, payment, or verification', async () => {
@@ -295,13 +285,12 @@ describe('ally routes', () => {
   }
 
   async function routeShare(s: Seeded) {
-    const preview = await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, { selectedEvidenceIds: ['e1'] });
+    const preview = await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, {});
     expect(preview.statusCode).toBe(200);
     expect(preview.headers['cache-control']).toContain('no-store');
     const body = preview.json();
     const grant = await call('POST', `/api/v1/cases/${s.caseId}/ally-grant`, s.owner, {
       allyUid: s.ally,
-      selectedEvidenceIds: ['e1'],
       expectedCaseVersion: body.caseVersion,
       expectedPacketHash: body.packetHash,
     });
@@ -312,17 +301,16 @@ describe('ally routes', () => {
     const s = await seed();
     const res = await app().inject({ method: 'GET', url: `/api/v1/ally/cases/${s.caseId}` });
     expect(res.statusCode).toBe(401);
+    expect((await app().inject({ method: 'GET', url: '/api/v1/ally/cases' })).statusCode).toBe(401);
   });
 
   it('preview is owner-only, no-store, and discloses nothing to the ally', async () => {
     const s = await seed();
-    expect((await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.ally, { selectedEvidenceIds: ['e1'] })).statusCode).toBe(403);
-    const ok = await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, { selectedEvidenceIds: ['e1'] });
+    expect((await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.ally, {})).statusCode).toBe(403);
+    const ok = await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, {});
     expect(ok.statusCode).toBe(200);
     expect(ok.headers['cache-control']).toContain('no-store');
     expect((await call('GET', `/api/v1/ally/cases/${s.caseId}`, s.ally)).statusCode).toBe(403);
-    expect((await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, { selectedEvidenceIds: [] })).statusCode).toBe(400);
-    expect((await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, { selectedEvidenceIds: ['nope'] })).statusCode).toBe(400);
   });
 
   it('share then ally read returns exactly the previewed packet; no-store; exact keys', async () => {
@@ -340,12 +328,23 @@ describe('ally routes', () => {
     expect(res.body).not.toContain('HIDDEN-TRANSCRIPT');
   });
 
+  it('the ally auto-discovers shared cases via GET /ally/cases', async () => {
+    const s = await seed();
+    await routeShare(s);
+    const res = await call('GET', '/api/v1/ally/cases', s.ally);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['cache-control']).toContain('no-store');
+    expect(res.json().cases).toEqual([{ caseId: s.caseId, claim: 'Account compromised', expiresAt: expect.any(String) }]);
+    // a different ally sees nothing
+    expect((await call('GET', '/api/v1/ally/cases', uid('stranger'))).json().cases).toEqual([]);
+  });
+
   it('stale preview version/hash returns 409', async () => {
     const s = await seed();
-    const preview = (await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, { selectedEvidenceIds: ['e1'] })).json();
+    const preview = (await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, {})).json();
     await bumpCase(s.caseId, { paymentDraft: { id: 'd2', beneficiaryId: 'safe-new', amountMinor: 7, newPayee: true, version: 2 } });
     const res = await call('POST', `/api/v1/cases/${s.caseId}/ally-grant`, s.owner, {
-      allyUid: s.ally, selectedEvidenceIds: ['e1'], expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash,
+      allyUid: s.ally, expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash,
     });
     expect(res.statusCode).toBe(409);
     expect((await call('GET', `/api/v1/ally/cases/${s.caseId}`, s.ally)).statusCode).toBe(403);
@@ -353,9 +352,9 @@ describe('ally routes', () => {
 
   it('non-owner cannot grant; grant body is validated', async () => {
     const s = await seed();
-    const preview = (await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, { selectedEvidenceIds: ['e1'] })).json();
+    const preview = (await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, {})).json();
     const forged = await call('POST', `/api/v1/cases/${s.caseId}/ally-grant`, s.ally, {
-      allyUid: s.ally, selectedEvidenceIds: ['e1'], expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash,
+      allyUid: s.ally, expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash,
     });
     expect(forged.statusCode).toBe(403);
     expect((await call('POST', `/api/v1/cases/${s.caseId}/ally-grant`, s.owner, { allyUid: s.ally })).statusCode).toBe(400);

@@ -179,6 +179,22 @@ Founder: the owner reaches Review mid-stress; the step should deliberately, warm
 - **Owned paths touched:** `apps/web/src/DecisionMap.tsx`, `apps/web/src/DecisionMap.test.tsx`.
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **238** tests pass (the live/degraded status test rewritten: live path shows no caption, degraded shows the reworded, actionable caption).
 
+### Batch 15 — caller number first at intake; Ally share reworked (AI summary + real delivery) (2026-10-17)
+
+Two founder asks from live testing.
+
+**1. Intake order.** `SessionInput` now shows the "Caller's number" field *first*, above the paste/upload input, for the paste and upload paths (the live path already has the screened number). No behaviour change — it still rides along on submit.
+
+**2. Ally share.** The founder hit a dead "Share this case with your Safety Ally" (no delivery, no cue), a confusing "only 10 lines" error, and wanted the raw-transcript excerpt mechanism gone. Reworked end to end (cross-package; also owns `packages/contracts/src/{ally,plan}.ts`, `apps/api/src/{ally,ally-routes,ally-reach}.ts`, `apps/web/src/{AllyScreen,AllySharePreview,SettingsScreen}.tsx` and the api/web ally tests for this batch):
+
+- **Packet now carries a short AI summary, not transcript excerpts.** `AllyPacketContent.selectedEvidence[]` → `summary: string` (composed server-side from the AI-extracted facts; deterministic, hash-stable). Removed `AllyPacketEvidence`, `AllyGrant.selectedEvidenceIds`, the ≤10 selection cap/validation, and the `AllyEvidenceSelector` picker + "Adjust which excerpts" disclosure. The owner preview and the ally screen render the four claim fields + the summary; the WhatsApp summary includes it too. The whole promotion/preview/grant *lifecycle* and privacy binding are unchanged (decision 0016 addendum 2026-10-17; supersedes the excerpt model, not the lifecycle).
+- **Share actually delivers + gives a cue.** Share without a paired ally now says so plainly ("Pair your Safety Ally first…") instead of a silent 400; on success an owner "Shared with your Safety Ally ✓ — you can take a breather" status Callout appears. (Root cause: each browser session is a fresh anonymous user, so the pre-added *sample* ally has no uid to grant to — only a pairing-code-paired ally is reachable.)
+- **Ally auto-discovers shared cases.** New `GET /api/v1/ally/cases` lists the signed-in ally's unrevoked, unexpired grants (collection-group query on `allyGrants`); the `?role=ally` window polls it and shows a "Cases shared with you" list to open — no more typing a Case ID. Full packet read still rechecks every predicate on open.
+
+- **Verification:** `apps/web` `tsc --noEmit` clean, `vitest run` 25 files / **230** tests pass (deleted `AllyEvidenceSelector.test.tsx`; updated AllyScreen/AllySharePreview/AllyReach tests to the summary packet). `apps/api` `tsc --noEmit` clean (ally.test rewritten: preview/grant without ids, new `listAllyCases` + `GET /ally/cases` coverage, revoke-purges-snapshot; ally-reach + plan-setup updated).
+- **Not run here:** the emulator-backed `apps/api` suite (no Firestore emulator in this environment — same gap as Batch 13). Run `npm run test:api` locally to confirm. The new `GET /ally/cases` uses a single-field collection-group query on `allyGrants.allyUid` (auto-indexed by Firestore/emulator; no composite index needed).
+- **e2e:** attack journey's ally-preview assertions reconciled to the summary packet (claim + "short AI summary of the call" instead of the excerpt + "full transcript… not included" line); still `test.fixme` pending the live pass.
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).

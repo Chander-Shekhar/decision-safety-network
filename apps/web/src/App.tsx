@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceSignalList } from './DeviceSignalList';
 import { announceCapturePolicy, nextLiveSegment, parseCaptureStatusMessage, parseTranscriptSegmentMessage } from './liveTranscript';
 import { parseSmsSignalMessage, ingestSmsSignal, type DeviceSignal } from './deviceSignals';
-import type { AllyCallerContact, AllyPacket, AllyPacketContent, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally';
+import type { AllyCallerContact, AllyGrantedCase, AllyPacket, AllyPacketContent, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
 import type { Plan } from '../../../packages/contracts/src/plan';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
@@ -11,7 +11,6 @@ import type { WebVerificationEvidence } from '../../../packages/contracts/src/we
 import type { ReportDraft, ReportHandoffResult } from '../../../packages/contracts/src/report';
 import { AboutScreen } from './AboutScreen';
 import { ActionConsole } from './ActionConsole';
-import { AllyEvidenceSelector, MAX_ALLY_EVIDENCE } from './AllyEvidenceSelector';
 import { AllyScreen } from './AllyScreen';
 import { AllySharePreview } from './AllySharePreview';
 import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken } from './api-client';
@@ -29,7 +28,7 @@ import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
-import { Button, Callout, Card, Disclosure, StepFlowNav, StepRail } from './ui';
+import { Button, Callout, Card, StepFlowNav, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
@@ -57,7 +56,6 @@ interface AllyPreview {
   packet: AllyPacketContent;
   packetHash: string;
   caseVersion: number;
-  selectedEvidenceIds: string[];
 }
 
 /** Reads a File into base64 (no `data:` prefix), for the transcription upload (DSN-030). */
@@ -80,10 +78,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [caseId, setCaseId] = useState<string>(() => /cases\/([^/]+)/.exec(window.location.pathname)?.[1] ?? '');
   const [caseView, setCaseView] = useState<CaseView | null>(null);
   const [segments, setSegments] = useState<SessionSegmentView[]>([]);
-  // Ally evidence selection: every segment is shared by default. We track the
-  // owner's DE-selections, so segments that arrive after the owner opened the
-  // Ally step default to selected without resurrecting ones already dropped.
-  const [deselectedEvidenceIds, setDeselectedEvidenceIds] = useState<ReadonlySet<string>>(() => new Set());
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [allyUid, setAllyUid] = useState<string | null>(null);
   // Ally session: the id of the invitation addressed to this ally (null until the
@@ -109,6 +103,8 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [preview, setPreview] = useState<AllyPreview | null>(null);
   const [allyPreviewPending, setAllyPreviewPending] = useState(false);
   const [allyPacket, setAllyPacket] = useState<AllyPacket | null>(null);
+  // Ally session: cases auto-discovered as shared with this ally (no case id to type).
+  const [allyCases, setAllyCases] = useState<AllyGrantedCase[]>([]);
   // DSN-027: owner-side WhatsApp summary (minimum packet only) + ally-side contact-caller script.
   const [allyShared, setAllyShared] = useState(false);
   const [whatsappSummary, setWhatsappSummary] = useState<AllyWhatsAppSummary | undefined>();
@@ -205,6 +201,27 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     };
   }, [role, api]);
 
+  // Ally session: auto-discover the cases shared with this ally, so the ally never
+  // types a case id. Polls while the ally screen is open; the owner's Share appears here.
+  useEffect(() => {
+    if (role !== 'ally') return;
+    let cancelled = false;
+    const sync = async () => {
+      try {
+        const { cases } = await api.get<{ cases: AllyGrantedCase[] }>('ally/cases');
+        if (!cancelled) setAllyCases(cases);
+      } catch {
+        // Transient read failure: keep the current list; the next poll retries.
+      }
+    };
+    void sync();
+    const timer = window.setInterval(() => void sync(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [role, api]);
+
   // Owner session: once a real ally has been nominated (the client-only sample
   // ally is cleared), poll the owner-keyed invitation read so the Plan/Settings
   // screen reflects when the ally accepts. Acceptance is written on the ally's
@@ -255,47 +272,25 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     [api],
   );
 
-  // Ids the owner is sharing with the ally: all current segments minus any de-selected.
-  const selectedEvidenceIds = useMemo(
-    () => segments.filter((segment) => !deselectedEvidenceIds.has(segment.id)).map((segment) => segment.id),
-    [segments, deselectedEvidenceIds],
-  );
-  const toggleEvidence = useCallback((id: string) => {
-    setDeselectedEvidenceIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
   // Build the ally summary the owner reviews on the Ally step. We DON'T ask a person under
-  // pressure to hand-pick excerpts: a sensible default (all current excerpts, capped at the
-  // server limit) is promoted and summarised automatically; the owner reviews the result and
-  // consents by Sharing. The optional "Adjust what your ally sees" picker re-runs this.
+  // pressure to hand-pick transcript excerpts: the server composes a short AI summary of the
+  // call from the extracted facts. The owner reviews the packet and consents by Sharing.
   const generateAllyPreview = useCallback(() => {
     if (!caseId) return;
-    const ids = selectedEvidenceIds.slice(0, MAX_ALLY_EVIDENCE);
-    if (ids.length === 0) return;
     setAllyPreviewPending(true);
     void run(async () => {
       try {
-        // Promote each chosen segment into the case's `evidence` subcollection (idempotent per
-        // segment) so the preview can resolve the ids, then summarise exactly those ids.
-        for (const id of ids) {
-          await api.command('POST', `cases/${caseId}/evidence/${id}/promote`, {});
-        }
         const result = await api.command<{ packetContent: AllyPacketContent; packetHash: string; caseVersion: number }>(
           'POST',
           `cases/${caseId}/ally-share-preview`,
-          { selectedEvidenceIds: ids },
+          {},
         );
-        setPreview({ packet: result.packetContent, packetHash: result.packetHash, caseVersion: result.caseVersion, selectedEvidenceIds: ids });
+        setPreview({ packet: result.packetContent, packetHash: result.packetHash, caseVersion: result.caseVersion });
       } finally {
         setAllyPreviewPending(false);
       }
     });
-  }, [api, caseId, selectedEvidenceIds, run]);
+  }, [api, caseId, run]);
 
   // Auto-generate the summary once when the owner lands on the Ally step with a call present.
   // The ref makes it one-shot per visit; leaving the step rearms it. "Not now" navigates away
@@ -953,13 +948,17 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   onShare={() =>
                     run(async () => {
                       // The ally's uid comes from the invitation response; the owner UI never types it.
+                      // Without a paired ally there is no one to share with - say so plainly.
+                      if (!allyUid) {
+                        setError('Pair your Safety Ally first (on the Plan step) so this case can reach them.');
+                        return;
+                      }
                       await api.command('POST', `cases/${caseId}/ally-grant`, {
-                        allyUid: allyUid ?? '',
-                        selectedEvidenceIds: preview.selectedEvidenceIds,
+                        allyUid,
                         expectedCaseVersion: preview.caseVersion,
                         expectedPacketHash: preview.packetHash,
                       });
-                      setAllyShared(true); // DSN-027: a grant now exists, so the WhatsApp summary is meaningful.
+                      setAllyShared(true); // a grant now exists: the ally sees the case, and the WhatsApp summary is meaningful.
                     })
                   }
                   // DSN-027: only offered after a grant exists; builds the minimum-packet summary server-side.
@@ -975,10 +974,14 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   }
                   whatsappSummary={whatsappSummary}
                 />
-                {/* Optional, not required: the owner can narrow the excerpts the summary includes. */}
-                <Disclosure summary="Adjust which excerpts your ally sees">
-                  <AllyEvidenceSelector segments={segments} selectedIds={selectedEvidenceIds} onToggle={toggleEvidence} onPreview={generateAllyPreview} />
-                </Disclosure>
+                {allyShared && (
+                  <Callout kind="info" role="status">
+                    <p className="font-semibold text-text">Shared with your Safety Ally.</p>
+                    <p className="mt-space-1 text-sm text-text-muted">
+                      It's now in their app — they'll see it and can reach out to you. You can take a breather.
+                    </p>
+                  </Callout>
+                )}
               </>
             ) : (
               <Card title="Ask your Safety Ally">
@@ -990,13 +993,33 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
         {role === 'ally' && step === 'Ally' && (
           <>
-            <label>
-              Case ID
-              <input value={caseId} onChange={(e) => setCaseId(e.target.value)} />
-            </label>
-            <div><Button onClick={() => run(async () => setAllyPacket(await api.get<AllyPacket>(`ally/cases/${caseId}`)))}>
-              Open shared case
-            </Button></div>
+            {!allyPacket && (
+              <Card title="Cases shared with you">
+                {allyCases.length === 0 ? (
+                  <p className="text-sm text-text-muted">
+                    Nothing shared yet. When someone shares a case with you, it appears here automatically.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-space-2" aria-label="Shared cases">
+                    {allyCases.map((c) => (
+                      <li key={c.caseId}>
+                        <Button
+                          variant="secondary"
+                          onClick={() =>
+                            run(async () => {
+                              setCaseId(c.caseId);
+                              setAllyPacket(await api.get<AllyPacket>(`ally/cases/${c.caseId}`));
+                            })
+                          }
+                        >
+                          Open: {c.claim}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            )}
             {allyPacket && (
               <AllyScreen
                 packet={allyPacket}

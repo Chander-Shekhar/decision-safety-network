@@ -44,15 +44,11 @@ export function AllySharePreview({ allyName, packet, stale = false, onShare, onN
           <dd>{packet.verificationGap}</dd>
         </dl>
 
-        <h4 className="text-sm font-semibold">Selected evidence</h4>
-        <ul className="flex flex-col gap-space-2">
-          {packet.selectedEvidence.map((item) => (
-            <li key={item.id}>
-              <blockquote className="rounded-md border-l-4 border-border bg-surface-sunken p-space-3">{item.excerpt}</blockquote>
-            </li>
-          ))}
-        </ul>
-        <p className="text-sm text-text-muted">Full transcript and other evidence are not included.</p>
+        <h4 className="text-sm font-semibold">Short summary</h4>
+        <p className="rounded-md border-l-4 border-border bg-surface-sunken p-space-3 text-sm">{packet.summary}</p>
+        <p className="text-sm text-text-muted">
+          A short AI summary of the call — not the recording or transcript. {allyName} can reach you for more.
+        </p>
 
         {stale && (
           <Callout kind="caution" role="alert">

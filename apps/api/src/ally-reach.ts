@@ -28,9 +28,8 @@ export function summarizePacket(packet: AllyPacket): string {
     `Amount: ${packet.amountMinor === null ? 'No amount proposed' : `Rs ${formatAmount(packet.amountMinor)}`}`,
     `Verification gap: ${packet.verificationGap}`,
   ];
-  if (packet.selectedEvidence.length > 0) {
-    lines.push('Shared evidence:');
-    for (const item of packet.selectedEvidence) lines.push(`- "${item.excerpt}"`);
+  if (packet.summary.trim().length > 0) {
+    lines.push('', `Summary: ${packet.summary}`);
   }
   lines.push('Please open the app to respond. You cannot move money or certify the caller.');
   return lines.join('\n');

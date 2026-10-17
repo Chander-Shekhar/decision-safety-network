@@ -77,9 +77,9 @@ describe('ally reach routes (DSN-027)', () => {
   }
 
   async function share(s: Seeded): Promise<void> {
-    const preview = (await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, { selectedEvidenceIds: ['e1'] })).json();
+    const preview = (await call('POST', `/api/v1/cases/${s.caseId}/ally-share-preview`, s.owner, {})).json();
     const grant = await call('POST', `/api/v1/cases/${s.caseId}/ally-grant`, s.owner, {
-      allyUid: s.ally, selectedEvidenceIds: ['e1'], expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash,
+      allyUid: s.ally, expectedCaseVersion: preview.caseVersion, expectedPacketHash: preview.packetHash,
     });
     expect(grant.statusCode).toBe(200);
   }
@@ -104,8 +104,10 @@ describe('ally reach routes (DSN-027)', () => {
     expect(summary.url.startsWith('https://wa.me/?text=')).toBe(true);
     expect(decodeURIComponent(summary.url.slice('https://wa.me/?text='.length))).toBe(summary.text);
     expect(summary.text).toContain('Account compromised');
-    expect(summary.text).toContain('Transfer 50,000 to safe-new');
+    expect(summary.text).toContain('Transfer to a safe account');
     expect(summary.text).toContain('Rs 50,000');
+    // The AI gist is included; raw transcript excerpts never are.
+    expect(summary.text).toContain('Summary:');
     // Nothing beyond the granted packet: no transcript, no unshared evidence.
     expect(res.body).not.toContain('HIDDEN-TRANSCRIPT');
     expect(res.body).not.toContain('UNSELECTED-EVIDENCE');
