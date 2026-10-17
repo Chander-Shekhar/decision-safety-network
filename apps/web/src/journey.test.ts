@@ -1,27 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { journeySteps, initialStep, canVerify, type JourneyState } from './journey';
+import { journeySteps, initialStep, type JourneyState } from './journey';
 
 const base: JourneyState = {
   role: 'owner', planSaved: false, caseId: '', phase: undefined,
-  factsExtracted: false, hasVerification: false,
+  factsExtracted: false,
   recoveryEntered: false, hasConfirmedFacts: false,
 };
 const avail = (steps = journeySteps(base)) => steps.filter((s) => s.available).map((s) => s.step);
-
-describe('canVerify', () => {
-  it('blocks verify before any call is added, with guidance', () => {
-    const r = canVerify({ ...base, factsExtracted: false });
-    expect(r.allowed).toBe(false);
-    expect(r.reason).toMatch(/add the call first/i);
-  });
-  it('allows verify once facts are extracted, independent of phase', () => {
-    expect(canVerify({ ...base, factsExtracted: true, phase: 'Observe' }).allowed).toBe(true);
-    expect(canVerify({ ...base, factsExtracted: true, phase: 'Check' }).allowed).toBe(true);
-  });
-  it('allows verify once a verification already exists, regardless of phase', () => {
-    expect(canVerify({ ...base, phase: 'Observe', hasVerification: true }).allowed).toBe(true);
-  });
-});
 
 describe('journeySteps (owner)', () => {
   it('fresh owner: only Plan available', () => {
@@ -30,11 +15,12 @@ describe('journeySteps (owner)', () => {
   it('plan saved: Session unlocks', () => {
     expect(avail(journeySteps({ ...base, planSaved: true }))).toEqual(['Plan', 'Session']);
   });
-  it('case + extracted facts: Review, Decide, Verify, Ally unlock; Evidence needs confirmed facts; Recovery needs "already paid"', () => {
+  it('case + extracted facts: Review, Decide, Ally unlock; Evidence needs confirmed facts; Recovery needs "already paid"', () => {
     const steps = journeySteps({ ...base, planSaved: true, caseId: 'c1', factsExtracted: true });
-    expect(avail(steps)).toEqual(expect.arrayContaining(['Plan', 'Session', 'Review', 'Decide', 'Verify', 'Ally']));
+    expect(avail(steps)).toEqual(expect.arrayContaining(['Plan', 'Session', 'Review', 'Decide', 'Ally']));
     expect(avail(steps)).not.toContain('Evidence');
     expect(avail(steps)).not.toContain('Recovery');
+    expect(avail(steps)).not.toContain('Verify');
   });
   it('recovery entered: Recovery unlocks', () => {
     const steps = journeySteps({ ...base, planSaved: true, caseId: 'c1', factsExtracted: true, recoveryEntered: true });

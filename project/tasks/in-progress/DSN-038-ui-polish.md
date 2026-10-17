@@ -257,6 +257,14 @@ Founder: the ally should know who shared a case and be able to call them; drop t
 
 - **Verification:** web `tsc` clean, 24 files / **204** tests pass; api `tsc` clean. New emulator-backed `ally-reach` sharer test **not run** here — run `npm run test:api`.
 
+### Batch 20 — remove the Verify step from the journey (2026-10-18)
+
+Founder: Decide only branches to Ally / call the organisation / "I already paid", so the leftover Verify step in the rail and Next flow is dead. Removed it.
+
+- Journey is now `Plan → Session → Review → Decide → Ally → Recovery → Evidence`. Dropped the Verify render block, `canVerify`, `hasVerification`, and the registry/verify-result state from `App.tsx`/`journey.ts`.
+- Kept `VerifyPanel.tsx` (its web-evidence component is still used by Review's `DecisionMap`) and the `/verify` API; only the step is gone.
+- **Verification:** web `tsc` clean, 24 files / **201** tests pass (obsolete Verify tests replaced by a "no Verify step in the rail" check; step counts updated).
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` still assume the removed draft/Pay/Pause model (stale-note added in Batch 17). Rewrite them to the new flow (Decide paths + "I already paid" → Recovery; no draft; call-driven Check) and run them against the live stack before this task is marked done.

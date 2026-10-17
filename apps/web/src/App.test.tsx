@@ -52,19 +52,12 @@ describe('App', () => {
     await waitFor(() => expect(get).toHaveBeenCalledWith('cases/c1'));
   });
 
-  it('allows Verify once a call\'s facts are extracted, with no transfer to submit first', async () => {
+  it('has no Verify step in the journey rail', async () => {
     window.history.pushState({}, '', '/cases/c1');
-    get.mockImplementation(async (path: string) =>
-      path === 'registry/demo-bank'
-        ? { entries: [] }
-        : { id: 'c1', version: 2, phase: 'Observe', facts: { payee: { field: 'payee', value: 'x', sourceSegmentIds: ['seg-1'] } }, confirmed: {} },
-    );
+    get.mockResolvedValue({ id: 'c1', version: 2, phase: 'Observe', facts: { payee: { field: 'payee', value: 'x', sourceSegmentIds: ['seg-1'] } }, confirmed: {} });
     render(<App auth={auth} />);
-    await userEvent.click(await screen.findByRole('button', { name: /^Verify/ })); // step nav (no API call)
-    // Official verification is a safe user-initiated check available on extracted claims -
-    // the old "submit the transfer first" gate is gone with the payment-draft step.
-    expect(screen.queryByText(/submit the transfer/i)).toBeNull();
-    expect(await screen.findByRole('button', { name: /load verification registry/i })).toBeVisible();
+    expect(await screen.findByRole('button', { name: /^Decide/ })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^Verify/ })).toBeNull();
   });
 
   it('ingests a dsn:sms-signal posted into the window and shows it on the Review step', async () => {
@@ -210,13 +203,13 @@ describe('App · live transcript bridge (DSN-025)', () => {
   it('provides sequential Back/Next navigation through the journey steps', async () => {
     await openSession();
     // The footer shows where you are and offers a forward path.
-    expect(screen.getByText('Step 2 of 8')).toBeVisible();
+    expect(screen.getByText('Step 2 of 7')).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: /next: review/i }));
     expect(await screen.findByRole('region', { name: 'What we heard' })).toBeVisible();
-    expect(screen.getByText('Step 3 of 8')).toBeVisible();
+    expect(screen.getByText('Step 3 of 7')).toBeVisible();
     // ...and a way back to the previous step.
     await userEvent.click(screen.getByRole('button', { name: /back to session/i }));
-    expect(screen.getByText('Step 2 of 8')).toBeVisible();
+    expect(screen.getByText('Step 2 of 7')).toBeVisible();
   });
 });
 

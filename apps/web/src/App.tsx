@@ -24,14 +24,13 @@ import { EvidenceScreen, type ReportDraftView } from './EvidenceScreen';
 import { HomeScreen } from './HomeScreen';
 import { ConfirmFraudPanel, IncomingCallScreen } from './ScreeningScreen';
 import type { ScreeningVerdict } from '../../../packages/contracts/src/screening';
-import { canVerify, initialStep, journeySteps, type JourneyState, type Step } from './journey';
+import { initialStep, journeySteps, type JourneyState, type Step } from './journey';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
 import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
 import { Button, Callout, Card, StepFlowNav, StepRail } from './ui';
-import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
 
@@ -97,8 +96,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // The signed-in user's own name + mobile (owner in Settings, ally on the pairing screen).
   const [profile, setProfile] = useState<UserProfile>({});
   const [profileSaved, setProfileSaved] = useState(false);
-  const [registry, setRegistry] = useState<VerifyPanelRegistry | null>(null);
-  const [verifyResult, setVerifyResult] = useState<VerifyPanelResult | undefined>();
   const [preview, setPreview] = useState<AllyPreview | null>(null);
   const [allyPreviewPending, setAllyPreviewPending] = useState(false);
   const [allyPacket, setAllyPacket] = useState<AllyPacket | null>(null);
@@ -369,11 +366,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     caseId,
     phase: caseView?.phase,
     factsExtracted: facts.length > 0,
-    hasVerification: !!verifyResult,
     recoveryEntered: !!recovery || caseView?.phase === 'Recover',
     hasConfirmedFacts: facts.some((f) => !!caseView?.confirmed?.[f.field]),
   };
-  const verifyGate = canVerify(journeyState);
   // The ally still needs the Plan step to accept an invitation, so keep it reachable for that role.
   const railSteps = journeySteps(journeyState).map((s) => (role === 'ally' && s.step === 'Plan' ? { step: s.step, available: true } : s));
 
@@ -843,7 +838,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
         {owner && caseId && step === 'Decide' && (
           <div className="flex flex-col gap-space-5">
-            {/* The decision hub: pause, cancel, continue, or escalate to Verify / Ask ally. */}
+            {/* The decision hub: ask the ally, call the real organisation, or move to recovery if already paid. */}
             <section aria-label="Decide what to do" className="flex flex-col gap-space-3">
               <h2 className="text-sm font-semibold">Decide what to do</h2>
               <ActionConsole
@@ -861,37 +856,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               />
             </section>
           </div>
-        )}
-
-        {owner && caseId && step === 'Verify' && (
-          <>
-            {!verifyGate.allowed && <Callout kind="info">{verifyGate.reason}</Callout>}
-            {!registry && (
-              <div><Button onClick={() => run(async () => setRegistry(await api.get<VerifyPanelRegistry>('registry/demo-bank')))}>
-                Load verification registry
-              </Button></div>
-            )}
-            {registry && (
-              <VerifyPanel
-                registry={registry}
-                result={verifyResult}
-                disabled={!verifyGate.allowed}
-                webEvidence={webEvidence}
-                onVerify={() =>
-                  run(async () => {
-                    // Client-side gate: Observe has no Verify transition, so never issue the call.
-                    if (!verifyGate.allowed) {
-                      setError(verifyGate.reason ?? 'Verification is not available yet.');
-                      return;
-                    }
-                    setVerifyResult(await api.command<VerifyPanelResult>('POST', `cases/${caseId}/verify`, {}));
-                    await refreshCase(caseId);
-                  })
-                }
-                onCancel={() => run(() => act('cancel'))}
-              />
-            )}
-          </>
         )}
 
         {owner && caseId && step === 'Ally' && (
