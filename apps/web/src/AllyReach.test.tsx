@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllyScreen } from './AllyScreen';
 import { AllySharePreview } from './AllySharePreview';
 import type { AllyPacket, AllyPacketContent } from '../../../packages/contracts/src/ally';
 
@@ -40,29 +39,5 @@ describe('Ally reach (DSN-027)', () => {
     expect(link).toHaveAttribute('href', 'https://wa.me/?text=x');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
     expect(screen.getByText(/nothing is sent until you tap/i)).toBeVisible();
-  });
-
-  it('ally gets a contact-the-caller action that shows a script with no money or certification control', async () => {
-    const onContact = vi.fn();
-    const { rerender } = render(<AllyScreen packet={packet} onContactCaller={onContact} />);
-    await userEvent.click(screen.getByRole('button', { name: /contact the caller/i }));
-    expect(onContact).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('link')).toBeNull();
-
-    rerender(
-      <AllyScreen
-        packet={packet}
-        onContactCaller={onContact}
-        callerContact={{ caseId: 'case-1', script: 'I am the Safety Ally for someone.', canControlFunds: false, canCertifyCaller: false }}
-      />,
-    );
-    expect(screen.getByText(/I am the Safety Ally for someone/)).toBeVisible();
-    expect(screen.getByText(/does not approve payments or confirm who the caller is/i)).toBeVisible();
-    expect(screen.queryByRole('button', { name: /approve|certify|transfer|freeze/i })).toBeNull();
-  });
-
-  it('hides the contact action when not wired', () => {
-    render(<AllyScreen packet={packet} />);
-    expect(screen.queryByRole('button', { name: /contact the caller/i })).toBeNull();
   });
 });

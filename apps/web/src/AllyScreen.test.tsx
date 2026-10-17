@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { AllyScreen } from './AllyScreen';
 import type { AllyPacket } from '../../../packages/contracts/src/ally';
 
@@ -36,42 +35,28 @@ describe('AllyScreen', () => {
     expect(screen.queryByText(/simulated/i)).toBeNull();
   });
 
-  it('lets the ally request contact', async () => {
-    const onContactRequest = vi.fn();
-    const user = userEvent.setup();
-    render(<AllyScreen packet={packet} onContactRequest={onContactRequest} />);
-    await user.click(screen.getByRole('button', { name: /request contact/i }));
-    expect(onContactRequest).toHaveBeenCalledTimes(1);
+  it('shows who shared the case and a tel: call link to them', () => {
+    render(<AllyScreen packet={packet} sharer={{ caseId: 'case-1', displayName: 'Ravi', mobile: '98765 43210' }} />);
+    expect(screen.getByText('Ravi')).toBeVisible();
+    const call = screen.getByRole('link', { name: /call ravi/i });
+    expect(call).toHaveAttribute('href', 'tel:+919876543210');
   });
 
-  it('lets the ally recommend a pause', async () => {
-    const onPauseRecommendation = vi.fn();
-    const user = userEvent.setup();
-    render(<AllyScreen packet={packet} onPauseRecommendation={onPauseRecommendation} />);
-    await user.click(screen.getByRole('button', { name: /recommend pause/i }));
-    expect(onPauseRecommendation).toHaveBeenCalledTimes(1);
+  it('with no number on file, shows no call link and says they have not added one', () => {
+    render(<AllyScreen packet={packet} sharer={{ caseId: 'case-1', displayName: 'Ravi' }} />);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText(/haven.t added a phone number/i)).toBeVisible();
   });
 
-  it('records an independent source the ally checked', async () => {
-    const onCheckedSource = vi.fn();
-    const user = userEvent.setup();
-    render(<AllyScreen packet={packet} onCheckedSource={onCheckedSource} />);
-    await user.type(screen.getByLabelText(/independent source you checked/i), 'Called the number on my own bank card');
-    await user.click(screen.getByRole('button', { name: /record source/i }));
-    expect(onCheckedSource).toHaveBeenCalledWith('Called the number on my own bank card');
-  });
-
-  it('does not submit an empty checked source', async () => {
-    const onCheckedSource = vi.fn();
-    const user = userEvent.setup();
-    render(<AllyScreen packet={packet} onCheckedSource={onCheckedSource} />);
-    await user.click(screen.getByRole('button', { name: /record source/i }));
-    expect(onCheckedSource).not.toHaveBeenCalled();
+  it('has no hard-coded response actions - the call link is the only action', () => {
+    render(<AllyScreen packet={packet} sharer={{ caseId: 'case-1', mobile: '9876543210' }} />);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText(/your response|request contact|recommend pause|record source|contact the caller/i)).toBeNull();
   });
 
   it('offers no payment, continue, cancel, or caller-certification control', () => {
     render(<AllyScreen packet={packet} />);
-    const names = screen.getAllByRole('button').map((b) => b.textContent ?? '');
+    const names = screen.queryAllByRole('button').map((b) => b.textContent ?? '');
     expect(names.join(' | ')).not.toMatch(/pay|continue|cancel|approve|verified|certify|confirm caller|release|transfer/i);
     expect(screen.getByText(/you cannot control funds or certify the caller/i)).toBeVisible();
   });

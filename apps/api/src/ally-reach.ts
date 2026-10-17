@@ -11,7 +11,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
-import type { AllyCallerContact, AllyPacket, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally.js';
+import type { AllyCallerContact, AllyPacket, AllySharer, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally.js';
 import { toWhatsAppNumber } from '../../../packages/contracts/src/profile.js';
 import { readAllyPacket, respondAsAlly } from './ally.js';
 import { getProfile } from './profile.js';
@@ -63,6 +63,17 @@ export async function buildWhatsAppSummary(
   const text = summarizePacket(packet);
   const to = toAlly ? toWhatsAppNumber((await getProfile(db, allyUid)).mobile) : null;
   return { caseId, text, url: `https://wa.me/${to ?? ''}?text=${encodeURIComponent(text)}`, expiresAt: packet.expiresAt };
+}
+
+/**
+ * Who shared this case: the owner's self-entered name + mobile, so the ally knows
+ * whom to reach. Gated by `readAllyPacket` (every authorization predicate rechecked,
+ * so a revoked grant denies on the next request); never part of the packet itself.
+ */
+export async function readSharer(db: Firestore, allyUid: string, caseId: string, now: Now = systemNow): Promise<AllySharer> {
+  await readAllyPacket(db, allyUid, caseId, now);
+  const ownerUid = (await db.collection('cases').doc(caseId).get()).get('ownerUid') as string;
+  return { caseId, ...(await getProfile(db, ownerUid)) };
 }
 
 /**

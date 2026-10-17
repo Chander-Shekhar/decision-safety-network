@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
-import { assertCaseOwner, buildWhatsAppSummary, prepareCallerContact } from './ally-reach.js';
+import { assertCaseOwner, buildWhatsAppSummary, prepareCallerContact, readSharer } from './ally-reach.js';
 import { createAllyGrant, listAllyCases, previewAllyPacket, readAllyPacket, respondAsAlly, revokeGrant } from './ally.js';
 
 const GrantBodySchema = z
@@ -110,6 +110,19 @@ export function createAllyRoutes(): RouteInstaller {
         const packet = await readAllyPacket(deps.db, uid, caseId, deps.now);
         reply.header('cache-control', 'no-store');
         return packet;
+      } catch (error) {
+        return replyOrRethrow(reply, error);
+      }
+    });
+
+    // Who shared this case (the owner's self-entered name + mobile), so the ally can reach them.
+    app.get('/api/v1/ally/cases/:id/sharer', async (request, reply) => {
+      const uid = await requireUser(request, deps.auth);
+      const { id: caseId } = request.params as { id: string };
+      try {
+        const sharer = await readSharer(deps.db, uid, caseId, deps.now);
+        reply.header('cache-control', 'no-store');
+        return sharer;
       } catch (error) {
         return replyOrRethrow(reply, error);
       }

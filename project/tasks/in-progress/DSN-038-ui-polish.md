@@ -247,6 +247,16 @@ Founder: the seeded sample ally only works with pairing, so drop it; let every u
 - **Owned paths touched:** `packages/contracts/src/{profile,plan}.ts`, `apps/api/src/{profile,profile-routes,ally-reach,ally-routes,plan-routes,server}.ts`, `apps/api/test/{profile,ally-reach}.test.ts`, `apps/web/src/{ProfileForm,SettingsScreen,HomeScreen,App}.tsx` + tests, `project/decisions/0023-*`.
 - **Verification:** web `tsc` clean, 24 files / **207** tests pass; api `tsc` clean, `profile.test` 4/4. Emulator-backed `ally-reach.test` (new direct-link case) **not run** here — run `npm run test:api`.
 
+### Batch 19 — ally sees who shared the case, with a call link; hard-coded responses removed (2026-10-18)
+
+Founder: the ally should know who shared a case and be able to call them; drop the hard-coded "Your response" actions.
+
+1. **Sharer shown.** New `GET /api/v1/ally/cases/:id/sharer` returns the owner's self-entered name + mobile, gated by `readAllyPacket` (all predicates rechecked, so revoke denies it next request). Kept OUT of the hash-pinned `AllyPacket` allowlist on purpose.
+2. **Ally screen** now says "<name> has shared this case with you" and offers a single **Call <name>** `tel:` link (hidden, with a note, when they have no number). Removed Request contact / Recommend pause / Contact the caller / Record source and the caller-script UI.
+3. API response + contact-caller routes are left in place but unused by the UI (cleanup deferred, like the payment routes).
+
+- **Verification:** web `tsc` clean, 24 files / **204** tests pass; api `tsc` clean. New emulator-backed `ally-reach` sharer test **not run** here — run `npm run test:api`.
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` still assume the removed draft/Pay/Pause model (stale-note added in Batch 17). Rewrite them to the new flow (Decide paths + "I already paid" → Recovery; no draft; call-driven Check) and run them against the live stack before this task is marked done.

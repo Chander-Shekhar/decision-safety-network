@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeviceSignalList } from './DeviceSignalList';
 import { announceCapturePolicy, nextLiveSegment, parseCaptureStatusMessage, parseTranscriptSegmentMessage } from './liveTranscript';
 import { parseSmsSignalMessage, ingestSmsSignal, type DeviceSignal } from './deviceSignals';
-import type { AllyCallerContact, AllyGrantedCase, AllyPacket, AllyPacketContent, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally';
+import type { AllyGrantedCase, AllySharer, AllyPacket, AllyPacketContent, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
 import type { Plan } from '../../../packages/contracts/src/plan';
 import type { UserProfile } from '../../../packages/contracts/src/profile';
@@ -107,7 +107,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // DSN-027: owner-side WhatsApp summary (minimum packet only) + ally-side contact-caller script.
   const [allyShared, setAllyShared] = useState(false);
   const [whatsappSummary, setWhatsappSummary] = useState<AllyWhatsAppSummary | undefined>();
-  const [callerContact, setCallerContact] = useState<AllyCallerContact | undefined>();
+  const [allySharer, setAllySharer] = useState<AllySharer | undefined>();
   const [allyAccess, setAllyAccess] = useState<'active' | 'stale' | 'revoked'>('active');
   // DSN-028: pre-filled 1930/NCRP report draft + the user-opens-it-themselves handoff.
   const [reportDraft, setReportDraft] = useState<ReportDraftView | undefined>();
@@ -978,6 +978,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                             run(async () => {
                               setCaseId(c.caseId);
                               setAllyPacket(await api.get<AllyPacket>(`ally/cases/${c.caseId}`));
+                              setAllySharer(await api.get<AllySharer>(`ally/cases/${c.caseId}/sharer`));
                             })
                           }
                         >
@@ -993,21 +994,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               <AllyScreen
                 packet={allyPacket}
                 accessState={allyAccess}
-                onContactRequest={() => respond({ kind: 'contact-request' })}
-                onPauseRecommendation={() => respond({ kind: 'pause-recommendation' })}
-                onCheckedSource={(source) => respond({ kind: 'checked-source', source })}
-                // DSN-027: advisory script only; a revoked grant denies here and flips the view to revoked.
-                onContactCaller={() =>
-                  run(async () => {
-                    try {
-                      setCallerContact(await api.command<AllyCallerContact>('POST', `ally/cases/${caseId}/contact-caller`, withKey({})));
-                    } catch (e) {
-                      if (e instanceof ApiError && e.status === 403) setAllyAccess('revoked');
-                      throw e;
-                    }
-                  })
-                }
-                callerContact={callerContact}
+                sharer={allySharer}
               />
             )}
           </>
@@ -1221,9 +1208,5 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     } finally {
       setTranscriptBusy(false);
     }
-  }
-
-  async function respond(body: { kind: string; source?: string }): Promise<void> {
-    await run(async () => void (await api.command('POST', `ally/cases/${caseId}/response`, withKey(body))));
   }
 }

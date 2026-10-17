@@ -131,6 +131,17 @@ describe('ally reach routes (DSN-027)', () => {
     expect((await call('GET', `/api/v1/ally/cases/${s.caseId}/whatsapp-summary`, s.ally)).json().url.startsWith('https://wa.me/?text=')).toBe(true);
   });
 
+  it('tells the ally who shared the case (the owner\'s profile), and is denied without a live grant', async () => {
+    const s = await seed();
+    expect((await call('GET', `/api/v1/ally/cases/${s.caseId}/sharer`, s.ally)).statusCode).toBe(403);
+    await share(s);
+    expect((await call('PUT', '/api/v1/profile', s.owner, { displayName: 'Ravi', mobile: '98765 43210' })).statusCode).toBe(200);
+    const res = await call('GET', `/api/v1/ally/cases/${s.caseId}/sharer`, s.ally);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ caseId: s.caseId, displayName: 'Ravi', mobile: '98765 43210' });
+    expect(res.headers['cache-control']).toContain('no-store');
+  });
+
   it('contact-caller returns a script, records an advisory response, and grants no fund control or certification', async () => {
     const s = await seed();
     await share(s);

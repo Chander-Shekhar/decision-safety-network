@@ -35,6 +35,17 @@ export const ALLY_PACKET_KEYS = [
   'verificationGap',
 ] as const;
 
+/**
+ * Who shared a case, for the ally to reach: the owner's self-entered profile.
+ * Deliberately NOT part of `AllyPacket` (a hash-pinned allowlist); read through
+ * its own route after the same authorization recheck.
+ */
+export interface AllySharer {
+  caseId: string;
+  displayName?: string;
+  mobile?: string;
+}
+
 /** One case shared with the signed-in ally, for the ally's auto-discovered list. Lightweight: no packet body. */
 export interface AllyGrantedCase {
   caseId: string;
