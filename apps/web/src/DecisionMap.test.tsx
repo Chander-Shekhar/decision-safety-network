@@ -20,13 +20,13 @@ const unknownDeadline: Fact = {
 };
 
 describe('DecisionMap', () => {
-  it('shows the live status distinctly from degraded', () => {
+  it('stays quiet on the live path and surfaces a caption only when processing is degraded', () => {
     const { rerender } = render(<DecisionMap status="live" facts={[]} />);
-    expect(screen.getByText(/live processing$/i)).toBeVisible();
     expect(screen.queryByText(/degraded/i)).toBeNull();
 
     rerender(<DecisionMap status="degraded" facts={[]} />);
     expect(screen.getByText(/degraded/i)).toBeVisible();
+    expect(screen.getByText(/you can still read and correct/i)).toBeVisible();
   });
 
   it('frames facts as unverified caller claims in the header, without a per-row pill', () => {

@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import type { Fact, FactOrigin } from '../../../packages/contracts/src/facts';
 import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
 import { WebEvidenceList } from './VerifyPanel';
-import { ActionBar, Button, Card, Disclosure, Field } from './ui';
+import { ActionBar, Button, Callout, Card, Disclosure, Field } from './ui';
 
 /**
  * Live-extraction status for this case's Decision Map, independent of the
@@ -127,13 +127,22 @@ export function DecisionMap({
   return (
     <section aria-label="What we heard">
       <Card title="What we heard">
+        <Callout kind="info" role="note">
+          <p className="font-semibold text-text">Take a breath — you have time.</p>
+          <p className="mt-space-1 text-sm text-text-muted">
+            A real bank or official never rushes you, and nothing happens until you choose. Read over what the caller said,
+            slowly.
+          </p>
+        </Callout>
         <p className="text-text-muted">
-          The key points pulled from the call, one by one. Each is only what the caller <em>said</em> — none of it is
-          independently verified. Open a source to see the exact words.
+          Each point below is only what the caller <em>said</em> — none of it is independently verified. Open a source to
+          see the exact words.
         </p>
-        <p role="status" className="text-xs font-medium text-text-muted">
-          {STATUS_COPY[status]}
-        </p>
+        {status === 'degraded' && (
+          <p role="status" className="text-xs font-medium text-pause">
+            {STATUS_COPY.degraded} — you can still read and correct the points below.
+          </p>
+        )}
 
         <ol aria-label="Case facts" className="flex flex-col divide-y divide-border">
           {extracted.map((fact) => (

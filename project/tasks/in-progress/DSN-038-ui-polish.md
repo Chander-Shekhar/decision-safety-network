@@ -168,6 +168,17 @@ Founder follow-ups: "Decision Map" is a poor name for a step that shows extracte
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **238** tests pass. `apps/api` `tsc --noEmit` clean. The emulator-backed `apps/api` suite was **not run here** (no `firebase` CLI in this environment); the change is `REQUIRED_FACT_FIELDS`-driven, which `facts.test` asserts dynamically. Run `npm run test:api` locally to confirm.
 - **Follow-up:** the live Gemini smoke (DSN-039 runbook / `npm run smoke:llm`) should be re-run after the prompt-version bump to confirm the model returns a useful `procedureCheck`; the running live dev server must be restarted to pick up v2.
 
+### Batch 14 — "What we heard" opens with a calming slow-down lead (2026-10-17)
+
+Founder: the owner reaches Review mid-stress; the step should deliberately, warmly tell them to slow down — not just list facts — while staying clean and low-text.
+
+1. **Calming lead added.** "What we heard" now opens with an info `Callout`: **"Take a breath — you have time."** + "A real bank or official never rushes you, and nothing happens until you choose. Read over what the caller said, slowly." This is the de-escalation the founder wanted carried over from the old (empty) Decide-step "Why slow down?" header — placed here, where the tactics/facts are, so it does psychological work rather than floating alone.
+2. **Trimmed the facts framing** to one line ("Each point below is only what the caller *said* — none of it is independently verified. Open a source to see the exact words.") — kept the "none of it is independently verified" phrasing the DecisionMap test pins.
+3. **Dropped the always-on "Live processing" status caption** (jargon clutter on the happy path). A status line now appears **only when extraction is degraded**, reworded to stay actionable: "Live processing degraded — you can still read and correct the points below." (preserves the "failure remains actionable" rule and the live-vs-degraded test, now rewritten to assert the live path is quiet).
+
+- **Owned paths touched:** `apps/web/src/DecisionMap.tsx`, `apps/web/src/DecisionMap.test.tsx`.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **238** tests pass (the live/degraded status test rewritten: live path shows no caption, degraded shows the reworded, actionable caption).
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).
