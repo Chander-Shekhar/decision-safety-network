@@ -29,7 +29,7 @@ import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
-import { ActionBar, Button, Callout, Card, Disclosure, Field, StepFlowNav, StepRail } from './ui';
+import { Button, Callout, Card, Disclosure, StepFlowNav, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
@@ -354,6 +354,35 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // The ally still needs the Plan step to accept an invitation, so keep it reachable for that role.
   const railSteps = journeySteps(journeyState).map((s) => (role === 'ally' && s.step === 'Plan' ? { step: s.step, available: true } : s));
 
+  // Forward navigation out of Review attests the facts in bulk. There is no separate "confirm"
+  // button: the user leaving the facts untouched (not opening "Not right? Correct it") *is* the
+  // attestation that the extraction matches the call. It promotes the model-origin, known-value,
+  // source-linked facts into the trusted `confirmed` map (so the Pause's conversation signals and
+  // the report draft work) — framed as accuracy of capture, never endorsement of the caller's
+  // claims; corrected facts already carry their own `user-corrected` trust. Each confirm is
+  // version-gated server-side, so the expected version is bumped per hop. Any other move (Back, or
+  // forward from another step) is a plain `setStep`.
+  const goToStep = (target: Step) => {
+    const order = railSteps.map((r) => r.step);
+    const advancingFromReview = step === 'Review' && order.indexOf(target) > order.indexOf('Review');
+    if (!advancingFromReview || !caseId) {
+      setStep(target);
+      return;
+    }
+    run(async () => {
+      let v = version;
+      const attestable = facts
+        .filter((f) => f.origin === 'model' && f.value !== 'unknown' && f.sourceSegmentIds.length > 0)
+        .map((f) => f.field);
+      for (const field of attestable) {
+        await api.command('POST', `cases/${caseId}/facts/${field}/confirm`, { expectedVersion: v });
+        v += 1;
+      }
+      await refreshCase(caseId);
+      setStep(target);
+    });
+  };
+
   // DSN-020: consented on-device SMS signals (native shell only). Inert in a plain browser.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -594,7 +623,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             </Callout>
           )}
 
-          {owner && !needsSetup && (caseId || step !== 'Plan') && <StepRail steps={railSteps} current={step} onSelect={setStep} />}
+          {owner && !needsSetup && (caseId || step !== 'Plan') && <StepRail steps={railSteps} current={step} onSelect={goToStep} />}
 
           {owner && needsSetup && (
             <HomeScreen
@@ -764,51 +793,24 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 auto-verification effect) and its result shows under Claimed identity in the map above. No
                 number input lives on this step. */}
 
-            {/* The one forward action for this step. It attests — in bulk — that the model-extracted facts match
-                what was said (promoting them into the trusted `confirmed` map so the Pause's conversation signals
-                and the report draft work), then advances. It is NOT an endorsement of the caller's claims; the
-                wording says "matches the call", and corrected facts already carry their own `user-corrected` trust.
-                Only confirmable facts are touched (model-origin, known value, source-linked); each confirm is
-                version-gated server-side, so bump the expected version per hop. */}
-            <ActionBar>
-              <Button
-                disabled={facts.length === 0}
-                onClick={() =>
-                  run(async () => {
-                    let v = version;
-                    const attestable = facts
-                      .filter((f) => f.origin === 'model' && f.value !== 'unknown' && f.sourceSegmentIds.length > 0)
-                      .map((f) => f.field);
-                    for (const field of attestable) {
-                      await api.command('POST', `cases/${caseId}/facts/${field}/confirm`, { expectedVersion: v });
-                      v += 1;
-                    }
-                    await refreshCase(caseId);
-                    setStep('Decide');
-                  })
-                }
-              >
-                This matches the call — continue
-              </Button>
-            </ActionBar>
+            {/* No separate "continue" button here: moving forward is the single Next action in the footer
+                (StepFlowNav). Advancing from Review attests the facts in bulk — see `goToStep`. Leaving the
+                "Not right? Correct it" panel untouched means the facts stand as heard, which is the attestation. */}
           </div>
         )}
 
         {owner && caseId && step === 'Decide' && (
           <div className="flex flex-col gap-space-5">
             {/* The decision hub: pause, cancel, continue, or escalate to Verify / Ask ally. */}
-            <section aria-label="Decide what to do" className="flex flex-col gap-space-2">
+            <section aria-label="Decide what to do" className="flex flex-col gap-space-3">
               <h2 className="text-sm font-semibold">Decide what to do</h2>
-              <p className="text-sm text-text-muted">
-                Based on what you reviewed, choose what to do with this call — pause or cancel a transfer, verify through an
-                official channel, or ask your Safety Ally.
-              </p>
               <ActionConsole
                 caseState={{
                   phase: caseView?.phase ?? 'Observe',
                   paymentState: caseView?.paymentState,
                   reasons: caseView?.reasons,
                 }}
+                allyName={allyIsSample ? SAMPLE_ALLY_NAME : 'your Safety Ally'}
                 onPause={() => run(() => act('pause'))}
                 onCancel={() => run(() => act('cancel'))}
                 onVerify={() => setStep('Verify')}
@@ -1136,7 +1138,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
           {/* Sequential Back / Next across the journey, shown wherever the StepRail is: the rail
               is the overview, this is the one-step-at-a-time path. */}
           {owner && !needsSetup && (caseId || step !== 'Plan') && (
-            <StepFlowNav steps={railSteps} current={step} onSelect={setStep} />
+            <StepFlowNav steps={railSteps} current={step} onSelect={goToStep} />
           )}
         </>
       )}

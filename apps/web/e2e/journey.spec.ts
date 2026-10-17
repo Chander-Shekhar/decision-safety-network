@@ -92,7 +92,7 @@ test.describe('attack journey', () => {
 
     // Review step holds the read-only Decision Map. The fake Gemini extracts the claim, labeled as a caller claim (not truth).
     await goToStep(page, 'Review');
-    await expect(page.getByRole('heading', { name: 'Decision Map' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'What we heard' })).toBeVisible();
     await expect(factRow(page, 'Claimed identity').getByText('Demo Bank fraud team')).toBeVisible();
     await expect(factRow(page, 'Central claim').getByText('Account compromised')).toBeVisible();
 
@@ -102,11 +102,11 @@ test.describe('attack journey', () => {
     await page.getByLabel('Observed tactics').fill('urgency-pressure');
     await page.getByRole('button', { name: /^Apply/ }).click();
 
-    // Attest that the extraction matches the call. This replaces the per-fact "Confirm" endorsement
-    // (DSN-038): it bulk-promotes the model facts into the trusted `confirmed` map — which the Pause's
-    // conversation signals and the report draft read — framed as accuracy, never endorsement of the
-    // claim. It also advances to Decide; the version is refreshed before any later version-gated draft.
-    await page.getByRole('button', { name: 'This matches the call — continue' }).click();
+    // Advancing out of Review attests the extraction in bulk (DSN-038): the forward Next action
+    // promotes the model facts into the trusted `confirmed` map — which the Pause's conversation
+    // signals and the report draft read — framed as accuracy, never endorsement of the claim. There
+    // is no separate "confirm" button; leaving the facts uncorrected is the attestation.
+    await goToStep(page, 'Decide');
 
     // Pay step holds the transfer form. Draft a large transfer to the new payee the caller named.
     // ("Amount" is exact to avoid matching other amount-bearing text on the step.)
@@ -120,10 +120,10 @@ test.describe('attack journey', () => {
     // Submit intent; the panel auto-rechecks and the join advances to the enhanced Pause.
     await page.getByRole('button', { name: 'Submit intent' }).click();
 
-    // Decide step holds the Action console. The "Before you enter an OTP" framing shows for
-    // ANY open payment, so it is NOT the discriminator. The enhanced (joined) Pause is
-    // `phase === 'Pause'`, which is the ONLY state that gates Continue behind an explicit
-    // acknowledgment (ActionConsole.tsx:67,123) — that ack checkbox + "Confirm Continue" is the proof.
+    // Decide step holds the Action console. The stop-transfer block shows for ANY open payment,
+    // so it is NOT the discriminator. The enhanced (joined) Pause is `phase === 'Pause'`, which
+    // is the ONLY state that gates Continue behind an explicit acknowledgment — that ack
+    // checkbox + "Confirm Continue" is the proof.
     await goToStep(page, 'Decide');
     const actionConsole = page.getByRole('region', { name: 'Action console' });
     await expect(actionConsole.getByRole('checkbox', { name: /request remains unverified/i })).toBeVisible({
@@ -134,7 +134,7 @@ test.describe('attack journey', () => {
     // A joined, pre-verification Pause shows exactly its three grounded reasons (PRD C6,
     // MAX_REASONS=3): the manipulation cue, the still-unverified claim, and the large new
     // payee. Pinning the count catches a silently dropped reason, not just an extra one.
-    const reasons = actionConsole.locator('section[aria-label="Why slow down"] li');
+    const reasons = actionConsole.getByRole('listitem');
     await expect(reasons).toHaveCount(3);
     await expect(reasons.filter({ hasText: /pressure tactic was observed/i }).first()).toBeVisible();
     await expect(reasons.filter({ hasText: /has not been independently verified/i }).first()).toBeVisible();

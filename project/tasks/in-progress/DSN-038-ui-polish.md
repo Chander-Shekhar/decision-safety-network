@@ -9,7 +9,7 @@
 - **Dependencies:** DSN-034 (shell/nav), DSN-037 (breadcrumbs).
 - **PRD references:** Core MVP owner journey (Session, Decision).
 - **Started:** 2026-10-15
-- **Last updated:** 2026-10-15
+- **Last updated:** 2026-10-17
 
 ## Intent
 
@@ -139,6 +139,21 @@ Founder follow-ups on Batch 10: the caller-number input was still on the Review 
 - **Owned paths touched:** `apps/web/src/SessionInput.tsx`, `apps/web/src/SessionInput.test.tsx`, `apps/web/src/DecisionMap.tsx`, `apps/web/src/DecisionMap.test.tsx`, `apps/web/src/App.tsx`, `apps/web/src/App.test.tsx`.
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **238** tests pass (SessionInput: caller-number passed with the transcript; DecisionMap: tactics-only observation, verificationStatus hidden, procedure-check flag, empty-block omission; App Review test no longer expects the removed verify region).
 - **e2e:** no change — the `test.fixme` journeys don't drive the web-check UI and the paste path's caller number is optional.
+
+### Batch 12 — Decide step: focused help paths, drop empty/OTP framing (2026-10-17)
+
+Founder on the live Decide screen: "Why slow down?" rendered with nothing under it (its content belongs on the previous Review step, as calming context); the card title "Before you enter an OTP" is wrong (there may be no OTP); and the whole intro paragraph ("Based on what you reviewed, choose what to do…") is unneeded. The step is the decision moment — show, simply, what the owner can do now.
+
+1. **Dropped the "Before you enter an OTP" card wrapper and the empty "Why slow down?" header.** `ActionConsole` no longer wraps everything in a titled `Card`; the step heading "Decide what to do" (from the stepper) is the only title.
+2. **Two focused help paths as cards.** The primary action is **"Ask {ally name} for help"** — "Share this call with your Safety Ally. They'll reach out so you don't have to handle it alone — take a breather." (primary button "Ask my ally"). The secondary is **"Verify officially"** — "Reach the real organisation yourself, using a number you look up — never a number the caller gave you." (secondary button "Verify officially"). App passes the sample ally's name (`Priya Nair`) when the sample ally is active, else a generic label.
+3. **Removed the verbose App-level intro paragraph** on the Decide section; the cards carry their own one-line reassurance.
+4. **Stop-transfer controls self-gate on an open payment.** Pause / Cancel / Continue (+ the Pause-phase acknowledgment gate) now render only when a payment draft exists (e.g. revisiting Decide after Pay), under a calm "There's a transfer waiting on your decision" heading with the ≤3 grounded reasons — not an always-present empty block. Backend semantics and the `act()` routing are unchanged; button names ("Pause transfer", "Cancel transfer", "Verify officially", "Ask my ally", "Confirm Continue", "Continue the transfer") are unchanged.
+
+Still open (founder will check separately): what "Verify officially" actually does; and moving a short psychologically-calming "why slow down" line onto the **Review** step where the tactics/facts are shown.
+
+- **Owned paths touched:** `apps/web/src/ActionConsole.tsx`, `apps/web/src/ActionConsole.test.tsx`, `apps/web/src/App.tsx`, `apps/web/e2e/journey.spec.ts`.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 26 files / **238** tests pass (ActionConsole test for the old "Before you enter an OTP" title rewritten to assert the OTP assumption and simulated stamp are both absent and the stop-transfer decision framing shows).
+- **e2e:** attack journey reconciled — the reasons locator moved from the removed `section[aria-label="Why slow down"]` to the console's list items; still `test.fixme` pending the live pass.
 
 ## Open follow-ups (founder: "we'll work on others next")
 

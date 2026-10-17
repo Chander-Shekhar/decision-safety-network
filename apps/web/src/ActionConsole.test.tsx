@@ -25,10 +25,11 @@ describe('ActionConsole', () => {
     expect(screen.queryByText(/fourth reason/i)).toBeNull();
   });
 
-  it('uses pre-OTP framing without a per-panel simulated stamp', () => {
+  it('leads with the decision framing, never a per-panel simulated stamp or an OTP assumption', () => {
     render(<ActionConsole caseState={joinedCase} />);
     expect(screen.queryByText(/simulated/i)).toBeNull();
-    expect(screen.getByText(/before you enter an otp/i)).toBeVisible();
+    expect(screen.queryByText(/before you enter an otp/i)).toBeNull();
+    expect(screen.getByText(/transfer waiting on your decision/i)).toBeVisible();
   });
 
   it('never shows a scam probability, risk score, or mental-state label', () => {
