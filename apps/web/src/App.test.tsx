@@ -52,7 +52,7 @@ describe('App', () => {
     await waitFor(() => expect(get).toHaveBeenCalledWith('cases/c1'));
   });
 
-  it('blocks Verify from an Observe-phase case: shows guidance and fires no verify call', async () => {
+  it('allows Verify once a call\'s facts are extracted, with no transfer to submit first', async () => {
     window.history.pushState({}, '', '/cases/c1');
     get.mockImplementation(async (path: string) =>
       path === 'registry/demo-bank'
@@ -61,8 +61,10 @@ describe('App', () => {
     );
     render(<App auth={auth} />);
     await userEvent.click(await screen.findByRole('button', { name: /^Verify/ })); // step nav (no API call)
-    expect(await screen.findByText(/submit the transfer/i)).toBeInTheDocument();
-    expect(command).not.toHaveBeenCalledWith('POST', 'cases/c1/verify', expect.anything());
+    // Official verification is a safe user-initiated check available on extracted claims -
+    // the old "submit the transfer first" gate is gone with the payment-draft step.
+    expect(screen.queryByText(/submit the transfer/i)).toBeNull();
+    expect(await screen.findByRole('button', { name: /load verification registry/i })).toBeVisible();
   });
 
   it('ingests a dsn:sms-signal posted into the window and shows it on the Review step', async () => {
@@ -86,7 +88,7 @@ describe('App', () => {
     expect(screen.queryByText(/incoming sms/i)).toBeNull();
   });
 
-  it('splits the old Decision step into Review → Decide → Pay, each its own screen', async () => {
+  it('splits the old Decision step into Review → Decide, with no transfer-draft step', async () => {
     window.history.pushState({}, '', '/cases/c1');
     get.mockResolvedValue({
       id: 'c1',
@@ -97,21 +99,20 @@ describe('App', () => {
     });
     render(<App auth={auth} />);
 
-    // Lands on Review: the "What we heard" panel, but not the decide console or the payment form.
+    // Lands on Review: the "What we heard" panel, but not the decide console.
     expect(await screen.findByRole('region', { name: 'What we heard' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: /decide what to do/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
 
-    // Decide is its own screen: the action console, not the map or the payment form.
+    // Decide is its own screen: the action hub with the help paths - never a transfer-draft form.
     await userEvent.click(screen.getByRole('button', { name: /^Decide/ }));
     expect(screen.getByRole('heading', { name: /decide what to do/i })).toBeVisible();
     expect(screen.queryByRole('region', { name: 'What we heard' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /ask my ally/i })).toBeVisible();
+    expect(screen.getByRole('button', { name: /^i already paid$/i })).toBeVisible();
 
-    // Pay is its own screen: the transfer form shown directly (no disclosure to open).
-    await userEvent.click(screen.getByRole('button', { name: /^Pay/ }));
-    expect(screen.getByRole('button', { name: /save transfer draft/i })).toBeVisible();
-    expect(screen.queryByRole('region', { name: 'What we heard' })).toBeNull();
+    // The old payment-draft "Pay" step is gone entirely - no step, no draft form.
+    expect(screen.queryByRole('button', { name: /^Pay/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /save transfer draft/i })).toBeNull();
   });
 });
 
@@ -209,13 +210,13 @@ describe('App · live transcript bridge (DSN-025)', () => {
   it('provides sequential Back/Next navigation through the journey steps', async () => {
     await openSession();
     // The footer shows where you are and offers a forward path.
-    expect(screen.getByText('Step 2 of 9')).toBeVisible();
+    expect(screen.getByText('Step 2 of 8')).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: /next: review/i }));
     expect(await screen.findByRole('region', { name: 'What we heard' })).toBeVisible();
-    expect(screen.getByText('Step 3 of 9')).toBeVisible();
+    expect(screen.getByText('Step 3 of 8')).toBeVisible();
     // ...and a way back to the previous step.
     await userEvent.click(screen.getByRole('button', { name: /back to session/i }));
-    expect(screen.getByText('Step 2 of 9')).toBeVisible();
+    expect(screen.getByText('Step 2 of 8')).toBeVisible();
   });
 });
 

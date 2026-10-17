@@ -208,9 +208,38 @@ Root cause: the shared-cases list only renders at `step === 'Ally'`, but the all
 - **Owned paths touched:** `apps/web/src/App.tsx`, `apps/web/src/PlanScreen.tsx`.
 - **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 25 files / **230** tests pass (the two `App · ally session pairing` tests still assert the pairing/"invited"/"connected" states — now stable because there is no racing auto-advance).
 
+### Batch 17 — Decide step: "Verify officially" becomes a real click-to-call to the organisation (2026-10-17)
+
+Founder, tracing the live Decide step: "Verify officially" added no value — it just navigated to the Demo Bank Verify step, whose result is hardcoded, and its card copy promised a user-driven lookup it never did. Directive: make it a **real action** — tap to call the organisation the caller claims to be (bank, police, any impersonated authority), on a number *we* source (never the caller's); **hide the action when no number is found**. Demo Bank uses a hardcoded registry number; real organisations use an **open LLM web search** (founder chose open search over an authoritative-source-only constraint, judging the attacker-planted-number worry overly defensive — recorded in decision 0021).
+
+1. **New official-contact backend.** `OfficialContact` contract + `apps/api/src/official-contact.ts`: `resolveOfficialContact` returns Demo Bank's number from the new `DEMO_BANK_REGISTRY.contactNumber`, else calls an injectable `OfficialContactLookup`. `toDialable` re-sanitizes any returned number to digits (+ optional leading `+`); null/thrown/empty/garbled all degrade to "no number". `POST /api/v1/cases/:id/official-contact` (`official-contact-routes.ts`) takes only `{ claimedIdentity }`.
+2. **Live lookup.** `createGeminiOfficialContactLookup` (gemini.ts, Google Search grounding, `OFFICIAL_CONTACT_PROMPT_VERSION='official-contact-v1'`) finds the org's official public number. Unlike DSN-031's sealed grounding it **does** forward the claimed identity to the model (decision 0021). Selected by `DSN_WEB_VERIFICATION=grounded` via `selectOfficialContactLookup()`; the curated default resolves only Demo Bank.
+3. **UI = just a button.** `ActionConsole` renders a single click-to-call link (`<a href="tel:…">` "Call {organisation}") only when a number is present, else nothing — no surrounding trust callouts (founder: "JUST a button to call if number was found"). Dropped the old `onVerify`→Verify-step navigation card; the separate Demo Bank Verify step is unchanged and still reachable via the stepper. `App` resolves the contact once per case/identity on entry to Decide.
+
+- **Owned paths touched:** `packages/contracts/src/official-contact.ts` (new), `apps/api/src/{official-contact.ts (new), official-contact-routes.ts (new), gemini.ts, server.ts, demo-bank-registry.ts}`, `apps/api/test/official-contact.test.ts` (new), `apps/web/src/{ActionConsole.tsx, ActionConsole.test.tsx, App.tsx}`, `apps/web/e2e/journey.spec.ts`, `project/decisions/0021-*`.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 25 files / **231** tests pass (ActionConsole: `tel:` call link shown with a number, hidden without; verify-officially test replaced). `apps/api` `tsc --noEmit` clean; `official-contact.test.ts` **8/8** pass run standalone (pure, no emulator). Full emulator-backed `apps/api` suite **not run** (no firebase CLI here).
+- **e2e:** the attack `test.fixme` journey's Decide assertion updated from the "Verify officially" button to the "Call Demo Bank" `tel:` link; still `test.fixme` pending the live pass.
+- **Follow-up:** live open-web search is untested (needs DSN-014 cloud auth + `DSN_WEB_VERIFICATION=grounded`); re-run the live Gemini smoke to confirm a real org returns a usable number. **Note:** this batch's `App.tsx` / `ActionConsole.tsx` edits share files with the parallel Ally-rework agent's uncommitted working tree — coordinate staging at commit so neither clobbers the other.
+
+### Batch 17 — remove the payment-draft ("Pay") step; "I already paid" on Decide (2026-10-17)
+
+Founder (live): the "If you decide to send money" screen is not in the vision — don't make a panicked user re-draft the caller's demand. Confirm "I already paid" as an option on the Decide step; if paid, go to the recovery/case-building phase and collect extra detail (amount paid etc.) there, where it's already supported. The founder chose **clean removal** (offered: also re-derive the hard Pause from call facts — declined for now). Full rationale in decision **0022**.
+
+Traced where the draft was used: only (a) the draft-gated enhanced Pause (`policy.isJoined`'s `largeNewPayee`) and (b) Recovery prefill — and `recovery.ts` `computePrefill` already falls back to the **extracted call facts**, so Recovery works with no draft (manual edit path too). So removal is clean; detection stays as the call-driven `Check` ("slow down & verify") on Review/Decide.
+
+1. **Removed the Pay step.** `STEPS` → `Plan → Session → Review → Decide → Verify → Ally → Recovery → Evidence`. Deleted `PaymentPanel.tsx` (+ test) and the draft form + `draftPayee`/`newPayeeId`/`draftAmount` state in `App.tsx`.
+2. **"I already paid" is now a Decide path.** `ActionConsole` is a pure three-path hub — Ask my ally / Call the organisation (DSN-021) / "I already paid" — the last enters recovery and routes to the Recovery step (same handler the old PaymentPanel used). Stripped the payment-state machinery (pause/cancel/continue, ack-gated Continue, resolved banner, `paymentState`/`reasons`) from the component and the Decide call site.
+3. **Recovery gating & Verify gating.** `journey.ts`: `Recovery` now gated on `recoveryEntered` (dropped `paymentExists` from `JourneyState`); `canVerify` allows the official check as soon as a call's facts are extracted (no more "submit the transfer first"), independent of phase — the API still enforces the legal `Observe→Check→Verify` hops.
+
+- **Owned paths touched:** `apps/web/src/{App.tsx, ActionConsole.tsx, ActionConsole.test.tsx, journey.ts, journey.test.ts, App.test.tsx, ui/StepFlowNav.test.tsx}`, deleted `apps/web/src/PaymentPanel.tsx` + `PaymentPanel.test.tsx`, `apps/web/e2e/journey.spec.ts` (stale-note), `project/decisions/0022-*` (new).
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` **24 files / 204 tests pass** (down from 230: deleted PaymentPanel's suite; rewrote ActionConsole/journey/StepFlowNav tests + two App.test cases). No API files edited — the emulator-backed suite is unaffected and not run here.
+- **Deliberate loss:** the draft-gated hard "Pause / stop the transfer" moment is gone from the UI (founder-approved). The call-driven slow-down warning remains.
+- **Backend left unused (follow-up):** `apps/api` payment routes (`payment/draft|submit|recheck`) and `policy.ts`'s enhanced-Pause predicate are now unused by the web UI; removing them is a larger API/contract change deferred to keep this batch scoped and the API suite green.
+
 ## Open follow-ups (founder: "we'll work on others next")
 
-- Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).
+- Playwright e2e: the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` still assume the removed draft/Pay/Pause model (stale-note added in Batch 17). Rewrite them to the new flow (Decide paths + "I already paid" → Recovery; no draft; call-driven Check) and run them against the live stack before this task is marked done.
+- Remove the now-unused `apps/api` payment-draft routes + the enhanced-Pause policy path (and their tests/contracts), or record a decision to keep them. Deferred from Batch 17.
 - Re-run the live Gemini smoke after the `facts-extract-v2` prompt change (Batch 13) before the task is marked done.
 
 ## Handoff

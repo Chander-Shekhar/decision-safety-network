@@ -33,6 +33,19 @@
 // pass; the most likely point needing a tweak is the Pay->Decide hop, where the
 // post-submit auto-recheck must settle to `Pause` before the Decide console is
 // read. The api-auth-guard test below is unaffected and stays active.
+//
+// DSN-038 Batch 17 (2026-10-17) — STALE: the "Pay" step and the whole
+// payment-draft → submit → recheck → enhanced-Pause flow were REMOVED from the
+// owner journey (founder vision step 5: never make a stressed owner re-draft the
+// caller's demand). The steps are now Plan → Session → Review → Decide → Verify
+// → Ally → Recovery → Evidence. Manipulation detection drives the call-based
+// "slow down & verify" Check on Review/Decide; there is no draft-gated hard
+// Pause. The Decide step offers Ask-ally / Call-the-organisation / "I already
+// paid" (→ Recovery). "Already paid" and the amount-paid detail now live only on
+// the Recovery step (prefilled from the extracted call facts, editable). The
+// three `test.fixme` journeys below still assume the draft/Pay/Pause model and
+// MUST be rewritten to this flow during the deferred live e2e pass — do not
+// trust their current bodies.
 import { expect, test, type Page } from '@playwright/test';
 
 const ATTACK_TRANSCRIPT = [
@@ -142,7 +155,10 @@ test.describe('attack journey', () => {
 
     // The Pause offers the protective routes and never auto-acts.
     await expect(actionConsole.getByRole('button', { name: 'Pause transfer' })).toBeVisible();
-    await expect(actionConsole.getByRole('button', { name: 'Verify officially' })).toBeVisible();
+    // DSN-038: the Decide step offers a real click-to-call to the organisation the caller claims
+    // to be — here the fictional Demo Bank, whose number comes from the curated registry (never
+    // the caller). A real org's number would come from an official web search; none ⇒ no button.
+    await expect(actionConsole.getByRole('link', { name: /call demo bank/i })).toHaveAttribute('href', /^tel:/);
 
     // The caller's words are consistently framed as a CLAIM to be checked, never as an
     // instruction to act: the Decision Map renders them under "Claimed identity" /

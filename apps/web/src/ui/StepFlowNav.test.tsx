@@ -8,7 +8,6 @@ const steps: StepStatus[] = [
   { step: 'Session', available: true },
   { step: 'Review', available: false, reason: 'Start a controlled session first.' },
   { step: 'Decide', available: false, reason: 'Facts must be extracted first.' },
-  { step: 'Pay', available: false },
   { step: 'Verify', available: false },
   { step: 'Ally', available: false },
 ];
@@ -17,7 +16,7 @@ describe('StepFlowNav', () => {
   it('shows the position and moves back a step', async () => {
     const onSelect = vi.fn();
     render(<StepFlowNav steps={steps} current="Session" onSelect={onSelect} />);
-    expect(screen.getByText('Step 2 of 7')).toBeVisible();
+    expect(screen.getByText('Step 2 of 6')).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: /back to plan/i }));
     expect(onSelect).toHaveBeenCalledWith('Plan');
   });
@@ -38,7 +37,7 @@ describe('StepFlowNav', () => {
     expect(screen.getAllByRole('button')).toHaveLength(1); // no Back on step 1
 
     rerender(<StepFlowNav steps={steps} current="Ally" onSelect={vi.fn()} />);
-    expect(screen.getByText('Step 7 of 7')).toBeVisible();
+    expect(screen.getByText('Step 6 of 6')).toBeVisible();
     expect(screen.getByRole('button', { name: /back to verify/i })).toBeVisible();
     expect(screen.getAllByRole('button')).toHaveLength(1); // no Next on the last step
   });

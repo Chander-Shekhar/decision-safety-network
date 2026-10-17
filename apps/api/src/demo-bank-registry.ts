@@ -23,6 +23,14 @@ export interface DemoBankRegistry {
   routeLabel: string;
   source: string;
   reviewedAt: string;
+  /**
+   * The one callable number this fictional institution publishes, for the
+   * Decide-step "call the real organisation" action (DSN-038). Synthetic and
+   * fixed here, never caller-supplied; a real institution's number comes from
+   * a live web search instead (see `official-contact.ts`). Fits the curated
+   * Demo Bank listed-number pattern in `web-verification-adapter.ts`.
+   */
+  contactNumber: string;
 }
 
 export const DEMO_BANK_REGISTRY: DemoBankRegistry = {
@@ -32,4 +40,5 @@ export const DEMO_BANK_REGISTRY: DemoBankRegistry = {
   routeLabel: 'Demo Bank verification (simulated)',
   source: 'local fictional registry',
   reviewedAt: '2026-10-02',
+  contactNumber: '+911800123123',
 };

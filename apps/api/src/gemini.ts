@@ -12,6 +12,7 @@ import {
   type TranscriptTurn,
 } from '../../../packages/contracts/src/facts.js';
 import type { NumberMatch, OfficialSourceGrounding } from './web-verification-adapter.js';
+import type { OfficialContactLookup, OfficialContactRaw } from './official-contact.js';
 
 /**
  * Prompt/schema version for `extract`. Bump whenever the prompt or response
@@ -51,6 +52,9 @@ export const TRANSCRIBE_PROMPT_VERSION = 'facts-transcribe-v1';
 
 /** Prompt/schema version for the open-web grounding number check (DSN-031). See `EXTRACT_PROMPT_VERSION`. */
 export const GROUNDING_PROMPT_VERSION = 'web-verify-grounding-v1';
+
+/** Prompt/schema version for the Decide-step official-contact web search (DSN-038). See `EXTRACT_PROMPT_VERSION`. */
+export const OFFICIAL_CONTACT_PROMPT_VERSION = 'official-contact-v1';
 
 const UncertaintySchema = z.enum(['low', 'medium', 'high']);
 
@@ -339,6 +343,57 @@ export function createGeminiOfficialSourceGrounding(): OfficialSourceGrounding {
         },
       });
       return NumberMatchResponseSchema.parse(JSON.parse(response.text ?? '{}')).numberMatch;
+    },
+  };
+}
+
+const officialContactJsonSchema = {
+  type: 'object',
+  properties: {
+    organisation: { type: ['string', 'null'] },
+    phoneNumber: { type: ['string', 'null'] },
+  },
+  required: ['organisation', 'phoneNumber'],
+} as const;
+
+const OfficialContactResponseSchema = z.object({
+  organisation: z.string().nullish().transform((v) => v ?? null),
+  phoneNumber: z.string().nullish().transform((v) => v ?? null),
+});
+
+/**
+ * Concrete `OfficialContactLookup` over `@google/genai` with Google Search
+ * grounding (DSN-038). Finds the OFFICIAL public contact number for the
+ * organisation named in `claimedIdentity`, so the owner can call the real
+ * organisation directly. Unlike `createGeminiOfficialSourceGrounding` (which is
+ * sealed and never sees caller text), this intentionally forwards the claimed
+ * identity to the model - decision 0021's founder-authorised call. The return
+ * is re-validated here and re-sanitized to digits in `resolveOfficialContact`;
+ * a missing/garbled number degrades to `null`, which hides the call action.
+ * `GoogleGenAI` is constructed lazily, so selecting this provider needs no
+ * cloud credentials at wiring time.
+ */
+export function createGeminiOfficialContactLookup(): OfficialContactLookup {
+  return {
+    async findNumber({ claimedIdentity }): Promise<OfficialContactRaw> {
+      const ai = createGenAiClient();
+      const response = await ai.models.generateContent({
+        model: modelId(),
+        contents: JSON.stringify({
+          task:
+            "Find the official public customer-contact or helpline phone number for the organisation this caller claims to represent (a bank, payment provider, government office, police, etc.). Use the organisation's own official website or an authoritative public directory - never a number from the call itself. Return the organisation's real name and the single best number a person should call to reach it directly. If you cannot find an official number, return null for both fields.",
+          promptVersion: OFFICIAL_CONTACT_PROMPT_VERSION,
+          claimedIdentity,
+          answer: '{ "organisation": string | null, "phoneNumber": string | null }',
+        }),
+        config: {
+          responseMimeType: 'application/json',
+          responseJsonSchema: officialContactJsonSchema,
+          temperature: 0,
+          tools: [{ googleSearch: {} }],
+        },
+      });
+      return OfficialContactResponseSchema.parse(JSON.parse(response.text ?? '{}'));
     },
   };
 }

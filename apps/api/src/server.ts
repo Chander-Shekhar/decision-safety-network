@@ -9,12 +9,14 @@ import { createAllyRoutes } from './ally-routes.js';
 import { createDecisionRoutes } from './decision-routes.js';
 import { createEvidenceRoutes } from './evidence-routes.js';
 import { createFactRoutes } from './fact-routes.js';
-import { createGeminiOfficialSourceGrounding, createGeminiPort } from './gemini.js';
+import { createGeminiOfficialContactLookup, createGeminiOfficialSourceGrounding, createGeminiPort } from './gemini.js';
 import {
   createCuratedWebVerificationAdapter,
   createGroundedWebVerificationAdapter,
   type WebVerificationAdapter,
 } from './web-verification-adapter.js';
+import { createCuratedOfficialContactLookup, type OfficialContactLookup } from './official-contact.js';
+import { createOfficialContactRoutes } from './official-contact-routes.js';
 import { createPaymentRoutes } from './payment-routes.js';
 import { planRoutes } from './plan-routes.js';
 import { createRecoveryRoutes } from './recovery-routes.js';
@@ -46,6 +48,22 @@ export function selectWebVerificationAdapter(): WebVerificationAdapter {
     return createGroundedWebVerificationAdapter(createGeminiOfficialSourceGrounding());
   }
   return createCuratedWebVerificationAdapter();
+}
+
+/**
+ * Chooses the Decide-step official-contact lookup (DSN-038, decision 0021).
+ * Gated by the same `DSN_WEB_VERIFICATION=grounded` flag as the web-verification
+ * adapter: grounded enables the LIVE open web search for a real organisation's
+ * official number; otherwise the curated default resolves only the fictional
+ * Demo Bank (every real organisation reports "no number", so the call action is
+ * hidden). The live lookup builds its Gemini client lazily, so selecting it
+ * here needs no cloud credentials at wiring time.
+ */
+export function selectOfficialContactLookup(): OfficialContactLookup {
+  if (process.env.DSN_WEB_VERIFICATION === 'grounded') {
+    return createGeminiOfficialContactLookup();
+  }
+  return createCuratedOfficialContactLookup();
 }
 
 /**
@@ -83,6 +101,7 @@ export function buildServer(
     createPaymentRoutes(gemini),
     createDecisionRoutes(),
     createVerificationRoutes(selectWebVerificationAdapter()),
+    createOfficialContactRoutes(selectOfficialContactLookup()),
     createAllyRoutes(),
     createRecoveryRoutes(),
     createReportRoutes(),

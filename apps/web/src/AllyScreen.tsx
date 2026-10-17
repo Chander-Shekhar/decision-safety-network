@@ -62,7 +62,7 @@ export function AllyScreen({ packet, accessState = 'active', onContactRequest, o
   return (
     <section aria-label="Safety Ally review">
       <Card title="Safety Ally review">
-        <p>Your review is requested. Separate sign-in &middot; this case&apos;s grant only.</p>
+        <p>Your review is requested. This case has been shared with you.</p>
 
         <h3 className="text-base font-semibold">Minimum case packet</h3>
         <dl className="grid grid-cols-[auto_1fr] gap-x-space-4 gap-y-space-1">

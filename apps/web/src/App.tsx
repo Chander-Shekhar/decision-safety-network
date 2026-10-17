@@ -8,6 +8,7 @@ import type { Plan } from '../../../packages/contracts/src/plan';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
 import type { RecoveryState } from '../../../packages/contracts/src/recovery';
 import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
+import type { OfficialContact } from '../../../packages/contracts/src/official-contact';
 import type { ReportDraft, ReportHandoffResult } from '../../../packages/contracts/src/report';
 import { AboutScreen } from './AboutScreen';
 import { ActionConsole } from './ActionConsole';
@@ -22,7 +23,6 @@ import { HomeScreen } from './HomeScreen';
 import { ConfirmFraudPanel, IncomingCallScreen } from './ScreeningScreen';
 import type { ScreeningVerdict } from '../../../packages/contracts/src/screening';
 import { canVerify, initialStep, journeySteps, type JourneyState, type Step } from './journey';
-import { PaymentPanel } from './PaymentPanel';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
 import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
@@ -83,12 +83,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // Ally session: the id of the invitation addressed to this ally (null until the
   // owner redeems this ally's pairing code and the discovery poll finds it).
   const [allyInvitationId, setAllyInvitationId] = useState<string | null>(null);
-  // Payee picker (DSN-030): the owner's registered accounts plus a free-text
-  // "new payee" the caller named. `newPayee` stays server-derived - the id is
-  // only input. '__new__' selects the free-text field.
-  const [draftPayee, setDraftPayee] = useState('__new__');
-  const [newPayeeId, setNewPayeeId] = useState('');
-  const [draftAmount, setDraftAmount] = useState('');
   // DSN-030: a transcript paste/audio submit is in flight.
   const [transcriptBusy, setTranscriptBusy] = useState(false);
   // Session step: once a call has been added, the transcript (not the input) is
@@ -132,6 +126,8 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [screenedNumber, setScreenedNumber] = useState('');
   // DSN-026: untrusted public-web supporting evidence about the claimed identity, and the number to check.
   const [webEvidence, setWebEvidence] = useState<readonly WebVerificationEvidence[]>([]);
+  // DSN-038: the officially-sourced, callable number for the claimed organisation (Decide step). Null until resolved / when none found.
+  const [officialContact, setOfficialContact] = useState<OfficialContact | null>(null);
   const stepInitialised = useRef(false);
   const [captureActive, setCaptureActive] = useState(false);
   // Processing revoked / segment refused for this case: tell native to stop the mic (allowed:false).
@@ -340,7 +336,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     caseId,
     phase: caseView?.phase,
     factsExtracted: facts.length > 0,
-    paymentExists: !!caseView?.paymentDraft,
     hasVerification: !!verifyResult,
     recoveryEntered: !!recovery || caseView?.phase === 'Recover',
     hasConfirmedFacts: facts.some((f) => !!caseView?.confirmed?.[f.field]),
@@ -489,6 +484,20 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
       await loadWebEvidence(caseId);
     });
   }, [owner, caseId, step, claimedIdentity, screenedNumber, webEvidence.length, run, loadWebEvidence]);
+
+  // Decide-step official contact (DSN-038): resolve a callable number for the claimed
+  // organisation so the owner can reach it directly. Runs once per case/identity on entry
+  // to Decide; a null number simply hides the call action.
+  const officialContactRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!(owner && caseId && step === 'Decide' && claimedIdentity)) return;
+    const key = `${caseId}:${claimedIdentity}`;
+    if (officialContactRef.current === key) return;
+    officialContactRef.current = key;
+    void run(async () => {
+      setOfficialContact(await api.command<OfficialContact>('POST', `cases/${caseId}/official-contact`, { claimedIdentity }));
+    });
+  }, [owner, caseId, step, claimedIdentity, run]);
 
   // DSN-028: load the pre-filled report draft when the owner is on the Evidence step (and when the case changes there).
   useEffect(() => {
@@ -800,101 +809,18 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             <section aria-label="Decide what to do" className="flex flex-col gap-space-3">
               <h2 className="text-sm font-semibold">Decide what to do</h2>
               <ActionConsole
-                caseState={{
-                  phase: caseView?.phase ?? 'Observe',
-                  paymentState: caseView?.paymentState,
-                  reasons: caseView?.reasons,
-                }}
                 allyName={allyIsSample ? SAMPLE_ALLY_NAME : 'your Safety Ally'}
-                onPause={() => run(() => act('pause'))}
-                onCancel={() => run(() => act('cancel'))}
-                onVerify={() => setStep('Verify')}
-                onContinue={() => run(() => act('continue'))}
+                officialContact={officialContact}
                 onAskAlly={() => setStep('Ally')}
+                onAlreadyPaid={() =>
+                  run(async () => {
+                    setRecovery(await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/enter`, withKey({})));
+                    await refreshCase(caseId); // keep caseView.phase current so phase-gated recovery UI is accurate
+                    window.history.pushState({}, '', `/cases/${caseId}/recover`);
+                    setStep('Recovery');
+                  })
+                }
               />
-            </section>
-          </div>
-        )}
-
-        {owner && caseId && step === 'Pay' && (
-          <div className="flex flex-col gap-space-5">
-            {/* The payment step: draft the transfer the caller asked for; DSN re-checks it before anything is sent. */}
-            <section aria-label="Send money" className="flex flex-col gap-space-2">
-              <h2 className="text-sm font-semibold">If you decide to send money</h2>
-              <p className="text-sm text-text-muted">
-                Draft the transfer the caller is asking for. DSN re-runs its safety checks on the draft before anything is sent.
-              </p>
-              <div className="flex flex-col gap-space-4">
-                  <form
-                    aria-label="Draft a transfer"
-                    className="flex flex-wrap items-end gap-space-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      run(async () => {
-                        const beneficiaryId = (draftPayee === '__new__' ? newPayeeId : draftPayee).trim();
-                        if (!beneficiaryId) return;
-                        await api.command(
-                          'POST',
-                          `cases/${caseId}/payment/draft`,
-                          withKey({ beneficiaryId, amountMinor: Math.round(Number(draftAmount) * 100), expectedVersion: version }),
-                        );
-                        await refreshCase(caseId);
-                      });
-                    }}
-                  >
-                    <label>
-                      Beneficiary
-                      <select value={draftPayee} onChange={(e) => setDraftPayee(e.target.value)}>
-                        {(plan?.bankAccounts ?? []).map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.label} · ending {account.last4}
-                          </option>
-                        ))}
-                        <option value="__new__">New payee…</option>
-                      </select>
-                    </label>
-                    {draftPayee === '__new__' && (
-                      <label>
-                        New payee account
-                        <input
-                          value={newPayeeId}
-                          onChange={(e) => setNewPayeeId(e.target.value)}
-                          placeholder="account the caller gave you"
-                        />
-                      </label>
-                    )}
-                    <label>
-                      Amount
-                      <input inputMode="numeric" value={draftAmount} onChange={(e) => setDraftAmount(e.target.value)} />
-                    </label>
-                    <Button type="submit" variant="secondary">Save transfer draft</Button>
-                  </form>
-                  <PaymentPanel
-                    draft={caseView?.paymentDraft}
-                    paymentState={caseView?.paymentState ?? 'draft'}
-                    segmentIds={caseView?.segmentIds}
-                    onSubmit={() =>
-                      run(async () => {
-                        const draftId = caseView?.paymentDraft?.id;
-                        if (!draftId) return;
-                        await api.command('POST', `cases/${caseId}/payment/submit`, withKey({ draftId, expectedVersion: version }));
-                        await refreshCase(caseId);
-                      })
-                    }
-                    onRecheck={async () => {
-                      await api.command('POST', `cases/${caseId}/payment/recheck`, {});
-                      await refreshCase(caseId);
-                    }}
-                    onAlreadyPaid={() =>
-                      run(async () => {
-                        setRecovery(await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/enter`, withKey({})));
-                        await refreshCase(caseId); // keep caseView.phase current so phase-gated UI (e.g. the 1930 handoff) is accurate
-                        window.history.pushState({}, '', `/cases/${caseId}/recover`);
-                        setStep('Recovery');
-                      })
-                    }
-                  />
-              </div>
             </section>
           </div>
         )}
