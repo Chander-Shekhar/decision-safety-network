@@ -35,6 +35,14 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 /**
+ * Fields that are *our* read of the conversation — manipulation patterns we
+ * recognised, our verification status — not something the caller said. They are
+ * pulled out of the caller-claims list and shown as highlighted observations so
+ * the owner doesn't mistake our analysis for an extracted quote.
+ */
+const OBSERVATION_FIELDS = new Set(['observedTactics', 'verificationStatus']);
+
+/**
  * Owner-facing marker for a fact the owner has acted on. Only the non-default
  * states are shown — a model-extracted fact carries no per-row tag (the map
  * header already frames every point as an unverified caller claim, and a pill
@@ -97,6 +105,10 @@ export function DecisionMap({
   webEvidence,
   resolveSource,
 }: DecisionMapProps): React.JSX.Element {
+  // Caller claims (shown as fact rows) vs our own observations (shown highlighted, separately).
+  const extracted = facts.filter((f) => !OBSERVATION_FIELDS.has(f.field));
+  const observations = facts.filter((f) => OBSERVATION_FIELDS.has(f.field) && f.value !== 'unknown');
+
   return (
     <section aria-label="Decision Map">
       <Card title="Decision Map">
@@ -109,7 +121,7 @@ export function DecisionMap({
         </p>
 
         <ol aria-label="Case facts" className="flex flex-col divide-y divide-border">
-          {facts.map((fact) => (
+          {extracted.map((fact) => (
             <li key={fact.field} className="py-space-3 first:pt-0 last:pb-0">
               <FactCard
                 fact={fact}
@@ -120,7 +132,40 @@ export function DecisionMap({
             </li>
           ))}
         </ol>
+
+        <ObservationList observations={observations} />
       </Card>
+    </section>
+  );
+}
+
+/**
+ * Our read of the conversation — manipulation patterns and verification status —
+ * rendered as highlighted observations, visually distinct from the caller-claim
+ * fact rows above. These are our analysis, not quotes, so they carry no "View
+ * source" and no caller-claim framing. Calm (info) styling, not alarm.
+ */
+function ObservationList({ observations }: { observations: Fact[] }): React.JSX.Element | null {
+  if (observations.length === 0) return null;
+  return (
+    <section
+      aria-label="What we noticed"
+      className="mt-space-4 flex flex-col gap-space-2 rounded-md border-l-4 border-info bg-info-soft p-space-3"
+    >
+      <div>
+        <h3 className="text-sm font-semibold text-text">What we noticed</h3>
+        <p className="text-xs text-text-muted">
+          Patterns we recognised in the conversation — our read, not something the caller said.
+        </p>
+      </div>
+      <ul className="flex flex-col gap-space-2">
+        {observations.map((o) => (
+          <li key={o.field} className="flex flex-col gap-space-1">
+            <p className="text-sm font-semibold text-text">{FIELD_LABELS[o.field] ?? o.field}</p>
+            <p className="text-base font-normal text-text">{o.value}</p>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

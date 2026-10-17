@@ -453,6 +453,23 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     if (screenedNumber) setWebCheckNumber(screenedNumber);
   }, [screenedNumber]);
 
+  // Review-step auto-verification (vision step 4): when the call came in through the
+  // screening path we already have the caller's number, so check the claimed identity
+  // against public listings automatically — no form, result shows under Claimed identity.
+  // The transcript/upload path has no number, so there we offer an inline input instead.
+  const autoWebCheckRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!(owner && caseId && step === 'Review' && claimedIdentity && screenedNumber)) return;
+    const key = `${caseId}:${claimedIdentity}:${screenedNumber}`;
+    if (autoWebCheckRef.current === key) return;
+    autoWebCheckRef.current = key;
+    if (webEvidence.length > 0) return; // already checked for this case
+    void run(async () => {
+      await api.command('POST', `cases/${caseId}/web-verification`, { claimedIdentity, callerNumber: screenedNumber });
+      await loadWebEvidence(caseId);
+    });
+  }, [owner, caseId, step, claimedIdentity, screenedNumber, webEvidence.length, run, loadWebEvidence]);
+
   // DSN-028: load the pre-filled report draft when the owner is on the Evidence step (and when the case changes there).
   useEffect(() => {
     if (!(owner && caseId && step === 'Evidence')) return;
@@ -744,72 +761,53 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               }
             />
 
-            {/* Optional investigative tools, tucked behind a disclosure so the step isn't a wall of forms. */}
-            <section aria-label="Check what the caller said" className="flex flex-col gap-space-2">
-              <h2 className="text-sm font-semibold">Check what the caller said</h2>
-              <p className="text-sm text-text-muted">
-                Optional. These help you test the caller&apos;s claims; any results show up against the facts above.
-              </p>
-              <Disclosure summary="Run a check — public listings or mark as fraud">
-                <div className="flex flex-col gap-space-4">
-                  <div className="flex flex-col gap-space-2">
-                    <p className="text-sm text-text-muted">
-                      Look the caller&apos;s number up in public listings for the organisation they claim to be from.
-                    </p>
-                    {/* DSN-026: untrusted public-web check of the claimed identity. Supporting evidence only; never the official route. */}
-                    <form
-                      aria-label="Check public listings"
-                      className="flex flex-wrap items-end gap-space-3"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (!claimedIdentity || !webCheckNumber) return;
-                        run(async () => {
-                          await api.command('POST', `cases/${caseId}/web-verification`, {
-                            claimedIdentity,
-                            callerNumber: webCheckNumber,
-                          });
-                          await loadWebEvidence(caseId);
-                        });
-                      }}
-                    >
-                      <Field label="Number the caller is using" htmlFor="web-check-number">
-                        <input
-                          id="web-check-number"
-                          inputMode="tel"
-                          placeholder="+91…"
-                          value={webCheckNumber}
-                          onChange={(e) => setWebCheckNumber(e.target.value)}
-                          className="rounded-md border border-border bg-surface-raised px-space-3 py-space-2 text-text"
-                        />
-                      </Field>
-                      <Button type="submit" variant="secondary" disabled={!claimedIdentity || !webCheckNumber}>
-                        Check public listings
-                      </Button>
-                    </form>
-                    {!claimedIdentity && (
-                      <p className="text-xs text-text-muted">Confirm or correct the caller&apos;s claimed identity above to run this check.</p>
-                    )}
-                    {/* Immediate in-place result: the same evidence also attaches to the Claimed identity fact above. */}
-                    <WebEvidenceList evidence={webEvidence} />
-                  </div>
-                  <div className="flex flex-col gap-space-2">
-                    <p className="text-sm text-text-muted">
-                      If you&apos;re sure this is a scam, record the caller&apos;s number as fraud for this case.
-                    </p>
-                    <ConfirmFraudPanel
-                      initialNumber={screenedNumber}
-                      onConfirm={async (callerNumber) => {
-                        const res = await api.command<{ maskedNumber: string }>('POST', `cases/${caseId}/fraud-confirmation`, {
-                          callerNumber,
-                          basis: 'user-confirmed',
-                        });
-                        return res.maskedNumber;
-                      }}
+            {/* Caller verification. When the call came through screening we already have the number and
+                the check runs automatically (see the auto-verification effect); the result shows under
+                Claimed identity in the map above. For a pasted transcript or upload there's no number, so
+                offer a single inline input to add it and run the same public-listings check. */}
+            {!screenedNumber && (
+              <section aria-label="Verify the caller's number" className="flex flex-col gap-space-2">
+                <p className="text-sm text-text-muted">
+                  Add the number the caller used and we&apos;ll check it against public listings for the organisation
+                  they claimed to be from.
+                </p>
+                {/* DSN-026: untrusted public-web check of the claimed identity. Supporting evidence only; never the official route. */}
+                <form
+                  aria-label="Check public listings"
+                  className="flex flex-wrap items-end gap-space-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!claimedIdentity || !webCheckNumber) return;
+                    run(async () => {
+                      await api.command('POST', `cases/${caseId}/web-verification`, {
+                        claimedIdentity,
+                        callerNumber: webCheckNumber,
+                      });
+                      await loadWebEvidence(caseId);
+                    });
+                  }}
+                >
+                  <Field label="Number the caller used" htmlFor="web-check-number">
+                    <input
+                      id="web-check-number"
+                      inputMode="tel"
+                      placeholder="+91…"
+                      value={webCheckNumber}
+                      onChange={(e) => setWebCheckNumber(e.target.value)}
+                      className="rounded-md border border-border bg-surface-raised px-space-3 py-space-2 text-text"
                     />
-                  </div>
-                </div>
-              </Disclosure>
-            </section>
+                  </Field>
+                  <Button type="submit" variant="secondary" disabled={!claimedIdentity || !webCheckNumber}>
+                    Check
+                  </Button>
+                </form>
+                {!claimedIdentity && (
+                  <p className="text-xs text-text-muted">We need the caller&apos;s claimed identity first — it comes from the facts above.</p>
+                )}
+                {/* Result shows here where the action happened; it also attaches to Claimed identity in the map. */}
+                <WebEvidenceList evidence={webEvidence} />
+              </section>
+            )}
 
             {/* The one forward action for this step. It attests — in bulk — that the model-extracted facts match
                 what was said (promoting them into the trusted `confirmed` map so the Pause's conversation signals
@@ -1113,6 +1111,27 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   )
                 }
               />
+            )}
+            {/* Marking the caller as fraud belongs here, in the incident phase, not on the facts-review
+                step: it's an after-the-fact conclusion that records the number to the private warn-list
+                (founder vision step 6). Shown once the user has entered recovery. */}
+            {recovery && (
+              <section aria-label="Record this caller as fraud" className="flex flex-col gap-space-2">
+                <p className="text-sm text-text-muted">
+                  Now that you&apos;re handling this as fraud, record the caller&apos;s number so future recipients of a
+                  matching call are warned before they pick up.
+                </p>
+                <ConfirmFraudPanel
+                  initialNumber={screenedNumber}
+                  onConfirm={async (callerNumber) => {
+                    const res = await api.command<{ maskedNumber: string }>('POST', `cases/${caseId}/fraud-confirmation`, {
+                      callerNumber,
+                      basis: 'user-confirmed',
+                    });
+                    return res.maskedNumber;
+                  }}
+                />
+              </section>
             )}
           </>
         )}
