@@ -149,4 +149,6 @@ export interface AllyInvitation {
   allyUid: string;
   acceptedAt?: string | null;
   revokedAt?: string | null;
+  /** Owner read only: the ally's self-entered display name, joined at read time. */
+  allyName?: string;
 }

@@ -4,6 +4,7 @@ import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
 import { ALLY_SHARE_FIELDS, CALL_LISTENING_MODES } from '../../../packages/contracts/src/plan.js';
 import { issuePairingCode } from './ally-pairing.js';
+import { getProfile } from './profile.js';
 import {
   acceptInvitation,
   createInvitation,
@@ -98,7 +99,16 @@ export const planRoutes: RouteInstaller = (app, deps: ApiDeps) => {
 
   app.get('/api/v1/owner/invitations', async (request) => {
     const uid = await requireUser(request, deps.auth);
-    return { invitations: await listInvitationsForOwner(deps.db, uid) };
+    const invitations = await listInvitationsForOwner(deps.db, uid);
+    // Join each ally's self-entered name live so the owner sees "Priya", not a generic label.
+    return {
+      invitations: await Promise.all(
+        invitations.map(async (invitation) => {
+          const { displayName } = await getProfile(deps.db, invitation.allyUid);
+          return displayName ? { ...invitation, allyName: displayName } : invitation;
+        }),
+      ),
+    };
   });
 
   app.post('/api/v1/ally-invitations', async (request, reply) => {

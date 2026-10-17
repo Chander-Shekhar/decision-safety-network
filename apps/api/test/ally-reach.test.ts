@@ -10,6 +10,7 @@ import { buildApi, type ApiDeps } from '../src/app.js';
 import { createEvidenceRoutes } from '../src/evidence-routes.js';
 import { sessionRoutes } from '../src/session-routes.js';
 import { createAllyRoutes } from '../src/ally-routes.js';
+import { profileRoutes } from '../src/profile-routes.js';
 import { authHeader } from './test-auth.js';
 
 let db: Firestore;
@@ -70,9 +71,9 @@ async function seed(): Promise<Seeded> {
 }
 
 describe('ally reach routes (DSN-027)', () => {
-  const app = () => buildApi([createAllyRoutes(), createEvidenceRoutes(), sessionRoutes], deps);
+  const app = () => buildApi([createAllyRoutes(), createEvidenceRoutes(), sessionRoutes, profileRoutes], deps);
 
-  async function call(method: 'GET' | 'POST' | 'DELETE', url: string, who: string, payload?: unknown) {
+  async function call(method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, who: string, payload?: unknown) {
     return app().inject({ method, url, headers: await authHeader(who), ...(payload !== undefined ? { payload: payload as object } : {}) });
   }
 
@@ -116,6 +117,18 @@ describe('ally reach routes (DSN-027)', () => {
     expect(allyRes.statusCode).toBe(200);
     expect(allyRes.json().text).toBe(summary.text);
     expect((await call('GET', ownerSummaryUrl(s), s.ally)).statusCode).toBe(403);
+  });
+
+  it('opens WhatsApp straight to the ally\'s own number once they have set one (owner route only)', async () => {
+    const s = await seed();
+    await share(s);
+    expect((await call('GET', ownerSummaryUrl(s), s.owner)).json().url.startsWith('https://wa.me/?text=')).toBe(true);
+
+    expect((await call('PUT', '/api/v1/profile', s.ally, { displayName: 'Priya', mobile: '98765 43210' })).statusCode).toBe(200);
+    const owner = (await call('GET', ownerSummaryUrl(s), s.owner)).json();
+    expect(owner.url.startsWith('https://wa.me/919876543210?text=')).toBe(true);
+    // The ally's own copy is never addressed back to themselves.
+    expect((await call('GET', `/api/v1/ally/cases/${s.caseId}/whatsapp-summary`, s.ally)).json().url.startsWith('https://wa.me/?text=')).toBe(true);
   });
 
   it('contact-caller returns a script, records an advisory response, and grants no fund control or certification', async () => {

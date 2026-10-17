@@ -12,7 +12,9 @@
 import { randomUUID } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { AllyCallerContact, AllyPacket, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally.js';
+import { toWhatsAppNumber } from '../../../packages/contracts/src/profile.js';
 import { readAllyPacket, respondAsAlly } from './ally.js';
+import { getProfile } from './profile.js';
 
 type Now = () => Date;
 const systemNow: Now = () => new Date();
@@ -46,18 +48,21 @@ export async function assertCaseOwner(db: Firestore, ownerUid: string, caseId: s
 /**
  * Builds the WhatsApp deep link for an ally's granted packet. `allyUid` is the
  * ally whose grant the summary derives from: the owner route passes the grant
- * they created; the ally route passes the caller. No `to` number is encoded -
- * the human picks the contact in WhatsApp.
+ * they created; the ally route passes the caller. With `toAlly`, the chat opens
+ * straight to the ally's own self-entered mobile (looked up live by uid); with no
+ * usable number it falls back to the generic link and the human picks the contact.
  */
 export async function buildWhatsAppSummary(
   db: Firestore,
   allyUid: string,
   caseId: string,
   now: Now = systemNow,
+  toAlly = false,
 ): Promise<AllyWhatsAppSummary> {
   const packet = await readAllyPacket(db, allyUid, caseId, now);
   const text = summarizePacket(packet);
-  return { caseId, text, url: `https://wa.me/?text=${encodeURIComponent(text)}`, expiresAt: packet.expiresAt };
+  const to = toAlly ? toWhatsAppNumber((await getProfile(db, allyUid)).mobile) : null;
+  return { caseId, text, url: `https://wa.me/${to ?? ''}?text=${encodeURIComponent(text)}`, expiresAt: packet.expiresAt };
 }
 
 /**

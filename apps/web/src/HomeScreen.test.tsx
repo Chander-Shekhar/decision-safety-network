@@ -33,16 +33,15 @@ describe('HomeScreen', () => {
     expect(onOpenSettings).toHaveBeenCalled();
   });
 
-  it('marks the ready ally as a sample so it is not mistaken for a real paired helper', () => {
+  it('shows no ally until one is paired, without any sample ally', () => {
     render(
       <HomeScreen
         plan={{ callListening: 'per-call', processingConsent: true, bankAccounts: [] }}
-        allyStatus="ready"
-        allyIsSample
+        allyStatus="none"
         onStartSession={vi.fn()}
         onOpenSettings={vi.fn()}
       />,
     );
-    expect(screen.getByText(/Ally ready \(sample\)/i)).toBeVisible();
+    expect(screen.queryByText(/sample/i)).toBeNull();
   });
 });

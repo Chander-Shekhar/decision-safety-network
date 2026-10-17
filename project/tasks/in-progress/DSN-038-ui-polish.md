@@ -236,6 +236,17 @@ Traced where the draft was used: only (a) the draft-gated enhanced Pause (`polic
 - **Deliberate loss:** the draft-gated hard "Pause / stop the transfer" moment is gone from the UI (founder-approved). The call-driven slow-down warning remains.
 - **Backend left unused (follow-up):** `apps/api` payment routes (`payment/draft|submit|recheck`) and `policy.ts`'s enhanced-Pause predicate are now unused by the web UI; removing them is a larger API/contract change deferred to keep this batch scoped and the API suite green.
 
+### Batch 18 — remove the sample ally; user profile (name + mobile) with direct WhatsApp (2026-10-17)
+
+Founder: the seeded sample ally only works with pairing, so drop it; let every user (owner and ally) set a name + mobile so WhatsApp opens straight to the ally and names show. Decision 0023.
+
+1. **Sample ally removed** (`SAMPLE_ALLY_NAME`, `allyIsSample`, "(sample)" tags). Ally starts `none`; owner invitation poll runs for every owner.
+2. **Profile**: `profiles/<uid>` + `GET/PUT /api/v1/profile`; "Your details" form in Settings (owner) and on the ally pairing screen.
+3. **Direct WhatsApp** to the ally's own number (owner route); fallback generic link. `owner/invitations` joins `allyName`, used across Decide/share/Settings.
+
+- **Owned paths touched:** `packages/contracts/src/{profile,plan}.ts`, `apps/api/src/{profile,profile-routes,ally-reach,ally-routes,plan-routes,server}.ts`, `apps/api/test/{profile,ally-reach}.test.ts`, `apps/web/src/{ProfileForm,SettingsScreen,HomeScreen,App}.tsx` + tests, `project/decisions/0023-*`.
+- **Verification:** web `tsc` clean, 24 files / **207** tests pass; api `tsc` clean, `profile.test` 4/4. Emulator-backed `ally-reach.test` (new direct-link case) **not run** here — run `npm run test:api`.
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` still assume the removed draft/Pay/Pause model (stale-note added in Batch 17). Rewrite them to the new flow (Decide paths + "I already paid" → Recovery; no draft; call-driven Check) and run them against the live stack before this task is marked done.

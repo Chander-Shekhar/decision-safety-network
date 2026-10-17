@@ -5,6 +5,8 @@ import { parseSmsSignalMessage, ingestSmsSignal, type DeviceSignal } from './dev
 import type { AllyCallerContact, AllyGrantedCase, AllyPacket, AllyPacketContent, AllyWhatsAppSummary } from '../../../packages/contracts/src/ally';
 import type { Fact } from '../../../packages/contracts/src/facts';
 import type { Plan } from '../../../packages/contracts/src/plan';
+import type { UserProfile } from '../../../packages/contracts/src/profile';
+import { ProfileForm } from './ProfileForm';
 import type { PaymentProjection } from '../../../packages/contracts/src/payment';
 import type { RecoveryState } from '../../../packages/contracts/src/recovery';
 import type { WebVerificationEvidence } from '../../../packages/contracts/src/web-verification';
@@ -32,7 +34,6 @@ import { Button, Callout, Card, StepFlowNav, StepRail } from './ui';
 import { VerifyPanel, type VerifyPanelRegistry, type VerifyPanelResult } from './VerifyPanel';
 
 /** The pre-added sample Safety Ally, so the ally setup reads as ready out of the box. */
-const SAMPLE_ALLY_NAME = 'Priya Nair';
 
 /**
  * Auth boundary injected by `main.tsx`. The real implementation (Firebase
@@ -89,9 +90,13 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // shown; this reveals the "Add the call" input again on demand so the two are
   // never both visible by default.
   const [editingCall, setEditingCall] = useState(false);
-  // A sample ally is pre-added so setup reads as ready out of the box; pairing a real ally clears the sample flag.
-  const [allyStatus, setAllyStatus] = useState<AllyStatus>('ready');
-  const [allyIsSample, setAllyIsSample] = useState(true);
+  // No ally until the owner pairs one (or, for an ally session, until the invitation arrives).
+  const [allyStatus, setAllyStatus] = useState<AllyStatus>('none');
+  // The paired ally's self-entered name (owner side), joined by the owner invitations read.
+  const [allyName, setAllyName] = useState<string | undefined>();
+  // The signed-in user's own name + mobile (owner in Settings, ally on the pairing screen).
+  const [profile, setProfile] = useState<UserProfile>({});
+  const [profileSaved, setProfileSaved] = useState(false);
   const [registry, setRegistry] = useState<VerifyPanelRegistry | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerifyPanelResult | undefined>();
   const [preview, setPreview] = useState<AllyPreview | null>(null);
@@ -222,13 +227,13 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // ally is cleared), poll the owner-keyed invitation read so the Plan/Settings
   // screen reflects when the ally accepts. Acceptance is written on the ally's
   // own device/context, so without this the owner would sit at "awaiting
-  // acceptance" forever. The sample-ally demo state is left untouched.
+  // acceptance" forever.
   useEffect(() => {
-    if (role !== 'owner' || allyIsSample) return;
+    if (role !== 'owner') return;
     let cancelled = false;
     const sync = async () => {
       try {
-        const { invitations } = await api.get<{ invitations: { id: string; allyUid: string; acceptedAt?: string | null }[] }>(
+        const { invitations } = await api.get<{ invitations: { id: string; allyUid: string; allyName?: string; acceptedAt?: string | null }[] }>(
           'owner/invitations',
         );
         if (cancelled) return;
@@ -238,6 +243,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
         } else {
           setAllyUid(active.allyUid);
           setAllyInvitationId(active.id);
+          setAllyName(active.allyName);
           setAllyStatus(active.acceptedAt ? 'ready' : 'invited');
         }
       } catch {
@@ -250,7 +256,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [role, allyIsSample, api]);
+  }, [role, api]);
 
   const run = useCallback(async (work: () => Promise<void>) => {
     setError(null);
@@ -260,6 +266,33 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
       setError(e instanceof ApiError ? `Request failed (${e.code}). Nothing was changed.` : 'Something went wrong. Nothing was changed.');
     }
   }, []);
+
+  // Load the user's own name + mobile once signed in (either role); empty until they add them.
+  useEffect(() => {
+    if (!role) return;
+    let live = true;
+    api
+      .get<UserProfile>('profile')
+      .then((loaded) => {
+        if (live && loaded) setProfile(loaded);
+      })
+      .catch(() => {
+        // No profile yet (or a transient read failure): the form just starts empty.
+      });
+    return () => {
+      live = false;
+    };
+  }, [role, api]);
+
+  const saveProfile = useCallback(
+    (values: UserProfile) =>
+      run(async () => {
+        setProfileSaved(false);
+        setProfile(await api.command<UserProfile>('PUT', 'profile', values));
+        setProfileSaved(true);
+      }),
+    [api, run],
+  );
 
   const refreshCase = useCallback(
     async (id: string) => {
@@ -443,10 +476,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
         if (!live) return;
         setPlan(loaded);
         setPlanLoaded(true);
-        // A stored real nomination clears the client-only sample ally, so the
-        // owner invitation poll (below) runs and reflects true acceptance state
-        // even on a fresh reload.
-        if (loaded.nominatedAllyUid) setAllyIsSample(false);
       })
       .catch((e: unknown) => {
         if (!live) return;
@@ -580,8 +609,10 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               : undefined
           }
           allyStatus={allyStatus}
-          allyName={SAMPLE_ALLY_NAME}
-          allyIsSample={allyIsSample}
+          allyName={allyName}
+          profile={profile}
+          profileSaved={profileSaved}
+          onSaveProfile={saveProfile}
           saving={savingSetup}
           saved={settingsSaved}
           onSave={({ allyPairingCode, ...values }: SettingsValues) =>
@@ -602,7 +633,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   const invitation = await api.command<{ allyUid: string }>('POST', 'ally-invitations', { pairingCode: allyPairingCode });
                   setAllyUid(invitation.allyUid);
                   setAllyStatus('invited');
-                  setAllyIsSample(false);
                 }
                 if (wasFirstRun) {
                   setStep('Plan');
@@ -642,7 +672,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             <HomeScreen
               plan={plan}
               allyStatus={allyStatus}
-              allyIsSample={allyIsSample}
               onStartSession={() => setStep('Session')}
               onOpenSettings={() => setView('settings')}
               onIncomingCall={() => setIncomingCall(true)}
@@ -658,6 +687,15 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                 setStep('Session');
               }}
               onDecline={() => setIncomingCall(false)}
+            />
+          )}
+
+          {role === 'ally' && step === 'Plan' && (
+            <ProfileForm
+              initial={profile}
+              saved={profileSaved}
+              hint="So the person you support sees your name and can message you straight on WhatsApp."
+              onSave={saveProfile}
             />
           )}
 
@@ -809,7 +847,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
             <section aria-label="Decide what to do" className="flex flex-col gap-space-3">
               <h2 className="text-sm font-semibold">Decide what to do</h2>
               <ActionConsole
-                allyName={allyIsSample ? SAMPLE_ALLY_NAME : 'your Safety Ally'}
+                allyName={allyName ?? 'your Safety Ally'}
                 officialContact={officialContact}
                 onAskAlly={() => setStep('Ally')}
                 onAlreadyPaid={() =>
@@ -868,7 +906,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
               <>
                 {/* The summary is prepared automatically — the owner reviews it and consents by Sharing. */}
                 <AllySharePreview
-                  allyName="your Safety Ally"
+                  allyName={allyName ?? 'your Safety Ally'}
                   packet={preview.packet}
                   onNotNow={() => setStep('Decide')}
                   onShare={() =>

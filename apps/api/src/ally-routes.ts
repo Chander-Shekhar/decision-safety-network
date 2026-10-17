@@ -127,7 +127,7 @@ export function createAllyRoutes(): RouteInstaller {
       }
       try {
         await assertCaseOwner(deps.db, uid, caseId);
-        const summary = await buildWhatsAppSummary(deps.db, parsed.data.allyUid, caseId, deps.now);
+        const summary = await buildWhatsAppSummary(deps.db, parsed.data.allyUid, caseId, deps.now, true);
         reply.header('cache-control', 'no-store');
         return summary;
       } catch (error) {

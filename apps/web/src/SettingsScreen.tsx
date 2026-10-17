@@ -7,6 +7,8 @@ import {
   type RegisteredBankAccount,
   type RetentionMode,
 } from '../../../packages/contracts/src/plan';
+import type { UserProfile } from '../../../packages/contracts/src/profile';
+import { ProfileForm } from './ProfileForm';
 import { Button, Card, Disclosure, Field } from './ui';
 
 /** Everything the consolidated Settings surface can change; App maps it onto `PUT plan`. */
@@ -24,12 +26,14 @@ export interface SettingsValues {
 
 export interface SettingsScreenProps {
   initial?: Partial<SettingsValues>;
-  /** Readiness of the owner's Safety Ally; a sample ally reads as `ready`. */
+  /** Readiness of the owner's Safety Ally. */
   allyStatus: 'none' | 'invited' | 'ready';
-  /** Display name of the current ally (the sample ally when none is paired). */
-  allyName: string;
-  /** True when the current ally is the pre-added sample, not a paired person. */
-  allyIsSample?: boolean;
+  /** The paired ally's own name, when they have set one. */
+  allyName?: string;
+  /** The owner's own details, edited in a separate "Your details" card. */
+  profile?: UserProfile;
+  profileSaved?: boolean;
+  onSaveProfile?: (profile: UserProfile) => void;
   saving?: boolean;
   /** True once a save in this session has succeeded (drives the confirmation). */
   saved?: boolean;
@@ -78,7 +82,9 @@ export function SettingsScreen({
   initial,
   allyStatus,
   allyName,
-  allyIsSample = false,
+  profile,
+  profileSaved = false,
+  onSaveProfile,
   saving = false,
   saved = false,
   onSave,
@@ -127,17 +133,24 @@ export function SettingsScreen({
     });
   }
 
+  const who = allyName ?? 'Your Safety Ally';
   const allyStatusText =
     allyStatus === 'ready'
-      ? allyIsSample
-        ? `${allyName} · ready to help (sample ally)`
-        : `${allyName} · ready to help`
+      ? `${who} · ready to help`
       : allyStatus === 'invited'
-        ? `${allyName} · invited, awaiting acceptance`
+        ? `${who} · invited, awaiting acceptance`
         : 'No ally connected yet';
 
   return (
     <section aria-label="Settings" className="flex flex-col gap-space-4">
+      {onSaveProfile && (
+        <ProfileForm
+          initial={profile}
+          saved={profileSaved}
+          hint="So your Safety Ally sees your name, and you can see theirs."
+          onSave={onSaveProfile}
+        />
+      )}
       <Card
         title="Settings"
         footer={

@@ -19,6 +19,7 @@ import { createCuratedOfficialContactLookup, type OfficialContactLookup } from '
 import { createOfficialContactRoutes } from './official-contact-routes.js';
 import { createPaymentRoutes } from './payment-routes.js';
 import { planRoutes } from './plan-routes.js';
+import { profileRoutes } from './profile-routes.js';
 import { createRecoveryRoutes } from './recovery-routes.js';
 import { createReportRoutes } from './report-routes.js';
 import { createScreeningRoutes } from './screening-routes.js';
@@ -94,6 +95,7 @@ export function buildServer(
   const installers: RouteInstaller[] = [
     healthRoutes,
     planRoutes,
+    profileRoutes,
     caseRoutes,
     sessionRoutes,
     createFactRoutes(gemini),

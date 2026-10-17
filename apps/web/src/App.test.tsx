@@ -259,8 +259,8 @@ describe('App · owner reflects ally acceptance', () => {
     retentionMode: 'facts-24h',
     exportConsent: false,
     setupCompletedAt: '2026-10-11T00:00:00.000Z',
-    // A real nomination is stored on the plan; this clears the sample ally and
-    // turns on the owner invitation poll.
+    // A real nomination is stored on the plan; the owner invitation poll reads its
+    // acceptance state.
     nominatedAllyUid: 'ally-1',
   };
 
@@ -276,6 +276,19 @@ describe('App · owner reflects ally acceptance', () => {
     // Previously the owner sat at "awaiting acceptance" forever; now it reflects acceptance.
     expect(await screen.findByText(/ally ready/i)).toBeVisible();
     expect(screen.queryByText(/awaiting acceptance/i)).toBeNull();
+  });
+
+  it('shows the paired ally by their own name once they set it', async () => {
+    get.mockImplementation(async (path: string) =>
+      path === 'owner/invitations'
+        ? { invitations: [{ id: 'inv-1', allyUid: 'ally-1', allyName: 'Priya', acceptedAt: '2026-10-15T00:00:00.000Z' }] }
+        : nominatedPlan,
+    );
+    render(<App auth={auth} />);
+    await waitFor(() => expect(get).toHaveBeenCalledWith('owner/invitations'));
+    await userEvent.click(await screen.findByRole('button', { name: /open menu/i }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Settings' }));
+    expect(await screen.findByText(/Priya · ready to help/i)).toBeVisible();
   });
 
   it('shows "awaiting acceptance" while the nominated ally has not yet accepted', async () => {
@@ -329,7 +342,13 @@ describe('App · first-run setup (DSN-023)', () => {
 
   it('on a non-404 plan load failure shows a retry instead of first-run home, and retry recovers', async () => {
     const { ApiError } = await import('./api-client');
-    get.mockRejectedValueOnce(new ApiError(500, 'API_500')).mockResolvedValue(configuredPlan);
+    let planCalls = 0;
+    get.mockImplementation(async (path: string) => {
+      if (path === 'profile') return {};
+      if (path === 'owner/invitations') return { invitations: [] };
+      if (planCalls++ === 0) throw new ApiError(500, 'API_500'); // only the first plan load fails
+      return configuredPlan;
+    });
     render(<App auth={auth} />);
     expect(await screen.findByText(/couldn.t load your settings/i)).toBeVisible();
     expect(screen.queryByText(/first time/i)).toBeNull();

@@ -8,7 +8,6 @@ export interface HomeScreenProps {
   plan?: Pick<Plan, 'callListening' | 'bankAccounts' | 'processingConsent'>;
   allyStatus: 'none' | 'invited' | 'ready';
   /** The "ready" ally is the pre-added sample, not a real paired helper. */
-  allyIsSample?: boolean;
   onStartSession: () => void;
   /** Opens Settings (first-run setup and later edits both live there). */
   onOpenSettings: () => void;
@@ -29,7 +28,7 @@ const ALLY_LABEL: Record<HomeScreenProps['allyStatus'], string> = {
 };
 
 /** The landing screen: a welcome on first run, otherwise what is on and one dominant way forward. */
-export function HomeScreen({ firstRun, plan, allyStatus, allyIsSample, onStartSession, onOpenSettings, onIncomingCall }: HomeScreenProps): React.JSX.Element {
+export function HomeScreen({ firstRun, plan, allyStatus, onStartSession, onOpenSettings, onIncomingCall }: HomeScreenProps): React.JSX.Element {
   if (firstRun || !plan) {
     return (
       <section aria-label="Home">
@@ -84,7 +83,6 @@ export function HomeScreen({ firstRun, plan, allyStatus, allyIsSample, onStartSe
             <span className="text-sm text-text-muted">Safety Ally</span>
             <span className="font-semibold">
               {ALLY_LABEL[allyStatus]}
-              {allyStatus === 'ready' && allyIsSample && ' (sample)'}
             </span>
           </li>
           <li className="flex flex-col gap-space-1">
