@@ -195,6 +195,19 @@ Two founder asks from live testing.
 - **Not run here:** the emulator-backed `apps/api` suite (no Firestore emulator in this environment — same gap as Batch 13). Run `npm run test:api` locally to confirm. The new `GET /ally/cases` uses a single-field collection-group query on `allyGrants.allyUid` (auto-indexed by Firestore/emulator; no composite index needed).
 - **e2e:** attack journey's ally-preview assertions reconciled to the summary packet (claim + "short AI summary of the call" instead of the excerpt + "full transcript… not included" line); still `test.fixme` pending the live pass.
 
+### Batch 16 — connected ally can reach the shared-cases screen (2026-10-17)
+
+Founder (live): after a successful Share the ally window showed "connected" but the ally saw nothing and had no way to navigate to the shared cases; they asked for the URL.
+
+Root cause: the shared-cases list only renders at `step === 'Ally'`, but the ally has no stepper (StepRail/StepFlowNav are owner-only) and the connected (`allyStatus === 'ready'`) `PlanScreen` card had no onward control. Steps are client state, not URL-routed — the only URL parameter is `?role=ally`, so there is no deep-link to the Ally step to hand out.
+
+1. **Explicit navigation on the connected card.** `PlanScreen` ally-ready view gains a **"View cases shared with you"** button (new `onViewSharedCases` prop) that moves the ally to the Ally step. Chosen over auto-advancing because `allyStatus` defaults optimistically to `'ready'`, so an effect-driven jump raced the invitation poll and skipped the pairing/"invited" screens.
+2. **Connected reassurance on the Ally step.** The `role === 'ally' && step === 'Ally'` block now opens with a status `Callout` ("You're connected as a Safety Ally. Cases … appear below.") above the "Cases shared with you" list.
+3. **Hardened the ally/cases poll.** `setAllyCases(cases ?? [])` — a response without a `cases` field no longer sets `allyCases` to `undefined` (which crashed `allyCases.length` and took down the whole ally render).
+
+- **Owned paths touched:** `apps/web/src/App.tsx`, `apps/web/src/PlanScreen.tsx`.
+- **Verification:** `apps/web` `tsc --noEmit` clean; `vitest run` 25 files / **230** tests pass (the two `App · ally session pairing` tests still assert the pairing/"invited"/"connected" states — now stable because there is no racing auto-advance).
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: re-enable the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` and run them against the live stack before this task is marked done. Validate the Pay→Decide auto-recheck timing and the facts-gating on Pay for the no-transcript control (notes inline in the spec).

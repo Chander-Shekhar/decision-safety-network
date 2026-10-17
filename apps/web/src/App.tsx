@@ -209,7 +209,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     const sync = async () => {
       try {
         const { cases } = await api.get<{ cases: AllyGrantedCase[] }>('ally/cases');
-        if (!cancelled) setAllyCases(cases);
+        if (!cancelled) setAllyCases(cases ?? []);
       } catch {
         // Transient read failure: keep the current list; the next poll retries.
       }
@@ -670,7 +670,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   setAllyStatus('ready');
                 })
               }
-              onSavePlan={() => run(async () => setStep('Ally'))}
+              onViewSharedCases={() => setStep('Ally')}
             />
           )}
 
@@ -993,6 +993,11 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
 
         {role === 'ally' && step === 'Ally' && (
           <>
+            {!allyPacket && (
+              <Callout kind="info" role="status">
+                You're connected as a Safety Ally. Cases the person you support chooses to share appear below.
+              </Callout>
+            )}
             {!allyPacket && (
               <Card title="Cases shared with you">
                 {allyCases.length === 0 ? (

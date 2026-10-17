@@ -26,6 +26,8 @@ export interface PlanScreenProps {
   pairingCode?: string | null;
   onRequestPairingCode?: () => void;
   onAcceptInvitation?: () => void;
+  /** Ally view: once connected, open the screen listing the cases shared with this ally. */
+  onViewSharedCases?: () => void;
 }
 
 const DEFAULT_VALUES: PlanFormValues = {
@@ -214,12 +216,18 @@ function AllyPairingView({
   allyStatus = 'none',
   onRequestPairingCode,
   onAcceptInvitation,
+  onViewSharedCases,
 }: PlanScreenProps): React.JSX.Element {
   if (allyStatus === 'ready') {
     return (
       <section aria-label="Safety Ally pairing">
         <Card title="You're connected as a Safety Ally">
           <p>You can now help with cases the person you support chooses to share with you.</p>
+          {onViewSharedCases && (
+            <div className="mt-space-3">
+              <Button onClick={() => onViewSharedCases()}>View cases shared with you</Button>
+            </div>
+          )}
         </Card>
       </section>
     );
