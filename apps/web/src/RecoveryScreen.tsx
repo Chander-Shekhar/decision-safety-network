@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActionBar, Button, Card } from './ui';
-import type { PaidField, RecoveryState } from '../../../packages/contracts/src/recovery';
+import type { RecoveryState } from '../../../packages/contracts/src/recovery';
+import type { OfficialContact } from '../../../packages/contracts/src/official-contact';
 
 /** Details the owner typed. Blank optional fields are omitted, never sent as empty strings. */
 export interface EditedPaidDetails {
@@ -16,15 +17,17 @@ export interface RecoveryScreenProps {
   /** Owner tapped "Yes, they match"; receives the exact fingerprint of the prefill shown. */
   onMatch?: (fingerprint: string) => void;
   onEdit?: (details: EditedPaidDetails) => void;
-  onAcknowledge?: (action: 'bank' | 'helpline-1930') => void;
+  /** The number found on the Decide step; when present it is the bank/organisation call link. */
+  officialContact?: OfficialContact | null;
 }
 
-const FIELD_LABELS: Record<PaidField, string> = {
-  paidPayee: 'Paid payee',
-  paidAmountMinor: 'Paid amount',
-  transactionTime: 'Transaction time',
-  paymentRail: 'Payment method',
-  referenceId: 'Reference ID',
+const HEARD_LABELS: Record<string, string> = {
+  claimedIdentity: 'Who they said they were',
+  centralClaim: 'What they told you',
+  requestedAction: 'What they asked you to do',
+  payee: 'Where they wanted the money sent',
+  amount: 'How much they asked for',
+  deadline: 'How soon they said you must act',
 };
 
 const INPUT_CLASS =
@@ -42,17 +45,19 @@ function parseRupeesToMinor(text: string): number | null {
   return Number.isSafeInteger(minor) && minor > 0 ? minor : null;
 }
 
+/** Strips spaces/punctuation so a `tel:` link dials; keeps a leading +. */
+function dialable(number: string): string {
+  return number.replace(/(?!^\+)[^\d]/g, '');
+}
+
 /**
- * Same-case "I already paid" recovery screen (wireframe frame 06). Purely
- * presentational: the authenticated API owns all data, and this component
- * never talks to Firestore or the model. The Demo Bank route and the real
- * 1930 route render as equal-priority siblings BEFORE the paid-detail
- * question. Only the Demo Bank route and local acknowledgements are labeled
- * Simulated; the real 1930 route is never badged fictional, and nothing here
- * claims a real call, filing, or report happened.
+ * "I already paid" recovery screen. Calm, ordered: call the bank (with a
+ * ready-to-read script), report to 1930, review what the call said, confirm
+ * what was paid. Presentational only; the API owns all data. Nothing here
+ * claims a call, freeze, or report happened.
  */
-export function RecoveryScreen({ state, onMatch, onEdit, onAcknowledge }: RecoveryScreenProps): React.JSX.Element {
-  const { proposedPayment, paidPayment, helpline1930Action, acknowledgement, guidedFreeze } = state;
+export function RecoveryScreen({ state, onMatch, onEdit, officialContact }: RecoveryScreenProps): React.JSX.Element {
+  const { proposedPayment, paidPayment, helpline1930Action, guidedFreeze } = state;
   const [editing, setEditing] = useState(false);
   const [payee, setPayee] = useState('');
   const [amount, setAmount] = useState('');
@@ -62,13 +67,15 @@ export function RecoveryScreen({ state, onMatch, onEdit, onAcknowledge }: Recove
   const [error, setError] = useState<string | null>(null);
 
   const showForm = !paidPayment && (editing || proposedPayment === null);
-  const knownEntries = Object.entries(state.known.facts);
+  const heardEntries = Object.entries(state.known.facts);
+  const bankName = officialContact?.organisation ?? 'your bank';
+  const bankNumber = officialContact?.phoneNumber ?? null;
 
   function submit(event: React.FormEvent): void {
     event.preventDefault();
     const minor = parseRupeesToMinor(amount);
     if (payee.trim() === '' || minor === null) {
-      setError('Enter who you paid and a positive amount, for example 12345.50.');
+      setError('Please enter who you paid and the amount, for example 12345.50.');
       return;
     }
     setError(null);
@@ -81,172 +88,144 @@ export function RecoveryScreen({ state, onMatch, onEdit, onAcknowledge }: Recove
 
   return (
     <main aria-label="Recovery" className="mx-auto flex max-w-3xl flex-col gap-space-4 p-space-4 text-text">
-      <h1 className="text-2xl font-semibold">You said you already paid</h1>
-      <p>Many people are caught by convincing calls. We will reuse what you confirmed. Act quickly; you can fill gaps later.</p>
+      <h1 className="text-2xl font-semibold">Take a breath. You&apos;ve done the right thing by acting now.</h1>
+      <p>Acting quickly gives you the best chance. Here is what to do, one step at a time.</p>
 
-      <Card title="First-hour options">
-        {/* Equal-weight routes: identical structure and heading level. */}
-        <div className="grid gap-space-4 md:grid-cols-2">
-          <section aria-label="Contact Demo Bank support" className="flex flex-col gap-space-1 rounded-md bg-surface-sunken p-space-4">
-            <h3 className="font-semibold">Contact Demo Bank support</h3>
-            <p>Independent registry route &middot; {state.bankAction.status}</p>
-            <p className="text-sm text-text-muted">Demo Bank is fictional.</p>
-          </section>
-          <section aria-label="Call 1930" className="flex flex-col gap-space-1 rounded-md bg-surface-sunken p-space-4">
-            <h3 className="font-semibold">Call 1930</h3>
-            <p>
-              Official route &middot; {helpline1930Action.status}
-            </p>
-            <p>
-              Official source: <a href={helpline1930Action.sourceUrl} className="underline">cybercrime.gov.in</a>
-            </p>
-            <p className="text-sm text-text-muted">Source reviewed {helpline1930Action.reviewedAt}</p>
-          </section>
-        </div>
-      </Card>
-
-      {guidedFreeze && (
-        <section aria-label="Protect the affected account">
-          <Card title="Protect the affected account">
-            <p>
-              Guided steps, not a real freeze: this app cannot freeze anything. Call your bank&apos;s helpline and read
-              them this script, for the account you paid from only.
-            </p>
-            <p>
-              {guidedFreeze.helpline.institution} helpline (simulated):{' '}
-              <a href={`tel:${guidedFreeze.helpline.number.replace(/\s+/g, '')}`} className="font-semibold underline">
-                {guidedFreeze.helpline.number}
-              </a>
-            </p>
-            <h3 className="font-semibold">What to say</h3>
-            <pre className="whitespace-pre-wrap rounded-md bg-surface-sunken p-space-3 font-sans text-base">{guidedFreeze.script}</pre>
+      <section aria-label="Call your bank">
+        <Card title={`1. Call ${bankName} now`}>
+          <p>Tell them you were scammed and ask them to hold the account you paid from.</p>
+          {bankNumber ? (
             <ActionBar>
-              <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(guidedFreeze.script)}>
-                Copy script
-              </Button>
+              <a
+                href={`tel:${dialable(bankNumber)}`}
+                className="inline-flex items-center justify-center rounded-md bg-primary px-space-4 py-space-3 text-base font-semibold text-on-primary"
+              >
+                Call {bankName} · {bankNumber}
+              </a>
             </ActionBar>
+          ) : (
+            <p>Use the helpline number on the back of your card or in your bank&apos;s app.</p>
+          )}
+          {guidedFreeze && (
+            <>
+              <h3 className="font-semibold">What you can say</h3>
+              <pre className="whitespace-pre-wrap rounded-md bg-surface-sunken p-space-3 font-sans text-base">{guidedFreeze.script}</pre>
+              <ActionBar>
+                <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(guidedFreeze.script)}>
+                  Copy script
+                </Button>
+              </ActionBar>
+            </>
+          )}
+        </Card>
+      </section>
+
+      <section aria-label="Report to 1930">
+        <Card title="2. Report it to the cyber helpline">
+          <p>
+            Call{' '}
+            <a href="tel:1930" className="font-semibold underline">1930</a>
+            {' '}or report online at{' '}
+            <a href={helpline1930Action.sourceUrl} className="underline">cybercrime.gov.in</a>. The sooner it is reported, the better.
+          </p>
+        </Card>
+      </section>
+
+      {heardEntries.length > 0 && (
+        <section aria-label="What the caller said">
+          <Card title="What the caller said">
+            <p className="text-sm text-text-muted">Taken from the call you shared. Handy to have in front of you.</p>
+            <dl className="flex flex-col gap-space-2">
+              {heardEntries.map(([field, value]) => (
+                <div key={field}>
+                  <dt className="text-sm text-text-muted">{HEARD_LABELS[field] ?? field}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
           </Card>
         </section>
       )}
 
-      {(knownEntries.length > 0 || paidPayment || proposedPayment) && (
-        <Card title="Your details">
-          {knownEntries.length > 0 && (
-            <section aria-label="What you already confirmed" className="flex flex-col gap-space-2">
-              <h3 className="font-semibold">What you already confirmed</h3>
-              <dl className="flex flex-col gap-space-2">
-                {knownEntries.map(([field, value]) => (
-                  <div key={field}>
-                    <dt className="text-sm text-text-muted">{field}</dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          )}
-
-          {paidPayment && (
-            <section aria-label="Paid details" className="flex flex-col gap-space-2">
-              <h3 className="font-semibold">Recorded as reported by you</h3>
+      <section aria-label="What you paid">
+        <Card title="3. What you paid">
+          {paidPayment ? (
+            <>
+              <p>Saved as you told us.</p>
               <dl className="flex flex-col gap-space-1">
-                <dt className="text-sm text-text-muted">Paid payee</dt>
+                <dt className="text-sm text-text-muted">Paid to</dt>
                 <dd>{paidPayment.paidPayee}</dd>
-                <dt className="text-sm text-text-muted">Paid amount</dt>
+                <dt className="text-sm text-text-muted">Amount</dt>
                 <dd>{formatRupees(paidPayment.paidAmountMinor)}</dd>
+                {paidPayment.transactionTime && (
+                  <>
+                    <dt className="text-sm text-text-muted">When</dt>
+                    <dd>{paidPayment.transactionTime}</dd>
+                  </>
+                )}
+                {paidPayment.referenceId && (
+                  <>
+                    <dt className="text-sm text-text-muted">Reference ID</dt>
+                    <dd>{paidPayment.referenceId}</dd>
+                  </>
+                )}
               </dl>
-            </section>
-          )}
-
-          {!paidPayment && proposedPayment && (
-            <section aria-label="Pre-filled from this case" className="flex flex-col gap-space-2">
-              <h3 className="font-semibold">Pre-filled from this case</h3>
-              <p>{proposedPayment.sourceLabel}</p>
+            </>
+          ) : proposedPayment && !editing ? (
+            <>
+              <p>From the call, it looks like you paid:</p>
               <dl className="flex flex-col gap-space-1">
-                <dt className="text-sm text-text-muted">Proposed payee</dt>
+                <dt className="text-sm text-text-muted">Paid to</dt>
                 <dd>{proposedPayment.payee}</dd>
-                <dt className="text-sm text-text-muted">Proposed amount</dt>
+                <dt className="text-sm text-text-muted">Amount</dt>
                 <dd>{formatRupees(proposedPayment.amountMinor)}</dd>
               </dl>
-              <p>A cancelled proposal is not proof of the payment you made.</p>
-              {!editing && (
-                <>
-                  <p>Did you pay these same details?</p>
-                  <ActionBar>
-                    <Button size="lg" onClick={() => onMatch?.(proposedPayment.fingerprint)}>Yes, they match</Button>
-                    <Button variant="secondary" onClick={() => setEditing(true)}>
-                      No, edit paid details
-                    </Button>
-                  </ActionBar>
-                </>
-              )}
-            </section>
+              <p>Is that right?</p>
+              <ActionBar>
+                <Button size="lg" onClick={() => onMatch?.(proposedPayment.fingerprint)}>Yes, that&apos;s right</Button>
+                <Button variant="secondary" onClick={() => setEditing(true)}>
+                  No, let me fix it
+                </Button>
+              </ActionBar>
+            </>
+          ) : (
+            <p>Tell us what you paid, so the bank and the cyber cell have it. Only the first two are needed.</p>
+          )}
+
+          {showForm && (
+            <form aria-label="Paid details form" onSubmit={submit} className="flex flex-col gap-space-3">
+              <label className="flex flex-col gap-space-1 text-sm font-medium">
+                Who did you pay?
+                <input className={INPUT_CLASS} value={payee} onChange={(e) => setPayee(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-space-1 text-sm font-medium">
+                Amount you paid (&#8377;)
+                <input className={INPUT_CLASS} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-space-1 text-sm font-medium">
+                When (optional)
+                <input className={INPUT_CLASS} value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-space-1 text-sm font-medium">
+                Payment method (optional)
+                <input className={INPUT_CLASS} value={paymentRail} onChange={(e) => setPaymentRail(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-space-1 text-sm font-medium">
+                Reference ID (optional)
+                <input className={INPUT_CLASS} value={referenceId} onChange={(e) => setReferenceId(e.target.value)} />
+              </label>
+              {error && <p role="alert" className="text-sm font-medium">{error}</p>}
+              <ActionBar>
+                <Button type="submit">Save</Button>
+              </ActionBar>
+            </form>
           )}
         </Card>
-      )}
+      </section>
 
-      {showForm && (
-        <form aria-label="Paid details form" onSubmit={submit} className="flex flex-col gap-space-3 rounded-lg bg-surface-raised p-space-5 shadow-sm">
-          <label className="flex flex-col gap-space-1 text-sm font-medium">
-            Who did you pay?
-            <input className={INPUT_CLASS} value={payee} onChange={(e) => setPayee(e.target.value)} />
-          </label>
-          <label className="flex flex-col gap-space-1 text-sm font-medium">
-            Amount you paid (&#8377;)
-            <input className={INPUT_CLASS} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </label>
-          <label className="flex flex-col gap-space-1 text-sm font-medium">
-            Transaction time (optional)
-            <input className={INPUT_CLASS} value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} />
-          </label>
-          <label className="flex flex-col gap-space-1 text-sm font-medium">
-            Payment method (optional)
-            <input className={INPUT_CLASS} value={paymentRail} onChange={(e) => setPaymentRail(e.target.value)} />
-          </label>
-          <label className="flex flex-col gap-space-1 text-sm font-medium">
-            Reference ID (optional)
-            <input className={INPUT_CLASS} value={referenceId} onChange={(e) => setReferenceId(e.target.value)} />
-          </label>
-          {error && <p role="alert" className="text-sm font-medium">{error}</p>}
-          <ActionBar>
-            <Button type="submit">Save paid details</Button>
-          </ActionBar>
-        </form>
-      )}
-
-      <Card title="Still needed">
-        <section aria-label="Still needed">
-          {state.missing.length === 0 ? (
-            <p>Nothing else is needed right now.</p>
-          ) : (
-            <ul className="list-disc pl-space-4">
-              {state.missing.map((field) => (
-                <li key={field}>{FIELD_LABELS[field]}: Unknown</li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section aria-label="Recovery scam warning">
-          <h3 className="font-semibold">Watch for follow-on &ldquo;recovery&rdquo; scams</h3>
-          <p>Do not pay a stranger who promises to retrieve funds.</p>
-        </section>
-      </Card>
-
-      <section aria-label="Local status only">
-        <Card title="Notes">
-          <p className="text-sm text-text-muted">These notes stay in this app. They are not an official receipt and nothing is sent to anyone.</p>
-          {acknowledgement && (
-            <p role="status">
-              Local note recorded for {acknowledgement.action === 'bank' ? 'Demo Bank' : '1930'}.
-            </p>
-          )}
-          <ActionBar>
-            <Button variant="secondary" onClick={() => onAcknowledge?.('bank')}>
-              Note: I contacted Demo Bank
-            </Button>
-            <Button variant="secondary" onClick={() => onAcknowledge?.('helpline-1930')}>
-              Note: I contacted 1930
-            </Button>
-          </ActionBar>
+      <section aria-label="Recovery scam warning">
+        <Card title="One more thing">
+          <p>Be careful of anyone who offers to get your money back for a fee. Genuine banks and the police never ask for payment to recover funds.</p>
         </Card>
       </section>
     </main>

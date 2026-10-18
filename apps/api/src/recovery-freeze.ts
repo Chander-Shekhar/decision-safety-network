@@ -46,7 +46,7 @@ export function buildGuidedFreeze(input: FreezeScriptInput): GuidedFreeze {
   const payee = paidPayment?.paidPayee ?? proposed?.payee ?? known.facts.payee;
   const amountMinor = paidPayment?.paidAmountMinor ?? proposed?.amountMinor;
   const lines = [
-    'I am calling about a payment I think was a scam.',
+    'Hello, I think I was the victim of a scam and I paid money because of it. I need your help.',
     amountMinor !== undefined
       ? `I paid ${formatRupees(amountMinor)}${payee ? ` to ${plain(payee)}` : ''}.`
       : payee
@@ -67,4 +67,40 @@ export function buildGuidedFreeze(input: FreezeScriptInput): GuidedFreeze {
     helpline: { ...DEMO_BANK_HELPLINE },
     script: lines.join('\n'),
   };
+}
+
+/** Writes the call script with a model. Input is the already-sanitised case summary; output is plain text. */
+export interface RecoveryScriptWriter {
+  write(summary: Record<string, string>): Promise<string>;
+}
+
+/**
+ * Replaces the template script with a model-written one, keeping the template
+ * as the fallback when the writer is absent, fails, or returns nothing usable.
+ * The model only ever sees owner-confirmed facts and owner-typed paid details.
+ */
+export async function withGeneratedScript<T extends { known: RecoveryKnown; paidPayment: PaidPayment | null; proposedPayment: { payee: string; amountMinor: number } | null; guidedFreeze?: GuidedFreeze | undefined }>(
+  state: T,
+  writer: RecoveryScriptWriter | undefined,
+): Promise<T> {
+  if (!writer || !state.guidedFreeze) return state;
+  const { known, paidPayment, proposedPayment } = state;
+  const summary: Record<string, string> = {};
+  const payee = paidPayment?.paidPayee ?? proposedPayment?.payee ?? known.facts.payee;
+  const amountMinor = paidPayment?.paidAmountMinor ?? proposedPayment?.amountMinor;
+  if (payee) summary.paidTo = plain(payee);
+  if (amountMinor !== undefined) summary.amountPaid = formatRupees(amountMinor);
+  if (paidPayment?.transactionTime) summary.when = plain(paidPayment.transactionTime);
+  if (paidPayment?.paymentRail) summary.paymentMethod = plain(paidPayment.paymentRail);
+  if (paidPayment?.referenceId) summary.referenceId = plain(paidPayment.referenceId);
+  if (known.facts.claimedIdentity) summary.callerClaimedToBe = plain(known.facts.claimedIdentity);
+  if (known.facts.centralClaim) summary.callerClaimed = plain(known.facts.centralClaim);
+  if (known.facts.requestedAction) summary.callerAskedFor = plain(known.facts.requestedAction);
+  try {
+    const script = (await writer.write(summary)).trim();
+    if (script.length >= 20) return { ...state, guidedFreeze: { ...state.guidedFreeze, script: script.slice(0, 2000) } };
+  } catch {
+    // Fall through: the deterministic template stays.
+  }
+  return state;
 }

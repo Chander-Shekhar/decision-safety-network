@@ -265,6 +265,12 @@ Founder: Decide only branches to Ally / call the organisation / "I already paid"
 - Kept `VerifyPanel.tsx` (its web-evidence component is still used by Review's `DecisionMap`) and the `/verify` API; only the step is gone.
 - **Verification:** web `tsc` clean, 24 files / **201** tests pass (obsolete Verify tests replaced by a "no Verify step in the rail" check; step counts updated).
 
+## Batch 21 — Recovery step rework (decision 0024)
+
+- `RecoveryScreen.tsx` rewritten: calm opener → call the bank (Decide-step `officialContact` as `tel:`) with a copyable script → 1930 → "What the caller said" (plain labels) → "What you paid" (match/edit/form) → scam warning. Removed First-hour cards, "Still needed", Notes, "(simulated)".
+- "What you can say" script is now model-written (`createGeminiRecoveryScriptWriter`, `withGeneratedScript`), falling back to the template on failure/test double. Previously a hardcoded template.
+- **Verification:** api `tsc` clean; new `recovery-script.test.ts` passes; web `tsc` clean, `RecoveryScreen.test.tsx` rewritten and passing. Four web tests in uncommitted-by-me `AllyScreen`/`AllySharePreview`/`DecisionMap` copy fail (those files carry the founder's pending edits) and are not touched here. Emulator-backed `recovery.test.ts`/`recovery-freeze.test.ts` unrun (still assert the old wording `I am calling about…` is not checked, helpline `1800 000 0000` still returned by API).
+
 ## Open follow-ups (founder: "we'll work on others next")
 
 - Playwright e2e: the three `test.fixme` journeys in `apps/web/e2e/journey.spec.ts` still assume the removed draft/Pay/Pause model (stale-note added in Batch 17). Rewrite them to the new flow (Decide paths + "I already paid" → Recovery; no draft; call-driven Check) and run them against the live stack before this task is marked done.

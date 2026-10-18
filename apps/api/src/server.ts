@@ -9,7 +9,7 @@ import { createAllyRoutes } from './ally-routes.js';
 import { createDecisionRoutes } from './decision-routes.js';
 import { createEvidenceRoutes } from './evidence-routes.js';
 import { createFactRoutes } from './fact-routes.js';
-import { createGeminiOfficialContactLookup, createGeminiOfficialSourceGrounding, createGeminiPort } from './gemini.js';
+import { createGeminiRecoveryScriptWriter, createGeminiOfficialContactLookup, createGeminiOfficialSourceGrounding, createGeminiPort } from './gemini.js';
 import {
   createCuratedWebVerificationAdapter,
   createGroundedWebVerificationAdapter,
@@ -105,7 +105,7 @@ export function buildServer(
     createVerificationRoutes(selectWebVerificationAdapter()),
     createOfficialContactRoutes(selectOfficialContactLookup()),
     createAllyRoutes(),
-    createRecoveryRoutes(),
+    createRecoveryRoutes((gemini as { isTestDouble?: boolean }).isTestDouble === true ? undefined : createGeminiRecoveryScriptWriter()),
     createReportRoutes(),
     createScreeningRoutes(),
     createEvidenceRoutes(),

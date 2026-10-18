@@ -1003,13 +1003,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                     ),
                   )
                 }
-                onAcknowledge={(action) =>
-                  run(async () =>
-                    setRecovery(
-                      await api.command<RecoveryState>('POST', `cases/${caseId}/recovery/acknowledgement`, withKey({ action })),
-                    ),
-                  )
-                }
+                officialContact={officialContact}
               />
             )}
             {/* Marking the caller as fraud belongs here, in the incident phase, not on the facts-review

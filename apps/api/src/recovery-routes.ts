@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 import type { ApiDeps, RouteInstaller } from './app.js';
 import { requireUser } from './auth.js';
+import { withGeneratedScript, type RecoveryScriptWriter } from './recovery-freeze.js';
 import { confirmPaidDetails, enterRecovery, readRecoveryState, recordAcknowledgement } from './recovery.js';
 
 // There is deliberately no phase, proposed-payment, or paidPayment field a
@@ -67,10 +68,11 @@ function replyOrRethrow(reply: FastifyReply, error: unknown): undefined {
 /**
  * Same-case already-paid recovery routes (plan Task 10 / DSN-012). No
  * `GeminiPort` is accepted: entering Recover and exposing the first-hour
- * actions never depends on the model. Mounting into the public app is
+ * actions never depends on the model. An optional script writer only
+ * upgrades the call script on the way out; any failure keeps the template. Mounting into the public app is
  * deferred to DSN-014.
  */
-export function createRecoveryRoutes(): RouteInstaller {
+export function createRecoveryRoutes(scriptWriter?: RecoveryScriptWriter): RouteInstaller {
   return (app, deps: ApiDeps) => {
     app.post('/api/v1/cases/:id/recovery/enter', async (request, reply) => {
       const uid = await requireUser(request, deps.auth);
@@ -81,11 +83,11 @@ export function createRecoveryRoutes(): RouteInstaller {
         return undefined;
       }
       try {
-        return await enterRecovery(deps.db, uid, caseId, {
+        return await withGeneratedScript(await enterRecovery(deps.db, uid, caseId, {
           kind: 'already-paid',
           key: parsed.data.idempotencyKey,
           expectedVersion: parsed.data.expectedVersion,
-        });
+        }), scriptWriter);
       } catch (error) {
         return replyOrRethrow(reply, error);
       }
@@ -95,7 +97,7 @@ export function createRecoveryRoutes(): RouteInstaller {
       const uid = await requireUser(request, deps.auth);
       const { id: caseId } = request.params as { id: string };
       try {
-        return await readRecoveryState(deps.db, uid, caseId);
+        return await withGeneratedScript(await readRecoveryState(deps.db, uid, caseId), scriptWriter);
       } catch (error) {
         return replyOrRethrow(reply, error);
       }
@@ -111,7 +113,7 @@ export function createRecoveryRoutes(): RouteInstaller {
       }
       const { idempotencyKey, ...rest } = parsed.data;
       try {
-        return await confirmPaidDetails(deps.db, uid, caseId, { ...rest, key: idempotencyKey });
+        return await withGeneratedScript(await confirmPaidDetails(deps.db, uid, caseId, { ...rest, key: idempotencyKey }), scriptWriter);
       } catch (error) {
         return replyOrRethrow(reply, error);
       }
