@@ -28,6 +28,7 @@ import { PlanScreen, type AllyStatus } from './PlanScreen';
 import { RecoveryScreen } from './RecoveryScreen';
 import { SettingsScreen, type SettingsValues } from './SettingsScreen';
 import { SessionInput } from './SessionInput';
+import { usePolling } from './usePolling';
 import { SessionScreen, type SessionSegmentView } from './SessionScreen';
 import { Button, Callout, Card, StepFlowNav, StepRail } from './ui';
 
@@ -69,6 +70,12 @@ function fileToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+// Polling cadence: every poll is a billed request plus a Firestore read, so
+// invitations (a one-time handshake) poll slowly and stop once settled, and the
+// ally's shared-case list polls fast only for the first minutes a tab is visible.
+const INVITATION_POLL_MS = 10_000;
+const allyCasesPollDelay = (visibleForMs: number): number => (visibleForMs < 3 * 60_000 ? 5_000 : 20_000);
 
 export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const api = useMemo(() => createApiClient(auth.getIdToken), [auth]);
@@ -170,88 +177,59 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   // owner usually invites AFTER the ally window is already open, so poll until an
   // invitation appears and is accepted; this is what makes the ally screen react
   // to an invitation and gives "Accept" a real invitation id to act on.
-  useEffect(() => {
-    if (role !== 'ally') return;
-    let cancelled = false;
-    const sync = async () => {
-      try {
-        const { invitations } = await api.get<{ invitations: { id: string; acceptedAt?: string | null }[] }>('ally/invitations');
-        if (cancelled) return;
-        const active = invitations[0];
-        if (!active) {
-          setAllyInvitationId(null);
-          setAllyStatus('none');
-        } else {
-          setAllyInvitationId(active.id);
-          setAllyStatus(active.acceptedAt ? 'ready' : 'invited');
-        }
-      } catch {
-        // Transient read failure: leave the current state; the next poll retries.
+  const syncAllyInvitations = useCallback(async () => {
+    try {
+      const { invitations } = await api.get<{ invitations: { id: string; acceptedAt?: string | null }[] }>('ally/invitations');
+      const active = invitations[0];
+      if (!active) {
+        setAllyInvitationId(null);
+        setAllyStatus('none');
+      } else {
+        setAllyInvitationId(active.id);
+        setAllyStatus(active.acceptedAt ? 'ready' : 'invited');
       }
-    };
-    void sync();
-    const timer = window.setInterval(() => void sync(), 4000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [role, api]);
+    } catch {
+      // Transient read failure: leave the current state; the next poll retries.
+    }
+  }, [api]);
+  usePolling(syncAllyInvitations, role === 'ally', allyStatus === 'ready' ? null : INVITATION_POLL_MS);
 
   // Ally session: auto-discover the cases shared with this ally, so the ally never
   // types a case id. Polls while the ally screen is open; the owner's Share appears here.
-  useEffect(() => {
-    if (role !== 'ally') return;
-    let cancelled = false;
-    const sync = async () => {
-      try {
-        const { cases } = await api.get<{ cases: AllyGrantedCase[] }>('ally/cases');
-        if (!cancelled) setAllyCases(cases ?? []);
-      } catch {
-        // Transient read failure: keep the current list; the next poll retries.
-      }
-    };
-    void sync();
-    const timer = window.setInterval(() => void sync(), 4000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [role, api]);
+  const syncAllyCases = useCallback(async () => {
+    try {
+      const { cases } = await api.get<{ cases: AllyGrantedCase[] }>('ally/cases');
+      setAllyCases(cases ?? []);
+    } catch {
+      // Transient read failure: keep the current list; the next poll retries.
+    }
+  }, [api]);
+  usePolling(syncAllyCases, role === 'ally', allyCasesPollDelay);
 
   // Owner session: once a real ally has been nominated (the client-only sample
   // ally is cleared), poll the owner-keyed invitation read so the Plan/Settings
   // screen reflects when the ally accepts. Acceptance is written on the ally's
   // own device/context, so without this the owner would sit at "awaiting
-  // acceptance" forever.
-  useEffect(() => {
-    if (role !== 'owner') return;
-    let cancelled = false;
-    const sync = async () => {
-      try {
-        const { invitations } = await api.get<{ invitations: { id: string; allyUid: string; allyName?: string; acceptedAt?: string | null }[] }>(
-          'owner/invitations',
-        );
-        if (cancelled) return;
-        const active = invitations[0];
-        if (!active) {
-          setAllyStatus('none');
-        } else {
-          setAllyUid(active.allyUid);
-          setAllyInvitationId(active.id);
-          setAllyName(active.allyName);
-          setAllyStatus(active.acceptedAt ? 'ready' : 'invited');
-        }
-      } catch {
-        // Transient read failure: leave the current state; the next poll retries.
+  // acceptance" forever. Polling only runs while acceptance is pending.
+  const syncOwnerInvitations = useCallback(async () => {
+    try {
+      const { invitations } = await api.get<{ invitations: { id: string; allyUid: string; allyName?: string; acceptedAt?: string | null }[] }>(
+        'owner/invitations',
+      );
+      const active = invitations[0];
+      if (!active) {
+        setAllyStatus('none');
+      } else {
+        setAllyUid(active.allyUid);
+        setAllyInvitationId(active.id);
+        setAllyName(active.allyName);
+        setAllyStatus(active.acceptedAt ? 'ready' : 'invited');
       }
-    };
-    void sync();
-    const timer = window.setInterval(() => void sync(), 4000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [role, api]);
+    } catch {
+      // Transient read failure: leave the current state; the next poll retries.
+    }
+  }, [api]);
+  usePolling(syncOwnerInvitations, role === 'owner', allyStatus === 'invited' ? INVITATION_POLL_MS : null);
 
   const run = useCallback(async (work: () => Promise<void>) => {
     setError(null);
