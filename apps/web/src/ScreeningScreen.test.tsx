@@ -75,13 +75,13 @@ describe('IncomingCallScreen', () => {
 });
 
 describe('ConfirmFraudPanel', () => {
-  it('adds to the private list only on explicit confirmation', async () => {
+  it('adds to the fraud-number list only on explicit confirmation', async () => {
     const onConfirm = vi.fn().mockResolvedValue('+91 ••••• ••210');
     render(<ConfirmFraudPanel initialNumber="9876543210" onConfirm={onConfirm} />);
     expect(onConfirm).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: /confirm as fraud/i }));
     expect(onConfirm).toHaveBeenCalledWith('9876543210');
-    expect(await screen.findByText(/on your private list/i)).toBeVisible();
+    expect(await screen.findByText(/on your fraud-number list/i)).toBeVisible();
   });
 
   it('reports failures without changing anything', async () => {

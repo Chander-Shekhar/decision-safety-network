@@ -2,7 +2,7 @@
 // pure. The ONLY write is `recordReportHandoff`, run on the user's explicit
 // action: it records the local 1930 acknowledgement through the existing
 // recovery path and (optionally) adds the caller's number to the owner's
-// private fraud list through the existing `addConfirmedFraud`, whose
+// confirmed-fraud list through the existing `addConfirmedFraud`, whose
 // REPORT_NOT_RECORDED precondition is left intact. Nothing here contacts any
 // authority, and nothing claims a report was filed or accepted.
 import type { Firestore } from 'firebase-admin/firestore';
@@ -107,7 +107,7 @@ export async function recordReportHandoff(
   let fraudList: ReportHandoffResult['fraudList'] = null;
   if (normalized) {
     await addConfirmedFraud(db, uid, { caseId, normalizedNumber: normalized, basis: 'authority-report' });
-    fraudList = { maskedNumber: maskNumber(normalized), basis: 'authority-report', private: true };
+    fraudList = { maskedNumber: maskNumber(normalized), basis: 'authority-report' };
   }
   return {
     handedOff: true,

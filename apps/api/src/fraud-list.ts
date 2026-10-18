@@ -1,4 +1,4 @@
-// Private confirmed-fraud list (PRD C13, DSN-024). Scoped to the owner who
+// Confirmed-fraud list (PRD C13, DSN-024). Scoped to the owner who
 // confirmed: it only ever warns that same recipient before pickup. There is
 // no public read, no cross-user read, and no criminal attribution. The ONLY
 // writer is `addConfirmedFraud` (explicit owner confirmation, or an
@@ -26,7 +26,7 @@ export function maskNumber(normalized: string): string {
 /**
  * DEV-ONLY default key. Obviously non-production and NOT a secret: real
  * deployments must set FRAUD_LIST_HMAC_SECRET (decision 0011). Without it the
- * stored key is only as private as this public constant.
+ * stored key is only as secret as this public constant.
  */
 export const DEV_ONLY_FRAUD_LIST_HMAC_SECRET = 'dev-only-not-a-secret-fraud-list-key';
 
@@ -46,7 +46,7 @@ export async function isOnFraudList(db: Firestore, ownerUid: string, normalized:
 }
 
 /**
- * Adds a caller identifier to the owner's private list. Requires a case the
+ * Adds a caller identifier to the owner's confirmed-fraud list. Requires a case the
  * owner owns. `user-confirmed` is the owner's explicit fraud confirmation;
  * `authority-report` additionally requires the case to already carry a
  * recorded 1930 acknowledgement (`REPORT_NOT_RECORDED` otherwise). Idempotent.

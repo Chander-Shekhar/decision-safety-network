@@ -51,5 +51,5 @@ export interface ReportHandoffResult {
   handedOff: true;
   filed: false;
   statement: string;
-  fraudList: { maskedNumber: string; basis: 'authority-report'; private: true } | null;
+  fraudList: { maskedNumber: string; basis: 'authority-report' } | null;
 }

@@ -93,7 +93,7 @@ describe('pre-pickup screening', () => {
     }
   });
 
-  it('degrades to the private list when the adapter fails', async () => {
+  it('degrades to the confirmed-fraud list when the adapter fails', async () => {
     const broken: CallerIdAdapter = {
       async lookup() {
         throw new Error('provider down');
@@ -106,7 +106,7 @@ describe('pre-pickup screening', () => {
   });
 });
 
-describe('private confirmed-fraud list (C13)', () => {
+describe('confirmed-fraud list (C13)', () => {
   it('adds on user confirmation and a later matching call warns "previously reported"', async () => {
     const app = buildApi([createScreeningRoutes()], deps);
     const owner = uid('owner');
@@ -115,14 +115,14 @@ describe('private confirmed-fraud list (C13)', () => {
 
     const res = await confirm(app, owner, caseId, { callerNumber: CLEAN, basis: 'user-confirmed' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ basis: 'user-confirmed', private: true });
+    expect(res.json()).toMatchObject({ basis: 'user-confirmed' });
 
     // Formatting differences still match.
     const later = (await check(app, owner, { number: '9876543210' })).json();
     expect(later).toMatchObject({ level: 'previously-reported', warn: true, previouslyReported: true, headline: 'Previously reported by you' });
   });
 
-  it('is private to the confirming user: another user is not warned', async () => {
+  it('is scoped to the confirming user: another user is not warned', async () => {
     const app = buildApi([createScreeningRoutes()], deps);
     const owner = uid('owner');
     const other = uid('other');
@@ -156,7 +156,7 @@ describe('private confirmed-fraud list (C13)', () => {
 });
 
 describe('screening is untrusted evidence (server-enforced)', () => {
-  it('a spam-reported raw signal never writes the private list', async () => {
+  it('a spam-reported raw signal never writes the confirmed-fraud list', async () => {
     const app = buildApi([createScreeningRoutes()], deps);
     const owner = uid('owner');
     await seedCase(owner);

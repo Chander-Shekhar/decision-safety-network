@@ -1,5 +1,5 @@
 // Pre-pickup caller screening (PRD C2, DSN-024). Combines an untrusted
-// third-party caller-ID signal with the owner's private confirmed-fraud list
+// third-party caller-ID signal with the owner's confirmed-fraud list
 // into a calm verdict.
 //
 // Trust boundary, enforced here and not in the UI:
@@ -58,7 +58,7 @@ const COPY: Record<ScreeningLevel, { headline: string | null; detail: string | n
 
 export type ScreenOutcome = { ok: true; verdict: ScreeningVerdict } | { ok: false; error: 'INVALID_NUMBER' };
 
-/** Screens an incoming number for `ownerUid`. A failing adapter degrades to "no signal"; the private list still applies. */
+/** Screens an incoming number for `ownerUid`. A failing adapter degrades to "no signal"; the confirmed-fraud list still applies. */
 export async function screenCall(
   db: Firestore,
   adapter: CallerIdAdapter,

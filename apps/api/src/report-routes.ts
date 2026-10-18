@@ -25,7 +25,7 @@ function replyOrRethrow(reply: FastifyReply, error: unknown): undefined {
   throw error;
 }
 
-/** DSN-028 routes. The draft is read-only; only the explicit handoff POST writes (local note + private fraud list). Nothing is ever sent to an authority. */
+/** DSN-028 routes. The draft is read-only; only the explicit handoff POST writes (local note + confirmed-fraud list). Nothing is ever sent to an authority. */
 export function createReportRoutes(): RouteInstaller {
   return (app, deps: ApiDeps) => {
     app.get('/api/v1/cases/:id/report-draft', async (request, reply) => {

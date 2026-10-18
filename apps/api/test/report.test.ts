@@ -139,7 +139,7 @@ describe('report routes', () => {
     await app.close();
   });
 
-  it('authority-report basis: after the user records the 1930 handoff, the number lands on the private list as authority-report', async () => {
+  it('authority-report basis: after the user records the 1930 handoff, the number lands on the confirmed-fraud list as authority-report', async () => {
     const owner = uid('owner');
     const caseId = await seedCase(owner, true);
     const app = buildApi([createReportRoutes()], deps);
@@ -151,7 +151,7 @@ describe('report routes', () => {
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body).toMatchObject({ handedOff: true, filed: false, fraudList: { basis: 'authority-report', private: true } });
+    expect(body).toMatchObject({ handedOff: true, filed: false, fraudList: { basis: 'authority-report' } });
     expect(body.statement).toMatch(/has not filed/i);
     expect(body.statement).toMatch(/cannot confirm/i);
     expect((await db.collection('cases').doc(caseId).get()).get('recoveryAcknowledgement')).toMatchObject({ action: 'helpline-1930', simulated: true });

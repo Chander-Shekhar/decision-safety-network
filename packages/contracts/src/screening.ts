@@ -20,7 +20,7 @@ export type ScreeningLevel = 'none' | 'unverified' | 'previously-reported';
 /** How the owner's `callListening` preference applies to this call. */
 export type ListeningDecision = 'listen' | 'ask';
 
-/** Basis for adding an identifier to the private list (C13). Never a raw signal. */
+/** Basis for adding an identifier to the confirmed-fraud list (C13). Never a raw signal. */
 export type FraudListBasis = 'user-confirmed' | 'authority-report';
 
 export interface ScreeningVerdict {
@@ -31,7 +31,7 @@ export interface ScreeningVerdict {
   maskedNumber: string;
   headline: string | null;
   detail: string | null;
-  /** True only when the owner's own private list matched. Warns the recipient only. */
+  /** True only when the owner's own confirmed-fraud list matched. Warns the recipient only. */
   previouslyReported: boolean;
   signal: CallerIdSignal;
   listening: ListeningDecision;

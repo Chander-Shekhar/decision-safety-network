@@ -31,7 +31,7 @@ function replyOrRethrow(reply: FastifyReply, error: unknown): undefined {
   throw error;
 }
 
-/** Pre-pickup screening + private fraud-list routes (DSN-024). The caller-ID adapter is injectable. */
+/** Pre-pickup screening + confirmed-fraud list routes (DSN-024). The caller-ID adapter is injectable. */
 export function createScreeningRoutes(adapter: CallerIdAdapter = createSimulatedCallerIdAdapter()): RouteInstaller {
   return (app, deps: ApiDeps) => {
     app.post('/api/v1/screening/check', async (request, reply) => {
@@ -60,7 +60,7 @@ export function createScreeningRoutes(adapter: CallerIdAdapter = createSimulated
       }
       try {
         const entry = await addConfirmedFraud(deps.db, uid, { caseId, normalizedNumber: normalized, basis: parsed.data.basis });
-        return { maskedNumber: maskNumber(normalized), basis: entry.basis, addedAt: entry.addedAt, private: true };
+        return { maskedNumber: maskNumber(normalized), basis: entry.basis, addedAt: entry.addedAt };
       } catch (error) {
         return replyOrRethrow(reply, error);
       }

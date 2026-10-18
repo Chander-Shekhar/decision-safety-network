@@ -21,7 +21,7 @@ export interface RecoveryScreenProps {
   officialContact?: OfficialContact | null;
   /** True once the owner opened the official portal; never means a report was filed or accepted. */
   reportHandedOff?: boolean;
-  /** The caller's number was captured at the start; reporting also adds it to the owner's private warn list. */
+  /** The caller's number was captured at the start; reporting also adds it to the owner's fraud-number list. */
   callerKnown?: boolean;
   onOpenReport?: () => void;
   onDownloadReport?: () => void;

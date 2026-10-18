@@ -118,11 +118,11 @@ export function IncomingCallScreen({ onScreen, onAnswer, onDecline }: IncomingCa
 
 export interface ConfirmFraudPanelProps {
   initialNumber?: string;
-  /** Adds the number to the owner's private list. Resolves to the masked number on success. */
+  /** Adds the number to the owner's fraud-number list. Resolves to the masked number on success. */
   onConfirm: (callerNumber: string) => Promise<string>;
 }
 
-/** Explicit, owner-initiated confirmation: the only way (besides a recorded authority report) the private list grows. */
+/** Explicit, owner-initiated confirmation: the only way (besides a recorded authority report) the fraud-number list grows. */
 export function ConfirmFraudPanel({ initialNumber = '', onConfirm }: ConfirmFraudPanelProps): React.JSX.Element {
   const inputId = useId();
   const [number, setNumber] = useState(initialNumber);
@@ -137,7 +137,7 @@ export function ConfirmFraudPanel({ initialNumber = '', onConfirm }: ConfirmFrau
         </p>
         {added ? (
           <Callout kind="info" role="status">
-            {added} is on your private list.
+            {added} is now on your fraud-number list.
           </Callout>
         ) : (
           <>

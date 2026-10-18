@@ -973,7 +973,7 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   run(async () => {
                     const body: { idempotencyKey: string; callerNumber?: string } = { idempotencyKey: newIdempotencyKey() };
                     if (screenedNumber) body.callerNumber = screenedNumber;
-                    // Records the handoff (and the caller on the private list) server-side, THEN the human opens the portal.
+                    // Records the handoff (and the caller on the fraud-number list) server-side, THEN the human opens the portal.
                     await api.command<ReportHandoffResult>('POST', `cases/${caseId}/report-handoff`, body);
                     setReportHandedOff(true);
                     window.open(reportChannelUrl, '_blank', 'noopener');
