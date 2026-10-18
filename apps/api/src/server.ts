@@ -146,6 +146,8 @@ function requireEnv(name: string): string {
 
 /** Live bootstrap: Firebase Admin + Firestore + the real Gemini adapter, configured from env. Not run on import. */
 export async function main(): Promise<void> {
+  // fraud-list.ts falls back to a public dev key when unset; a deployed service must never use it.
+  requireEnv('FRAUD_LIST_HMAC_SECRET');
   if (getApps().length === 0) {
     initializeApp();
   }
