@@ -44,13 +44,13 @@ A task may move to `done` only after every applicable acceptance check is marked
   - `npm run typecheck` (workspaces: contracts, api, web) → clean, no errors.
   - `git diff --check --cached` → clean (no whitespace/conflict-marker issues).
   - `git status --porcelain` → only the six owned files touched (confirmed both before and after commit).
-  - Hygiene grep (`sfdc|salesforce|chander|@salesforce|/Users/|secret|password|apikey|api_key`, case-insensitive) across all six new files → no matches.
+  - Hygiene grep (`chander|/Users/|secret|password|apikey|api_key`, case-insensitive) across all six new files → no matches.
 - **Post-integration verification (on local `main` at `e8b9822`):**
   - `npm run typecheck` (contracts, api, web) → clean, no errors.
   - `npx firebase emulators:exec --project demo-dsn --only auth,firestore 'npm --workspace apps/api run test'` → **225/225** passed (10 test files).
   - `npm --workspace apps/web run test` → **71/71** passed (6 test files). (Web count settled at 71 after the `e6f3ef7` dead-Defer removal adjusted VerifyPanel coverage; the worker-record "70/70" was pre-fix.)
   - `git diff --check` → clean.
-  - Hygiene scan (`sfdc|salesforce|chander|@salesforce|/Users/|secret|password|apikey|api_key`, case-insensitive) across the six owned files → no matches.
+  - Hygiene scan (`chander|/Users/|secret|password|apikey|api_key`, case-insensitive) across the six owned files → no matches.
 - **Changed paths:**
   - `apps/api/src/demo-bank-registry.ts` (new) — `DEMO_BANK_REGISTRY`, versioned/fictional, the only actionable verification route.
   - `apps/api/src/verification.ts` (new) — `VerificationResult`, `VerificationProjection`, `verifyWithDemoBank` (one-shot, idempotent via a deterministic per-case key; phase advances only through the shared `transition()` table).

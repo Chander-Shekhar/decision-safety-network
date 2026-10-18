@@ -37,7 +37,7 @@ Commands run (2026-10-07, repo root, branch `task/DSN-018-frontend-styled-journe
 - `npm run typecheck` → clean across `@dsn/contracts`, `@dsn/api`, `@dsn/web`.
 - `npm --workspace apps/web run test` → **13 files / 130 tests passed** (added 2 `VerifyPanel` disabled-state tests to the prior 128).
 - `git diff --check f8e5333 HEAD` → clean (no whitespace errors on the branch).
-- `git grep -nE "sfdc|salesforce|chander|/Users/|repo.local|bazel_jdk|apikey|password|secret" -- apps/web project/decisions/0008-frontend-styling-stack.md` → NO HITS.
+- `git grep -nE "chander|/Users/|apikey|password|secret" -- apps/web project/decisions/0008-frontend-styling-stack.md` → NO HITS.
 - `git log f8e5333..HEAD` author/committer → `Chander Shekhar <44772437+Chander-Shekhar@users.noreply.github.com>` only.
 
 Whole-branch final review (opus, range `f8e5333..9c46ffb`): **ready to merge — zero Critical, zero Important.** Verified in code: `canVerify` matches `transitions.ts`; no API route/state-machine/contract/`api-client` change; browser never calls Firestore/Gemini directly; all safety copy and the five provenance states (distinct by label + `?`/`✓`/`✎` glyph, not color-alone) preserved; recovery routes equal-weight `h2`; lockfile resolves only to `registry.npmjs.org`. Three Minors adjudicated: (1) Verify affordance should be *disabled* not enabled-then-guarded → **fixed** @ `1656caa` (optional `disabled` prop + handler early-return retained; removes the double-guidance path); (2) double `Card` nesting → cosmetic, carried to founder visual pass; (3) weak Verify test coverage → **closed** by the two new disabled-state tests in the same fix.

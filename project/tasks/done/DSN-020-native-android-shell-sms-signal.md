@@ -43,7 +43,7 @@ overclaim of call-audio capture.
 - [x] Call audio remains simulated and labelled; the app makes no call-recording claim; 1930/cybercrime stay real and un-filed. — `apps/android/App.tsx` renders a persistent honesty label "Simulated call audio — this demo does not record calls."; no call-recording API is used or claimed; no change to the real-helpline routing.
 - [x] Web-side listener is additive + feature-detected: `apps/web` serves the ally/reviewers unchanged in a plain browser; existing web suite stays green; new listener unit test green; typecheck clean. — Verified: `window.addEventListener('message', …)` added in a mount effect; envelope validation is the gate, so a plain browser's foreign messages are ignored (inert test asserts foreign + malformed are dropped). Full web suite **146 pass** (baseline 130 + new), `typecheck` exit 0 (2026-10-08).
 - [x] No backend/API/contract/state-machine change; browser never calls Firestore/Gemini directly. — Verified: diff since `66b4c45` touches only `apps/android/**`, `apps/web/src/**`, `project/tasks/**`, `docs/demo-runbook.md` (and the git-ignored SDD ledger). No `apps/api`, no `packages/contracts`, no route/state-machine change.
-- [x] Hygiene: `git diff --check` clean; no secrets/workplace identity/absolute JDK or SDK paths committed; personal no-reply commit identity. — Verified: `git diff --check 66b4c45 HEAD` clean; identifier scan (`sfdc|salesforce|chander|/Users/|repo.local|secret|password|apikey|jdk|/Library/Android`) clean on the native diff; JDK/SDK paths are shell-only exports, never committed; commits carry the no-reply co-author line.
+- [x] Hygiene: `git diff --check` clean; no secrets/non-personal identity/absolute JDK or SDK paths committed; personal no-reply commit identity. — Verified: `git diff --check 66b4c45 HEAD` clean; identifier scan (`chander|/Users/|secret|password|apikey|jdk|/Library/Android`) clean on the native diff; JDK/SDK paths are shell-only exports, never committed; commits carry the no-reply co-author line.
 
 Legend: `[x]` verified · (historical: `[~]` code-complete + reviewed, runtime verification blocked · `[ ]` blocked, not inferred — all cleared 2026-10-11).
 
@@ -55,7 +55,7 @@ Every applicable acceptance check is now marked complete and verified. The nativ
 - `npm --workspace apps/web run test` → **146 passed (15 files)**. Includes the new `deviceSignals.test.ts` (11), `DeviceSignalList.test.tsx`, and two `App.test.tsx` cases (ingestion into the Decision view; inert listener rejecting foreign + malformed envelopes).
 - `npm --workspace apps/web run typecheck` → **exit 0**.
 - `git diff --check 66b4c45 HEAD` → **clean**.
-- Hygiene identifier scan on the native diff → **clean** (no workplace identity, no absolute JDK/SDK paths).
+- Hygiene identifier scan on the native diff → **clean** (no non-personal identity, no absolute JDK/SDK paths).
 
 **Native steps (BLOCKED-NOT-INFERRED on DSN-021 as of 2026-10-08 — no RN CLI / Android SDK then) were run on 2026-10-11 once DSN-021 was `done`.** See the next section.
 
@@ -71,7 +71,7 @@ Every applicable acceptance check is now marked complete and verified. The nativ
 
 **Docs updated + pushed (`7cc4d34`):** `apps/android/README.md` (dropped the BLOCKED status; recorded the JDK split and the required `adb reverse` ports incl. :9099) and new `apps/android/MANUAL-E2E-TEST.md` (single follow-along manual mobile-view test). The generated RN skeleton remains **uncommitted by design** — regenerated at bring-up per the docs (founder decision 2026-10-11: keep generated artifacts out; only two one-line edits carry DSN logic and both are documented).
 
-**Not committed (intentional):** the throwaway RN scaffold under `~/dsn-native-build/` and a local `node_modules/@react-native/gradle-plugin/settings.gradle.kts` foojay workaround (corporate-proxy only) — both documented, neither in the repo.
+**Not committed (intentional):** the throwaway RN scaffold under `~/dsn-native-build/` and a local `node_modules/@react-native/gradle-plugin/settings.gradle.kts` foojay workaround (proxy environments only) — both documented, neither in the repo.
 
 **Changed paths:** `apps/android/{App.tsx, src/SmsSignal.ts, README.md, android/app/src/main/java/com/dsncompanion/{SmsSignalModule.kt, SmsSignalPackage.kt}}`; `apps/web/src/{deviceSignals.ts, deviceSignals.test.ts, DeviceSignalList.tsx, DeviceSignalList.test.tsx, App.tsx, App.test.tsx}`; `docs/demo-runbook.md`; this task record. (SDD ledger under git-ignored `.superpowers/`.)
 

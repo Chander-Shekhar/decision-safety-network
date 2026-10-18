@@ -34,7 +34,7 @@ tests; no real model call is made by provisioning this package.
 
 Add `@google/genai@2.24.0` (exact) to `apps/api` dependencies and commit the
 regenerated `package-lock.json`. Resolve all entries from
-`registry.npmjs.org` (verified: zero `sfdc.net`/`repo.local` URLs in the
+`registry.npmjs.org` (verified: no non-public registry URLs in the
 lockfile). Do not upgrade past `2.24.0` until the min-release-age window permits
 a newer release and DSN-006/DSN-014 need it.
 
@@ -74,7 +74,7 @@ Rejected: plan Task 4 Step 3 requires the concrete adapter (`gemini.ts`) to use
 ## Verification
 
 - `apps/api/package.json` pins `@google/genai: 2.24.0`; lockfile resolves it from
-  `registry.npmjs.org`; `grep -c "sfdc.net\|repo.local" package-lock.json` → 0.
+  `registry.npmjs.org`; no non-public registry URLs in `package-lock.json`.
 - `npm ci && npm run typecheck` → exit 0 across all three workspaces.
 - Re-run `npm audit --omit=dev` at DSN-014 to confirm the two advisories are
   cleared (or re-accepted with evidence) before any live Gemini call ships.

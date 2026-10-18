@@ -39,7 +39,7 @@ web workspaces (e.g. `~/dsn-native-build/`) so the web workspace resolver is not
 
 ```sh
 mkdir -p ~/dsn-native-build && cd ~/dsn-native-build
-printf 'registry=https://registry.npmjs.org/\n' > .npmrc   # bypass any corporate npm proxy
+printf 'registry=https://registry.npmjs.org/\n' > .npmrc   # force the public npm registry
 npx --yes @react-native-community/cli@latest init DsnCompanion --version 0.87.1 --skip-install --pm npm
 cd DsnCompanion
 cp .npmrc .                                                 # keep the public registry for installs here too
@@ -265,7 +265,7 @@ The scaffold under `~/dsn-native-build/` is disposable — delete it any time; r
 | "Something went wrong. Nothing was changed." on Create synthetic user | The WebView's Firebase sign-in can't reach the Auth emulator. Run `adb reverse tcp:9099 tcp:9099`. |
 | Red screen "Unable to load script … index.android.bundle" | Debug builds need Metro. Start it (Terminal 3) and `adb reverse tcp:8081 tcp:8081`. |
 | `dev:api` exits: "no longer supports Java version before 21" | Launch that terminal with `export JAVA_HOME="$(brew --prefix openjdk@21)"`. |
-| Gradle build: `[Fatal Error] …foojay…pom:1:10: DOCTYPE is disallowed` | Gradle 9's strict POM parser choked on an HTML-bodied 404 from a mirrored/proxied repo while resolving the foojay toolchain plugin. Run the **main** Gradle JVM on JDK 21 (`export JAVA_HOME="$(brew --prefix openjdk@21)"`). In a corporate-proxy environment you may additionally need to point plugin repos at the public Gradle Plugin Portal and skip foojay auto-provisioning in the generated scaffold's `node_modules/@react-native/gradle-plugin/settings.gradle.kts` — that edit lives in throwaway `node_modules` and is never committed. |
+| Gradle build: `[Fatal Error] …foojay…pom:1:10: DOCTYPE is disallowed` | Gradle 9's strict POM parser choked on an HTML-bodied 404 from a mirrored/proxied repo while resolving the foojay toolchain plugin. Run the **main** Gradle JVM on JDK 21 (`export JAVA_HOME="$(brew --prefix openjdk@21)"`). Behind an npm/Gradle proxy you may additionally need to point plugin repos at the public Gradle Plugin Portal and skip foojay auto-provisioning in the generated scaffold's `node_modules/@react-native/gradle-plugin/settings.gradle.kts` — that edit lives in throwaway `node_modules` and is never committed. |
 | `Cannot find a Java installation matching languageVersion=17` | The RN gradle-plugin compiles Kotlin against JDK 17. Make a JDK 17 discoverable, or pass `-Dorg.gradle.java.installations.paths="<path-to-your-jdk17-home>"`. |
 | App stays on the launcher after `monkey`/install | Start it explicitly: `adb shell am start -n com.dsncompanion/.MainActivity`. |
 

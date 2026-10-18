@@ -9,7 +9,7 @@
 - **Related:** DSN-020 (native companion), decision 0009, plan `docs/superpowers/plans/2026-10-07-native-android-shell-sms-signal.md`
 - **Started:** 2026-10-08
 - **Last updated:** 2026-10-08
-- **Status:** `done` — native toolchain installed and verified end-to-end on this machine (2026-10-08). Probe findings: Homebrew present; Node v24 (newer than RN's tested LTS — flagged); the only JDK found is a standalone **JDK 17** at a workplace path via a stale `JAVA_HOME` (not used/committed) — installing a clean Homebrew **openjdk@21** instead; no Android SDK / Android Studio / Watchman; arch **arm64** (Apple Silicon). Chosen compatible stack: Android Studio (latest stable, JBR 21) + openjdk@21 + Android SDK API 35 (build-tools 35, `arm64-v8a` image) with API 34 as a scaffold cushion + Watchman.
+- **Status:** `done` — native toolchain installed and verified end-to-end on this machine (2026-10-08). Probe findings: Homebrew present; Node v24 (newer than RN's tested LTS — flagged); the only JDK found is a standalone **JDK 17** via a stale `JAVA_HOME` (not used/committed) — installing a clean Homebrew **openjdk@21** instead; no Android SDK / Android Studio / Watchman; arch **arm64** (Apple Silicon). Chosen compatible stack: Android Studio (latest stable, JBR 21) + openjdk@21 + Android SDK API 35 (build-tools 35, `arm64-v8a` image) with API 34 as a scaffold cushion + Watchman.
 
 ## Outcome
 
@@ -21,7 +21,7 @@ for the DSN-018 API emulator suite.
 
 ## Machine state BEFORE install (probe 2026-10-08)
 
-- **JDK:** no JDK 21; the only JDK found was a standalone **JDK 17** at a workplace path via a stale `JAVA_HOME` — not used, not committed. (A clean Homebrew openjdk@21 was installed instead; see "Installed stack" below.)
+- **JDK:** no JDK 21; the only JDK found was a standalone **JDK 17** via a stale `JAVA_HOME` — not used, not committed. (A clean Homebrew openjdk@21 was installed instead; see "Installed stack" below.)
 - **Android SDK / Android Studio:** not installed.
 - **React Native toolchain / Watchman:** not installed.
 - **Node + npm:** present (Node v24; the `apps/web` workspace already builds/tests here).
@@ -47,7 +47,7 @@ for the DSN-018 API emulator suite.
 
 ## Acceptance checks
 
-- [x] `java -version` reports JDK 21 in the terminal used for the Android build. — openjdk@21 **21.0.12.1** (Homebrew). (Standalone workplace JDK 17 left untouched/unused.)
+- [x] `java -version` reports JDK 21 in the terminal used for the Android build. — openjdk@21 **21.0.12.1** (Homebrew). (Standalone JDK 17 left untouched/unused.)
 - [x] `adb --version` works; `adb devices` lists a running emulator or a connected device. — `adb` **1.0.41** (platform-tools 37.0.1); AVD `dsn_api35` booted headless (boot_completed in ~16.5s) and `adb devices` listed `emulator-5554 device`.
 - [x] `npx @react-native-community/cli --version` resolves (RN CLI reachable). — resolves to CLI **20.2.0** over the npm registry.
 - [~] A trivial `./gradlew tasks` (or RN doctor) run succeeds in a scaffolded RN project. — **Deferred to the DSN-020 native bring-up** (needs a scaffolded RN project, which is DSN-020's step, not an env install). Every dependency this check exercises — JDK 21, Android SDK platform/build-tools, `adb`, emulator, Watchman, RN CLI — is independently verified above. RN `doctor` run standalone here only errors "not inside a React Native project" (expected).

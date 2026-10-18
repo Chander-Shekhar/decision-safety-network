@@ -44,7 +44,7 @@ A task may move to `done` only after every applicable acceptance check is marked
   - `npm run typecheck` → clean across `@dsn/contracts`, `@dsn/api`, `@dsn/web`.
   - `npx firebase emulators:exec --project demo-dsn --only auth,firestore 'npm --workspace apps/api run test'` → `Test Files 9 passed (9)`, `Tests 208 passed (208)`.
   - `npm --workspace apps/web run test` → `Test Files 5 passed (5)`, `Tests 58 passed (58)`.
-  - `git diff --check` → clean. Hygiene scan of the four committed files → no absolute path, workplace URL/email, or secret.
+  - `git diff --check` → clean. Hygiene scan of the four committed files → no absolute path, private URL/email, or secret.
 - **Changed paths:** `apps/api/src/decision-routes.ts` (new), `apps/api/test/decision.test.ts` (new), `apps/web/src/ActionConsole.tsx` (new), `apps/web/src/ActionConsole.test.tsx` (new), this task record.
 - **Limitations or skipped checks:**
   - "Large" touch-target sizing is not implemented - this repo has no CSS/styling layer anywhere yet (matches `PaymentPanel.tsx`'s own unstyled precedent); only the functional keyboard-operability requirement (native `<button>`/`<input type="checkbox">` elements) is satisfied. A future styling pass owns actual visual sizing.

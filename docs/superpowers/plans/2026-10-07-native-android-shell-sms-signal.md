@@ -18,7 +18,7 @@
 - **A received SMS is a *message claim*, not a verified fact.** Any payee/amount in the body is shown as proposed/claimed; it never fills an actually-paid field and never auto-marks anything verified. No scam probability, mental-state label, blacklist, or fabricated authority outcome. 1930/cybercrime stay real and un-filed.
 - **No backend/API/contract/state-machine change.** The signal enters the existing client case model (React state), not Firestore. The browser never calls Firestore/Gemini directly — the authenticated API owns both.
 - **The web-side change is additive and feature-detected.** `apps/web` must stay byte-behaviour-compatible in a plain browser (the ally/reviewer surface); the existing web suite (130 tests) stays green; typecheck clean.
-- **Hygiene:** synthetic demo data only; personal no-reply commit identity; `git diff --check` clean; never commit secrets, workplace identity/paths, or an absolute JDK/Android-SDK path (shell-only exports). Atomic commits, subject begins `DSN-020:`.
+- **Hygiene:** synthetic demo data only; personal no-reply commit identity; `git diff --check` clean; never commit secrets, non-personal identity/private paths, or an absolute JDK/Android-SDK path (shell-only exports). Atomic commits, subject begins `DSN-020:`.
 
 ## Review Focus
 

@@ -52,6 +52,6 @@ Before writing, read this file and the assigned task. Then read what the task ac
 
 - Use only non-real, non-production data. Never use real personal, financial, credential, or identifying data.
 - Be honest about what is not yet live: disclose which integrations (bank, caller-ID, authority/reporting, payment) are not real through a single consolidated disclosure, not scattered inline caveats. Keep a light point-of-use indicator only where an action could otherwise be mistaken for a real-world effect. Prefer capability-forward wording; blanket "synthetic", "demo", or per-element "simulated" labels are not required.
-- This is a public GitHub project. Use a personal GitHub identity or no-reply commit address; never publish a workplace email, credentials, or private local path.
+- This is a public GitHub project. Use a personal GitHub identity or no-reply commit address; never publish any other email, credentials, or private local path.
 - Never commit secrets, personal data, local credentials, generated build output, or environment files.
 - Keep changes inside the assigned task and leave a complete handoff before stopping.
