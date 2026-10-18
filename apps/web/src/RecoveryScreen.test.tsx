@@ -31,8 +31,15 @@ const baseState: RecoveryState = {
 const contact = { organisation: 'Demo Bank', phoneNumber: '+911800123123', source: 'demo-registry' as const };
 
 describe('RecoveryScreen', () => {
-  it('seeds the Decide-step number as a direct call link and shows the script', () => {
+  it('holds the script back until the paid details are confirmed', () => {
     render(<RecoveryScreen state={baseState} officialContact={contact} />);
+    expect(screen.queryByText(/I paid Rs 50,000/)).toBeNull();
+    expect(screen.getByText(/once you confirm what you paid/i)).toBeVisible();
+  });
+
+  it('seeds the Decide-step number as a direct call link and shows the script', () => {
+    const paid = { ...baseState, paidPayment: { paidPayee: 'safe-new', paidAmountMinor: 5_000_000, origin: 'user-reported' as const } };
+    render(<RecoveryScreen state={paid} officialContact={contact} />);
     const bank = screen.getByRole('region', { name: /call your bank/i });
     expect(within(bank).getByRole('link', { name: /call demo bank/i })).toHaveAttribute('href', 'tel:+911800123123');
     expect(within(bank).getByText(/I paid Rs 50,000 to safe-new/)).toBeVisible();
@@ -51,16 +58,11 @@ describe('RecoveryScreen', () => {
     render(<RecoveryScreen state={baseState} callerKnown onOpenReport={onOpenReport} />);
     const r = screen.getByRole('region', { name: /report it/i });
     expect(within(r).getByRole('link', { name: '1930' })).toHaveAttribute('href', 'tel:1930');
-    expect(within(r).getByText(/private warning list/i)).toBeVisible();
+    expect(within(r).getByText(/warning list/i)).toBeVisible();
     await userEvent.click(within(r).getByRole('button', { name: /open the cyber-crime portal/i }));
     expect(onOpenReport).toHaveBeenCalled();
     expect(within(r).getByRole('button', { name: /pre-filled form/i })).toBeVisible();
     expect(within(r).getByRole('button', { name: /save my evidence/i })).toBeVisible();
-  });
-
-  it('never claims the report was filed once the portal is opened', () => {
-    render(<RecoveryScreen state={baseState} reportHandedOff />);
-    expect(screen.getByText(/can't see or confirm your report/i)).toBeVisible();
   });
 
   it('labels what the caller said in plain words, never raw field names', () => {

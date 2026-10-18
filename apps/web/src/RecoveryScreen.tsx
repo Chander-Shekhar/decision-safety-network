@@ -98,53 +98,8 @@ export function RecoveryScreen({ state, onMatch, onEdit, officialContact, report
       <h1 className="text-2xl font-semibold">Take a breath. You&apos;ve done the right thing by acting now.</h1>
       <p>Acting quickly gives you the best chance. Here is what to do, one step at a time.</p>
 
-      <section aria-label="Call your bank">
-        <Card title={`1. Call ${bankName} now`}>
-          <p>Tell them you were scammed and ask them to hold the account you paid from.</p>
-          {bankNumber ? (
-            <ActionBar>
-              <a
-                href={`tel:${dialable(bankNumber)}`}
-                className="inline-flex items-center justify-center rounded-md bg-primary px-space-4 py-space-3 text-base font-semibold text-white"
-              >
-                Call {bankName} · {bankNumber}
-              </a>
-            </ActionBar>
-          ) : (
-            <p>Use the helpline number on the back of your card or in your bank&apos;s app.</p>
-          )}
-          {guidedFreeze && (
-            <>
-              <h3 className="font-semibold">What you can say</h3>
-              <pre className="whitespace-pre-wrap rounded-md bg-surface-sunken p-space-3 font-sans text-base">{guidedFreeze.script}</pre>
-              <ActionBar>
-                <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(guidedFreeze.script)}>
-                  Copy script
-                </Button>
-              </ActionBar>
-            </>
-          )}
-        </Card>
-      </section>
-
-      {heardEntries.length > 0 && (
-        <section aria-label="What the caller said">
-          <Card title="What the caller said">
-            <p className="text-sm text-text-muted">Taken from the call you shared. Handy to have in front of you.</p>
-            <dl className="flex flex-col gap-space-2">
-              {heardEntries.map(([field, value]) => (
-                <div key={field}>
-                  <dt className="text-sm text-text-muted">{HEARD_LABELS[field] ?? field}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-        </section>
-      )}
-
       <section aria-label="What you paid">
-        <Card title="2. What you paid">
+        <Card title="1. What you paid">
           {paidPayment ? (
             <>
               <p>Saved as you told us.</p>
@@ -219,6 +174,53 @@ export function RecoveryScreen({ state, onMatch, onEdit, officialContact, report
         </Card>
       </section>
 
+      <section aria-label="Call your bank">
+        <Card title={`2. Call ${bankName} now`}>
+          <p>Tell them you were scammed and ask them to hold the account you paid from.</p>
+          {bankNumber ? (
+            <ActionBar>
+              <a
+                href={`tel:${dialable(bankNumber)}`}
+                className="inline-flex items-center justify-center rounded-md bg-primary px-space-4 py-space-3 text-base font-semibold text-white"
+              >
+                Call {bankName} · {bankNumber}
+              </a>
+            </ActionBar>
+          ) : (
+            <p>Use the helpline number on the back of your card or in your bank&apos;s app.</p>
+          )}
+          {guidedFreeze && paidPayment ? (
+            <>
+              <h3 className="font-semibold">What you can say</h3>
+              <pre className="whitespace-pre-wrap rounded-md bg-surface-sunken p-space-3 font-sans text-base">{guidedFreeze.script}</pre>
+              <ActionBar>
+                <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(guidedFreeze.script)}>
+                  Copy script
+                </Button>
+              </ActionBar>
+            </>
+          ) : (
+            <p className="text-sm text-text-muted">Once you confirm what you paid above, your script will appear here, filled in for you.</p>
+          )}
+        </Card>
+      </section>
+
+      {heardEntries.length > 0 && (
+        <section aria-label="What the caller said">
+          <Card title="What the caller said">
+            <p className="text-sm text-text-muted">Taken from the call you shared. Handy to have in front of you.</p>
+            <dl className="flex flex-col gap-space-2">
+              {heardEntries.map(([field, value]) => (
+                <div key={field}>
+                  <dt className="text-sm text-text-muted">{HEARD_LABELS[field] ?? field}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        </section>
+      )}
+
       <section aria-label="Report it">
         <Card title="3. Report it to the cyber helpline">
           <p>
@@ -226,12 +228,8 @@ export function RecoveryScreen({ state, onMatch, onEdit, officialContact, report
             <a href="tel:1930" className="font-semibold underline">1930</a>
             , or open the official portal. We&apos;ve pre-filled what we know; you check it and submit it yourself.
           </p>
-          {callerKnown && <p className="text-sm text-text-muted">Reporting also adds the caller&apos;s number to your private warning list, so you are warned if they call again.</p>}
-          {reportHandedOff && (
-            <p role="status" className="font-medium">
-              Portal opened. We can&apos;t see or confirm your report, so please finish and submit it there.
-            </p>
-          )}
+          {callerKnown && <p className="text-sm text-text-muted">Reporting also adds the caller&apos;s number to the warning list, so you are warned if they call again.</p>}
+          
           <ActionBar>
             <Button size="lg" onClick={() => onOpenReport?.()}>
               Open the cyber-crime portal
