@@ -8,6 +8,8 @@ Built for the **AI Builder Cup 2026**, theme **BFSI: Intelligent Risk, Fraud & F
 
 **Live app:** https://second-voice-b2c94.web.app (open it in two browser profiles to play the user and their ally)
 
+**Judges:** start with the [step-by-step testing guide](docs/judges-guide/README.md), with screenshots and ready-to-paste scam calls.
+
 ## The problem
 
 Scam callers isolate their victim: "Your account is compromised, move your money to this safe account now, and don't tell anyone." Existing tools flag a number or show a warning, but the hard part comes after: a frightened person has to work out whether the claim is true, find a real number to check it, involve someone they trust without retelling everything, and act fast if they've already paid.
