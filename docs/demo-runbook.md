@@ -1,6 +1,6 @@
 # Demo runbook (DSN-014)
 
-**Status:** authored for the eventual Cloud Run / Firebase Hosting path. **Deploy is pending founder cloud authorization; nothing here has been deployed or executed.** Everything in the product is synthetic. Demo Bank, the transfer, and local acknowledgements are **Simulated**; the 1930 helpline and cybercrime.gov.in are real official routes and are never filed on the user's behalf.
+**Status:** deployed to Cloud Run + Firebase Hosting (project `second-voice-b2c94`, `asia-south1`) on 2026-10-18 using the commands in "Deploy to Google Cloud" below. Everything in the product is synthetic. Demo Bank, the transfer, and local acknowledgements are **Simulated**; the 1930 helpline and cybercrime.gov.in are real official routes and are never filed on the user's behalf.
 
 ## Architecture (single origin)
 
@@ -8,7 +8,9 @@ Browser -> Firebase Hosting (SPA) -> rewrite `/api/v1/**` -> Cloud Run service (
 
 ## Configuration (environment, never committed)
 
-`PORT` (default 8080), `GOOGLE_CLOUD_PROJECT`, `GEMINI_MODEL`, `DSN_SCHEDULER_AUDIENCE`, `DSN_SCHEDULER_SA`. Placeholders only: `DSN_GCP_PROJECT`, `DSN_API_SA`, `DSN_SCHEDULER_SA`. `NODE_ENV=production` rejects the test Gemini double.
+API (Cloud Run): `PORT` (default 8080), `GOOGLE_CLOUD_PROJECT`, `GEMINI_MODEL` (default `gemini-3.5-flash-lite`), `DSN_SCHEDULER_AUDIENCE`, `DSN_SCHEDULER_SA`, `FRAUD_LIST_HMAC_SECRET` (from Secret Manager; the server refuses to boot without it), optional `DSN_WEB_VERIFICATION=grounded` (web lookup on). `NODE_ENV=production` rejects the test Gemini double. Leave `GEMINI_API_KEY` unset in the cloud: Vertex AI authenticates via the service account, so no API key exists.
+
+Web (build time): `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` in the git-ignored `apps/web/.env.production.local` (template: `apps/web/.env.example`). These are public Firebase web identifiers, not secrets, but stay out of Git. When unset, the web app uses the local emulators.
 
 ## Request and error shapes
 
@@ -77,6 +79,91 @@ Once DSN-021 prerequisites are met (summary — full steps in `apps/android/READ
 3. Launch the companion, tap **I consent - start session**, and grant the RECEIVE_SMS runtime permission. The honesty label ("Simulated call audio…") is persistent.
 4. Smoke (emulator): `adb emu sms send VM-DEMOBK "Your account is blocked. Pay Rs 50000 to keep funds safe."` → the SMS appears in the Decision view as a received-message **claim**. After **Withdraw consent / end session**, or with the app backgrounded, the same command produces no signal (listener is session- and foreground-scoped; SMS history is never read).
 
-## Deploy steps (BLOCKED until founder cloud authorization)
+## Deploy to Google Cloud
 
-Validate `DSN_GCP_PROJECT`, `DSN_API_SA`, `DSN_SCHEDULER_SA`; enable only required services; set budget alert and max instances; build the Dockerfile and deploy to Cloud Run in `asia-south1`; deploy Hosting; create the Cloud Scheduler job calling `POST /internal/retention/sweep` with an OIDC token from `DSN_SCHEDULER_SA`; verify a user token and an unauthenticated call are denied; run `BASE_URL=... ID_TOKEN=... scripts/smoke.sh` and confirm a fresh live Gemini call for the run. Operational logs carry route template, status, and latency only.
+Stack: Firebase Hosting (SPA) → Cloud Run `dsn-api` (scale to zero) → Firestore (native, `asia-south1`) + Vertex AI Gemini (`@google/genai`, location `global`). Auth is Firebase anonymous sign-in. Operational logs carry route template, status, and latency only.
+
+### One-time project setup (console)
+
+1. Create a Firebase project; upgrade to Blaze and set a budget alert.
+2. Firestore: create the database in native mode, location `asia-south1`.
+3. Authentication → Sign-in method: enable **Anonymous**.
+4. Project settings → add a **Web app**; copy its config into `apps/web/.env.production.local` (from `apps/web/.env.example`).
+5. Install `gcloud`, then `gcloud auth login`, `gcloud config set project <P>`, `gcloud config set run/region asia-south1`, and `npx firebase login`.
+
+### One-time project setup (CLI)
+
+```bash
+P=<project-id>
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
+  firestore.googleapis.com aiplatform.googleapis.com secretmanager.googleapis.com \
+  cloudscheduler.googleapis.com iamcredentials.googleapis.com --project $P
+
+gcloud iam service-accounts create dsn-api --display-name="Second Voice API (Cloud Run)" --project $P
+gcloud iam service-accounts create dsn-scheduler --display-name="Second Voice retention scheduler" --project $P
+API_SA=dsn-api@$P.iam.gserviceaccount.com
+for R in roles/datastore.user roles/aiplatform.user roles/firebaseauth.viewer; do
+  gcloud projects add-iam-policy-binding $P --member="serviceAccount:$API_SA" --role=$R --condition=None
+done
+
+# Fraud-list HMAC key: generated straight into Secret Manager, never printed or stored locally.
+openssl rand -hex 32 | tr -d '\n' | gcloud secrets create fraud-list-hmac --data-file=- --replication-policy=automatic --project $P
+gcloud secrets add-iam-policy-binding fraud-list-hmac --member="serviceAccount:$API_SA" \
+  --role=roles/secretmanager.secretAccessor --project $P
+```
+
+### Deploy the API (Cloud Run)
+
+Docker is not required locally; `--source .` builds the root `Dockerfile` in Cloud Build. The Cloud Run URL is `https://dsn-api-<project-number>.asia-south1.run.app` and is needed as the scheduler audience.
+
+```bash
+URL=https://dsn-api-<project-number>.asia-south1.run.app
+gcloud run deploy dsn-api --source . --project $P --region asia-south1 \
+  --service-account dsn-api@$P.iam.gserviceaccount.com \
+  --min-instances 0 --max-instances 2 --memory 512Mi --cpu 1 --concurrency 40 --timeout 120 \
+  --allow-unauthenticated \
+  --set-secrets FRAUD_LIST_HMAC_SECRET=fraud-list-hmac:latest \
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=$P,DSN_SCHEDULER_AUDIENCE=$URL,DSN_SCHEDULER_SA=dsn-scheduler@$P.iam.gserviceaccount.com"
+```
+
+`--allow-unauthenticated` only lets requests reach the app; every `/api/v1/**` route still requires a Firebase ID token and `/internal/retention/sweep` requires the scheduler's OIDC token. `--min-instances 0` scales to zero when idle; `--max-instances 2` caps cost. Redeploy code with the same command; change only config with `gcloud run services update dsn-api --region asia-south1 --update-env-vars KEY=VALUE`.
+
+**Web lookup** (Gemini with Google Search grounding for bank verification and official-contact lookup; off = curated Demo Bank only):
+
+```bash
+gcloud run services update dsn-api --region asia-south1 --project $P --update-env-vars DSN_WEB_VERIFICATION=grounded   # on
+gcloud run services update dsn-api --region asia-south1 --project $P --remove-env-vars DSN_WEB_VERIFICATION           # off
+```
+
+### Deploy the web app, Firestore rules, and indexes
+
+```bash
+(cd apps/web && rm -rf dist && npx vite build --mode production)
+npx firebase deploy --only hosting,firestore:rules,firestore:indexes --project $P
+```
+
+`firestore.rules` denies all client access (the browser only talks to the API). `firestore.indexes.json` holds the collection-group index that `GET /api/v1/ally/cases` needs; it takes a few minutes to build (`gcloud firestore indexes fields describe allyUid --collection-group=allyGrants --project $P` shows `READY`). The emulator never enforces indexes, so a new `collectionGroup()` or composite query that works locally can fail in the cloud with `FAILED_PRECONDITION` until its index is added here.
+
+### Retention sweep (Cloud Scheduler)
+
+```bash
+gcloud run services add-iam-policy-binding dsn-api --region asia-south1 --project $P \
+  --member=serviceAccount:dsn-scheduler@$P.iam.gserviceaccount.com --role=roles/run.invoker
+gcloud scheduler jobs create http dsn-retention-sweep --location asia-south1 --project $P \
+  --schedule "0 * * * *" --time-zone "Asia/Kolkata" --uri "$URL/internal/retention/sweep" --http-method POST \
+  --oidc-service-account-email dsn-scheduler@$P.iam.gserviceaccount.com --oidc-token-audience "$URL" --attempt-deadline 60s
+gcloud scheduler jobs run dsn-retention-sweep --location asia-south1 --project $P   # force one run; expect 200 in the logs
+```
+
+### Verify
+
+```bash
+H=https://<project-id>.web.app
+curl -s -w ' %{http_code}\n' $H/api/v1/cases/x                         # 401 UNAUTHENTICATED (API reachable via Hosting)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST $URL/internal/retention/sweep   # 401 without scheduler token
+gcloud run services logs read dsn-api --region asia-south1 --project $P --limit 30
+```
+
+Then open the Hosting URL in two browser profiles (owner and ally) and walk the journey. A populated "What we noticed" confirms live Gemini extraction.
+
+Known quirks: `GET /healthz` on the `run.app` URL returns a Google 404 (Cloud Run reserves some paths ending in `z`), and via Hosting it falls through to the SPA, so `scripts/smoke.sh`'s health check is not meaningful in the cloud; use the 401 checks above instead. The Firebase emulators used locally need JDK 21.
