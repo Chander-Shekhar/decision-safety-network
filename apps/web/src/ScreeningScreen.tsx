@@ -133,7 +133,7 @@ export function ConfirmFraudPanel({ initialNumber = '', onConfirm }: ConfirmFrau
     <section aria-label="Confirm caller as fraud">
       <Card title="Was this call a scam?">
         <p className="text-sm text-text-muted">
-          If you&apos;re sure, add the caller to your private list. Only you are warned if they call again &mdash; nothing is shared or published.
+          If you&apos;re sure, let&apos;s add the caller to the scammer list.
         </p>
         {added ? (
           <Callout kind="info" role="status">

@@ -22,10 +22,9 @@ describe('AllyScreen', () => {
     expect(screen.getByText(/short summary/i)).toBeVisible();
   });
 
-  it('hides the full transcript, shares no recording, and says so', () => {
+  it('hides the full transcript and shares no recording', () => {
     render(<AllyScreen packet={packet} />);
     expect(screen.queryByText(/HIDDEN-TRANSCRIPT|UNSELECTED-EVIDENCE/)).toBeNull();
-    expect(screen.getByText(/no recording or full transcript is shared/i)).toBeVisible();
     expect(screen.queryByRole('link')).toBeNull();
   });
 
@@ -58,7 +57,6 @@ describe('AllyScreen', () => {
     render(<AllyScreen packet={packet} />);
     const names = screen.queryAllByRole('button').map((b) => b.textContent ?? '');
     expect(names.join(' | ')).not.toMatch(/pay|continue|cancel|approve|verified|certify|confirm caller|release|transfer/i);
-    expect(screen.getByText(/you cannot control funds or certify the caller/i)).toBeVisible();
   });
 
   it('shows no packet once the grant is stale or revoked', () => {

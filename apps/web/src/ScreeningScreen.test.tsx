@@ -84,10 +84,10 @@ describe('ConfirmFraudPanel', () => {
     expect(await screen.findByText(/on your private list/i)).toBeVisible();
   });
 
-  it('states the list is private and reports failures without changing anything', async () => {
+  it('reports failures without changing anything', async () => {
     const onConfirm = vi.fn().mockRejectedValue(new Error('x'));
     render(<ConfirmFraudPanel initialNumber="9876543210" onConfirm={onConfirm} />);
-    expect(screen.getByText(/only you are warned/i)).toBeVisible();
+    expect(screen.getByText(/add the caller to the scammer list/i)).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: /confirm as fraud/i }));
     expect(await screen.findByText(/nothing was changed/i)).toBeVisible();
   });

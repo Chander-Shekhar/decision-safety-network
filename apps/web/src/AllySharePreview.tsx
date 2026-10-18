@@ -46,9 +46,6 @@ export function AllySharePreview({ allyName, packet, stale = false, onShare, onN
 
         <h4 className="text-sm font-semibold">Short summary</h4>
         <p className="rounded-md border-l-4 border-border bg-surface-sunken p-space-3 text-sm">{packet.summary}</p>
-        <p className="text-sm text-text-muted">
-          A short AI summary of the call — not the recording or transcript. {allyName} can reach you for more.
-        </p>
 
         {stale && (
           <Callout kind="caution" role="alert">
@@ -74,7 +71,7 @@ export function AllySharePreview({ allyName, packet, stale = false, onShare, onN
             <h3 className="text-base font-semibold">Reach {allyName} on WhatsApp</h3>
             {whatsappSummary ? (
               <>
-                <p className="text-sm text-text-muted">Only the packet above, as text. Nothing is sent until you tap and send it in WhatsApp.</p>
+                <p className="text-sm text-text-muted">Nothing is sent until you tap and send it in WhatsApp.</p>
                 <pre className="whitespace-pre-wrap rounded-md bg-surface-sunken p-space-3 font-sans text-sm">{whatsappSummary.text}</pre>
                 <ActionBar>
                   <a

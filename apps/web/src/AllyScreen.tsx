@@ -66,7 +66,6 @@ export function AllyScreen({ packet, accessState = 'active', sharer }: AllyScree
         </dl>
         <h4 className="text-sm font-semibold">Short summary</h4>
         <p className="rounded-md border-l-4 border-border bg-surface-sunken p-space-3 text-sm">{packet.summary}</p>
-        <p className="text-sm text-text-muted">A short AI summary of the call. No recording or full transcript is shared — reach out to them for more.</p>
 
         <h3 className="text-base font-semibold">Reach {sharerName}</h3>
         {dialable ? (
@@ -79,8 +78,6 @@ export function AllyScreen({ packet, accessState = 'active', sharer }: AllyScree
         ) : (
           <p className="text-sm text-text-muted">They haven&apos;t added a phone number yet. Reach out to them directly.</p>
         )}
-        <p className="text-sm text-text-muted">You cannot control funds or certify the caller.</p>
-        <p className="text-sm text-text-muted">The owner can revoke this case grant at any time.</p>
       </Card>
     </section>
   );

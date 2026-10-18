@@ -12,14 +12,14 @@ const packet: AllyPacketContent = {
 };
 
 describe('AllySharePreview', () => {
-  it('shows the exact packet including the AI summary, and says the transcript is excluded', () => {
+  it('shows the exact packet including the AI summary', () => {
     render(<AllySharePreview allyName="Alex" packet={packet} />);
     expect(screen.getByText(/account compromised/i, { selector: 'dd' })).toBeVisible();
     expect(screen.getByText(/transfer to a safe account/i, { selector: 'dd' })).toBeVisible();
     expect(screen.getByText(/50,000/, { selector: 'dd' })).toBeVisible();
     expect(screen.getByText(/caller not independently verified/i)).toBeVisible();
     expect(screen.getByText(/has not been independently verified/i)).toBeVisible();
-    expect(screen.getByText(/short ai summary of the call/i)).toBeVisible();
+    expect(screen.getByText(/short summary/i)).toBeVisible();
   });
 
   it('says the ally cannot see the case yet without a per-panel simulated stamp', () => {

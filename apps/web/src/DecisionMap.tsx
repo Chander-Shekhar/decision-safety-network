@@ -135,7 +135,7 @@ export function DecisionMap({
           </p>
         </Callout>
         <p className="text-text-muted">
-          Each point below is only what the caller <em>said</em> — none of it is independently verified. Open a source to
+          Each point below is only what the caller <em>said</em>. Open a source to
           see the exact words.
         </p>
         {status === 'degraded' && (

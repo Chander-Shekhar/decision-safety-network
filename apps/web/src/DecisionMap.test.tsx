@@ -32,7 +32,7 @@ describe('DecisionMap', () => {
   it('frames facts as unverified caller claims in the header, without a per-row pill', () => {
     render(<DecisionMap facts={[claimedPayee]} />);
     // The "unverified claims" framing lives once in the header, not as a pill on every row.
-    expect(screen.getByText(/none of it is independently verified/i)).toBeInTheDocument();
+    expect(screen.getByText(/only what the caller/i)).toBeInTheDocument();
     expect(screen.getByText('safe-new')).toBeVisible();
     expect(screen.queryByText(/caller claimed/i)).toBeNull();
   });
