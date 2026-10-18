@@ -9,8 +9,8 @@
 - **PRD references:** Cup-ready clean deployed demo
 - **Decision references:** 0001
 - **Started:** 2026-10-04
-- **Last updated:** 2026-10-05
-- **Status:** `blocked` — composition integrated to local main and fully green, and the clickable local end-to-end demo now runs (SPA serve + emulator browser auth wired per decision 0007, booted and verified). Remaining blocked: automated Playwright e2e, cloud deploy, and the pre-existing API build defect (see Blocker).
+- **Last updated:** 2026-10-18
+- **Status:** `blocked` — **cloud deploy is live and verified (2026-10-18)**: Cloud Run API + Firebase Hosting + Firestore + Vertex AI Gemini + retention scheduler, founder-tested end to end on the deployed URL. The only remaining sub-gate is the automated two-browser Playwright e2e (see Blocker).
 - **Scope note (this pass):** Founder authorized the LOCAL integration portion only and directed "keep strictly local" + "defer all pending decisions." This pass delivers the **dependency-free** composition (API composition root `server.ts` wiring all 10 route installers, `fake-gemini.ts` test double, react-only web shell `App/main/index.html` + injected-token `api-client.ts`, `Dockerfile`/`smoke.sh`/`demo-runbook.md` artifacts, `firebase.json` hosting rewrites) and authors `journey.spec.ts` as the red e2e **without running it**. Executing the two-browser Playwright journey + serving the Vite SPA + real Firebase browser auth require NEW serialized dev dependencies (`@playwright/test` + browser binaries, Vite app build/dev scripts + `vite.config.ts`, `firebase` client SDK) — a consequential dependency decision deferred per founder instruction. Deploy (Step 5) blocked on founder cloud/billing authorization. Task lands in `blocked`, not `done` (plan completion contract).
 
 ## Outcome
@@ -25,7 +25,7 @@ Single-origin `/api/v1/**` web/API wiring, three-auth-path dispatch, local emula
 ## Acceptance checks
 
 - [ ] Clean checkout: two-browser emulator-backed attack journey + legitimate control pass with no DB edits; attack completes full journey; control has no enhanced Pause; proposed vs actual-paid labeling correct; no unconfirmed field silently filled.
-- [ ] No client Firestore/Gemini traffic; three auth paths enforce Firebase-vs-scheduler identity; persistent simulation/pre-OTP copy visible. Live-Gemini deployed smoke recorded only after founder cloud auth; otherwise deployment gate = **blocked**.
+- [x] No client Firestore/Gemini traffic; three auth paths enforce Firebase-vs-scheduler identity; persistent simulation/pre-OTP copy visible. Live-Gemini deployed smoke recorded only after founder cloud auth; otherwise deployment gate = **blocked**. *(2026-10-18: met — see "Cloud deploy" evidence. Per-element simulation labels were later replaced by one consolidated disclosure at founder direction, DSN-038.)*
 - [ ] Local green per plan Task 12 Steps 1–4; `npm ci && typecheck && build && emulator E2E` pass; `git diff --check` clean.
 
 A task may move to `done` only after every applicable acceptance check is marked complete, the change is integrated, and post-integration verification is recorded below.
@@ -33,6 +33,19 @@ A task may move to `done` only after every applicable acceptance check is marked
 > **Acceptance status (integrator):** boxes remain unchecked because each check depends on a blocked external sub-gate (two-browser Playwright e2e, SPA build/serve, browser auth, `npm run build`, deploy). The portions achievable locally and dependency-free ARE integrated and verified green: the composition root mounts all 12 installers, `server.test.ts` proves 401 on every mounted route + case create/read + the three auth paths, no client Firestore/Gemini import, persistent Simulated + pre-OTP copy present in the shell, `typecheck`/`git diff --check` clean. Full acceptance resumes when the blocked sub-gates are authorized.
 
 ## Verification evidence
+
+### Cloud deploy (2026-10-18, founder-authorized)
+
+- **Live:** Hosting `https://second-voice-b2c94.web.app` (SPA; `/api/v1/**` rewritten to Cloud Run) → Cloud Run `dsn-api` in `asia-south1` (revision `dsn-api-00002-tn9`; min 0 / max 2 instances, 512Mi, concurrency 40) → Firestore native `asia-south1` + Vertex AI Gemini via `@google/genai` (no API key; service-account auth). Retention sweep: Cloud Scheduler `dsn-retention-sweep` hourly with OIDC from a dedicated scheduler service account. Web lookup on (`DSN_WEB_VERIFICATION=grounded`). Exact commands: `docs/demo-runbook.md` "Deploy to Google Cloud".
+- **Commits:** `418ad43` (API production build via `tsconfig.build.json` + slim Cloud Run image + `.dockerignore`; resolves sub-gate 5), `8867dd3` (web reads Firebase config from `VITE_FIREBASE_*` at build time; emulator wiring dead-code-eliminated from the production bundle), `64a2578` (API refuses to boot without `FRAUD_LIST_HMAC_SECRET`, sourced from Secret Manager), `9fd0315` (allyGrants collection-group index), `b10a331` (polling cut: invitation polls 10s and stop once settled, ally case list 5s → 20s after 3 visible minutes, all paused while the tab is hidden), `03ba3c1` (deploy runbook). All pushed to `origin/main`.
+- **Commands and results:**
+  - `npm run typecheck`: clean. `npm --workspace apps/api run build`: exit 0. Web suite: 23 files, 189/189. API suite under emulators (pre-deploy run): 25 files, 443/443. `docker build` (linux/amd64): OK. Production `vite build`: 0 emulator references in `dist`; all 22 `public/brand` assets present and served 200 from Hosting.
+  - Smoke via Hosting: unauthenticated `GET /api/v1/cases/x` → 401 `UNAUTHENTICATED`; unauthenticated `POST /internal/retention/sweep` → 401; anonymous-user plan save 200, case create, segment 200, facts extract with live Gemini (populated observed tactics, ~2.2s); cross-user case read → 403. Forced scheduler run → 200. Smoke users and their data deleted afterwards.
+  - Founder two-browser (owner + ally) walk of the deployed app: works end to end. Screenshot of the live owner home on the deployed URL: `docs/evidence/dsn-014-live-deploy-2026-10-18.png`.
+- **Defect found and fixed in the cloud:** `GET /api/v1/ally/cases` returned 500 `FAILED_PRECONDITION` (missing collection-group index on `allyGrants.allyUid`); the Firestore emulator never enforces indexes, so it only surfaced in production. Fixed by `firestore.indexes.json` (deployed; index `READY`); endpoint re-verified 200.
+- **Limitations:** `GET /healthz` is not reachable in the cloud (Cloud Run reserves the path on `run.app`; via Hosting it falls through to the SPA), so `scripts/smoke.sh`'s health check does not apply there — the 401 checks above are used instead. Unmapped 500s return the raw error message to the client; the founder accepted this for the prototype. Automated Playwright e2e still not run.
+
+### Local composition (2026-10-05)
 
 - **Commits (branch task/DSN-014-integrate-and-deploy-journey):** 7c6a5f8 (fake Gemini + red server test), a023a76 (server.ts), d7c887d (case start/read routes + api-client), 8dc0043 (SPA shell), b540aa5 (e2e source, Dockerfile, smoke, runbook, firebase.json hosting), 16fd7e3 (runbook wording), d24e431 (branch verification evidence), 5e5e5a4 (BLOCKING fix 1: mount existing case-store `caseRoutes`, drop local duplicate + unused `requireUser`), 1c72fe6 (BLOCKING fix 2: `journey.spec.ts` all `test.skip`), 1a6e10b (branch review-fix evidence).
 - **Integration commit:** `5968b66` (`--no-ff` merge into local main; no conflicts), followed by integrator glue `3d16e87` (serialized `apps/web/vitest.config.ts` `exclude: ['e2e/**']`). Local only; NOT pushed.
@@ -53,14 +66,14 @@ A task may move to `done` only after every applicable acceptance check is marked
 
 ## Blocker or deferral
 
-Status: `blocked`. The local dependency-free composition is integrated to local main @ `3d16e87` and fully green; the following remain blocked.
+Status: `blocked`, on sub-gate 1 only (automated Playwright e2e). Cloud deploy, SPA serve, browser auth, and the build defect are resolved.
 
 Blocked sub-gates (owner: founder decision on dependencies / cloud):
 1. Automated e2e run: needs `@playwright/test`, browser binaries, `playwright.config.ts`, and a ZIP reader dependency (`journey.spec.ts` is authored + `test.skip` pending this). Evidence: `@playwright/test` not installed; founder declined Playwright this pass and chose the manual clickable demo. Next action: founder authorizes the Playwright dependency; then un-skip + run under the emulator. NOTE: the manual clickable journey is now runnable via sub-gates 2+3 below.
 2. SPA serve: **RESOLVED locally (decision 0007).** Added `apps/web/vite.config.ts` + `dev`/`preview` scripts (Vite was already a devDependency). `npm run dev:web` serves the SPA on `:5173` and proxies `/api/v1/**` + `/healthz` to the dev API. Deployed `vite build` to `apps/web/dist` for Hosting remains part of the deploy sub-gate (4).
 3. Browser auth: **RESOLVED locally (decision 0007).** Added the `firebase` client SDK; `main.tsx` signs in anonymously against the Auth emulator and the dev API (`apps/api/src/dev-server.ts`, fake Gemini) verifies the token via the Admin SDK on the emulator. No cloud, no cost. The production web config (dropping `connectAuthEmulator`) remains part of the deploy sub-gate (4).
-4. Deploy (Step 5) + live-Gemini smoke + production web config + `vite build`: blocked on founder cloud/billing authorization. Evidence: `docs/demo-runbook.md` deploy section marked BLOCKED; nothing deployed/executed. Next action: founder grants cloud/billing authorization.
-5. Pre-existing `npm run build` defect: `tsconfig.build.json` `rootDir: src` + relative `packages/contracts/src/*.js` imports → TS6059 + stray `.js` emit. Confirmed on clean main (NOT introduced by DSN-014). Evidence recorded above. Next action: open a dedicated serialized task + a `project/decisions/` entry for a tsconfig/project-references fix; owner = integrator/founder scheduling.
+4. Deploy (Step 5) + live-Gemini smoke + production web config + `vite build`: **RESOLVED 2026-10-18** — founder authorized cloud/billing; deployed and verified (see "Cloud deploy" evidence).
+5. **RESOLVED 2026-10-18 (`418ad43`)** — pre-existing `npm run build` defect: `tsconfig.build.json` `rootDir: src` + relative `packages/contracts/src/*.js` imports → TS6059 + stray `.js` emit. Confirmed on clean main (NOT introduced by DSN-014). Evidence recorded above. Next action: open a dedicated serialized task + a `project/decisions/` entry for a tsconfig/project-references fix; owner = integrator/founder scheduling.
 
 Non-blocking carry-forwards (do not block this task; fold into the resume or a follow-up):
 - Client idempotency smell (review F11): `api-client.ts` `withKey` sets a body key while `command` generates a separate header key — a retry can send mismatched header/body keys. Low risk (server keys per command); fix when the client is next edited.
@@ -71,5 +84,5 @@ Task lands in `blocked`, not `done`.
 
 ## Handoff
 
-- **Next action:** Composition integrated/reviewed/green on local main; the clickable local e2e demo is wired and booted (decision 0007). Task stays `blocked`. Founder decisions still required to resume: (a) Playwright dependency for the *automated* two-browser e2e, (b) cloud/billing authorization for deploy + live-Gemini smoke + production web config + `vite build`, (c) scheduling the dedicated build-defect task + decision. Run locally meanwhile: `npm run dev:api` + `npm run dev:web` (see `docs/demo-runbook.md` "Run locally end-to-end").
-- **Unresolved issues:** Four external sub-gates + the pre-existing build defect (all in Blocker). Founder-surface items consolidated for the whole-product handoff; cloud deploy + Cup submission remain unauthorized (strictly local this pass).
+- **Next action:** The deployed demo is live and founder-verified. To close the task, either (a) the founder authorizes the Playwright dependency and the two-browser journey is un-skipped and run, or (b) the founder accepts the manual two-browser walk as meeting the e2e acceptance check, and the task moves to `done`. Redeploy and config changes follow `docs/demo-runbook.md` "Deploy to Google Cloud".
+- **Unresolved issues:** Automated Playwright e2e (sub-gate 1) and the non-blocking carry-forwards above.
