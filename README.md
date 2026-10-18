@@ -14,36 +14,44 @@ Scam callers isolate their victim: "Your account is compromised, move your money
 
 ## What Second Voice does
 
-1. **Screens the call before pickup.** Checks the caller against the user's private list of confirmed fraud numbers and warns before they answer.
+1. **Screens the call before pickup.** Checks the caller against numbers already confirmed as fraud and warns before they answer.
 2. **Listens and understands.** Transcribes the call and uses Gemini to extract who the caller claims to be, what they want, and the pressure tactics they use (urgency, secrecy, threats), each linked to the line it came from.
 3. **Checks the claims.** Gemini with Google Search grounding looks up the claimed organisation's official contact number and judges whether the requested procedure is something a real bank would ever ask for.
 4. **Changes the decision, not just the warning.** Before a risky transfer, the user gets a calm pause with clear next steps: call the official number, or ask their ally.
 5. **Brings in a trusted ally.** One tap shares exactly the evidence the user picks with a pre-paired ally, who sees the case and responds.
-6. **Recovers if they already paid.** "I already paid" turns the same case into a recovery packet: a timeline, evidence, and a pre-filled report for the 1930 helpline / cybercrime.gov.in that the user files themselves. Once the user confirms fraud, the number goes on their private screening list, so they're warned before picking up if it calls again.
+6. **Recovers if they already paid.** "I already paid" turns the same case into a recovery packet: a timeline, evidence, and a pre-filled report for the 1930 helpline / cybercrime.gov.in that the user files themselves. Once the user confirms fraud, the number goes on their fraud-number list, so they're warned before picking up if it calls again.
 
 The in-app **About** screen lists which integrations are illustrative in this prototype (bank connection and account freeze, caller-ID lookup, and the report channel). All data is sample data.
 
 ## Architecture
 
-```
-Browser (React SPA)
-   │  Firebase Auth (anonymous sign-in)
-   ▼
-Firebase Hosting ── /api/v1/** ──► Cloud Run: Node 22 + Fastify API (asia-south1, scales to zero)
-                                      ├─► Firestore (cases, events, evidence, ally grants)
-                                      ├─► Vertex AI Gemini via Google Gen AI SDK
-                                      │     (extraction, transcription, Search-grounded verification,
-                                      │      recovery script)
-                                      └─◄ Cloud Scheduler (OIDC) ─ hourly retention sweep
-Secret Manager ─► fraud-list HMAC key
+```mermaid
+flowchart LR
+    U["Browser<br/>React SPA"] -->|Firebase Auth<br/>anonymous sign-in| H["Firebase Hosting"]
+    H -->|"/api/v1/**"| R["Cloud Run<br/>Node 22 + Fastify API"]
+    R --> F[("Cloud Firestore<br/>cases, events, evidence,<br/>ally grants")]
+    R --> G["Vertex AI Gemini<br/>+ Google Search grounding"]
+    S["Cloud Scheduler"] -->|"OIDC, hourly<br/>retention sweep"| R
+    K["Secret Manager<br/>fraud-list HMAC key"] --> R
 ```
 
 - The browser never talks to Firestore or Gemini directly; Firestore rules deny all client access.
 - Three separate auth paths: Firebase ID tokens for `/api/v1/**`, a scheduler-only OIDC identity for `/internal/retention/sweep`, and nothing else.
-- No API keys in the deployed code: Gemini is called through Vertex AI using the Cloud Run service account, and the one secret lives in Secret Manager.
 - Case data expires on a retention schedule. Fraud numbers are stored only as HMAC hashes.
 
-**Google technologies:** Gemini on Vertex AI (Google Gen AI SDK, with Google Search grounding), Cloud Run, Firebase Hosting, Firebase Authentication, Cloud Firestore, Cloud Scheduler, Secret Manager, Cloud Build, Artifact Registry.
+### Google technologies
+
+| Technology | How it helps Second Voice |
+| --- | --- |
+| Gemini on Vertex AI (Google Gen AI SDK) | Transcribes the call, extracts the caller's claims, requests and pressure tactics, and drafts the recovery script |
+| Google Search grounding | Finds the claimed organisation's official contact number and checks whether a real bank would ask for this |
+| Cloud Run | Runs the API in asia-south1 and scales to zero when idle |
+| Firebase Hosting | Serves the app and routes `/api/v1/**` to Cloud Run on the same origin |
+| Firebase Authentication | Anonymous sign-in gives each user and ally an identity without collecting personal data |
+| Cloud Firestore | Stores cases, events, evidence and ally grants, with server-only access |
+| Cloud Scheduler | Triggers the hourly retention sweep that deletes expired case data |
+| Secret Manager | Holds the key used to hash fraud numbers |
+| Cloud Build + Artifact Registry | Build and store the API container image for deploys |
 
 ## Repository layout
 
@@ -69,12 +77,7 @@ Use a live model locally with `npm run dev:api:live` (set `GEMINI_API_KEY`, or `
 
 ## How we built this
 
-The project ran as a spec-driven build with AI coding agents working under a written contract:
-
-- [`Decision_Safety_Network_PRD_Draft.md`](Decision_Safety_Network_PRD_Draft.md): the product requirements ("Decision Safety Network" was the working name) and [`docs/founder-demo-vision.md`](docs/founder-demo-vision.md), the product story it came from.
-- [`project/decisions/`](project/decisions/): architecture and product decision records.
-- [`project/tasks/`](project/tasks/): every task with its acceptance checks and verification evidence.
-- [`AGENTS.md`](AGENTS.md), [`project/WORKFLOW.md`](project/WORKFLOW.md), [`docs/superpowers/`](docs/superpowers/): the agent operating contract, task workflow, and implementation plans.
+A spec-driven build with AI coding agents: the product requirements are in [`Decision_Safety_Network_PRD_Draft.md`](Decision_Safety_Network_PRD_Draft.md), design decisions in [`project/decisions/`](project/decisions/), and each task with its verification evidence in [`project/tasks/`](project/tasks/).
 
 ## License
 

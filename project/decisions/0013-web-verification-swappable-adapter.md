@@ -5,7 +5,7 @@
 - **Owners:** Orchestrator (integrator); implements founder-approved Decision 19 / C7 under [0010](0010-cup-scope-amendment-2026-10-11.md)
 - **Related task:** DSN-026
 - **PRD references:** Part I — Decision 19; C7 (open-web lookups as labeled untrusted evidence); Responsibility boundary; Trust gate ("the actionable route still comes from curated records")
-- **Refines:** the untrusted-supporting-evidence discipline established for DSN-024 in [0011](0011-private-fraud-list-privacy-and-retention.md)
+- **Refines:** the untrusted-supporting-evidence discipline established for DSN-024 in [0011](0011-confirmed-fraud-list-hashing-and-retention.md)
 - **Supersedes:** None
 - **Superseded by:** None
 - **Refined by:** [0015](0015-live-web-grounding-and-verification-into-decision.md) (enables the live grounding seam, splits the institution config, and feeds the sealed verification into the decision)

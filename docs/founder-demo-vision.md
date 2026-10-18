@@ -59,8 +59,8 @@ Resolving each PRD gap raised on 2026-10-11:
    prototype; we must show the capability to show impact. Clearly mark it as a prototype capture
    path (not an App-Store-distributable claim). Overrides the current controlled-transcript-only
    scope and the three call-capture non-goals.
-2. **Private fraud-number blacklist — IN, private only.** Populate the list only from cases the
-   user confirmed fraudulent **or** that were reported to the cyber cell. Kept private; used to warn
+2. **Fraud-number list — IN, no public accusation.** Populate the list only from cases the
+   user confirmed fraudulent **or** that were reported to the cyber cell. Used to warn
    future recipients of a matching number before they pick up. Not public, no criminal attribution.
 3. **Account freeze — guided, not real, affected account only.** No full bank integration claim;
    Demo Bank for the Cup. Instead of a one-click freeze, **guide** the user: show the bank helpline

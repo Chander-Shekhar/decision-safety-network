@@ -17,7 +17,7 @@ The locked PRD scoped the Cup build defensively — controlled transcript only, 
 Amend Part I with founder decisions 15–20 and the matched edits across scope, feature, non-goal, boundary, gate, and component sections:
 
 1. **Call capture** demonstrated as a labeled prototype path (OEM/accessibility/dialer-integrated on a controlled device); controlled transcript retained as a reproducible evaluation fallback.
-2. **Private confirmed-fraud list** (C13), populated only on user confirmation or authority report; warns future recipients before pickup; never public, never criminal attribution.
+2. **Confirmed-fraud list** (C13), populated only on user confirmation or authority report; warns future recipients before pickup; never public, never criminal attribution.
 3. **Guided account protection** — helpline + what-to-say script for the affected account; never a real freeze.
 4. **User-submitted, pre-filled** 1930/NCRP report; never unattended submission.
 5. **Third-party caller-ID + grounded open-web claim verification** as labeled, untrusted supporting evidence; never the official route, never self-certifying.
