@@ -4,7 +4,7 @@ import { journeySteps, initialStep, type JourneyState } from './journey';
 const base: JourneyState = {
   role: 'owner', planSaved: false, caseId: '', phase: undefined,
   factsExtracted: false,
-  recoveryEntered: false, hasConfirmedFacts: false,
+  recoveryEntered: false,
 };
 const avail = (steps = journeySteps(base)) => steps.filter((s) => s.available).map((s) => s.step);
 
@@ -15,10 +15,9 @@ describe('journeySteps (owner)', () => {
   it('plan saved: Session unlocks', () => {
     expect(avail(journeySteps({ ...base, planSaved: true }))).toEqual(['Plan', 'Session']);
   });
-  it('case + extracted facts: Review, Decide, Ally unlock; Evidence needs confirmed facts; Recovery needs "already paid"', () => {
+  it('case + extracted facts: Review, Decide, Ally unlock; Recovery needs "already paid"', () => {
     const steps = journeySteps({ ...base, planSaved: true, caseId: 'c1', factsExtracted: true });
     expect(avail(steps)).toEqual(expect.arrayContaining(['Plan', 'Session', 'Review', 'Decide', 'Ally']));
-    expect(avail(steps)).not.toContain('Evidence');
     expect(avail(steps)).not.toContain('Recovery');
     expect(avail(steps)).not.toContain('Verify');
   });

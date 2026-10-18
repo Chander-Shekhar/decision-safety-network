@@ -1,6 +1,6 @@
 import type { Phase } from '../../../packages/contracts/src/case';
 
-export const STEPS = ['Plan', 'Session', 'Review', 'Decide', 'Ally', 'Recovery', 'Evidence'] as const;
+export const STEPS = ['Plan', 'Session', 'Review', 'Decide', 'Ally', 'Recovery'] as const;
 export type Step = (typeof STEPS)[number];
 
 export interface JourneyState {
@@ -10,7 +10,6 @@ export interface JourneyState {
   phase?: Phase;
   factsExtracted: boolean;
   recoveryEntered: boolean;
-  hasConfirmedFacts: boolean;
 }
 
 export interface StepStatus { step: Step; available: boolean; reason?: string }
@@ -23,7 +22,6 @@ function ownerStep(step: Step, s: JourneyState): StepStatus {
     case 'Decide':
     case 'Ally': return s.factsExtracted ? { step, available: true } : { step, available: false, reason: 'Facts must be extracted first.' };
     case 'Recovery': return s.recoveryEntered ? { step, available: true } : { step, available: false, reason: "Available after you choose “I already paid”." };
-    case 'Evidence': return s.hasConfirmedFacts ? { step, available: true } : { step, available: false, reason: 'Confirm at least one fact first.' };
   }
 }
 

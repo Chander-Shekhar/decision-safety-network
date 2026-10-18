@@ -19,6 +19,13 @@ export interface RecoveryScreenProps {
   onEdit?: (details: EditedPaidDetails) => void;
   /** The number found on the Decide step; when present it is the bank/organisation call link. */
   officialContact?: OfficialContact | null;
+  /** True once the owner opened the official portal; never means a report was filed or accepted. */
+  reportHandedOff?: boolean;
+  /** The caller's number was captured at the start; reporting also adds it to the owner's private warn list. */
+  callerKnown?: boolean;
+  onOpenReport?: () => void;
+  onDownloadReport?: () => void;
+  onDownloadEvidence?: () => void;
 }
 
 const HEARD_LABELS: Record<string, string> = {
@@ -56,7 +63,7 @@ function dialable(number: string): string {
  * what was paid. Presentational only; the API owns all data. Nothing here
  * claims a call, freeze, or report happened.
  */
-export function RecoveryScreen({ state, onMatch, onEdit, officialContact }: RecoveryScreenProps): React.JSX.Element {
+export function RecoveryScreen({ state, onMatch, onEdit, officialContact, reportHandedOff, callerKnown, onOpenReport, onDownloadReport, onDownloadEvidence }: RecoveryScreenProps): React.JSX.Element {
   const { proposedPayment, paidPayment, helpline1930Action, guidedFreeze } = state;
   const [editing, setEditing] = useState(false);
   const [payee, setPayee] = useState('');
@@ -98,7 +105,7 @@ export function RecoveryScreen({ state, onMatch, onEdit, officialContact }: Reco
             <ActionBar>
               <a
                 href={`tel:${dialable(bankNumber)}`}
-                className="inline-flex items-center justify-center rounded-md bg-primary px-space-4 py-space-3 text-base font-semibold text-on-primary"
+                className="inline-flex items-center justify-center rounded-md bg-primary px-space-4 py-space-3 text-base font-semibold text-white"
               >
                 Call {bankName} · {bankNumber}
               </a>
@@ -120,17 +127,6 @@ export function RecoveryScreen({ state, onMatch, onEdit, officialContact }: Reco
         </Card>
       </section>
 
-      <section aria-label="Report to 1930">
-        <Card title="2. Report it to the cyber helpline">
-          <p>
-            Call{' '}
-            <a href="tel:1930" className="font-semibold underline">1930</a>
-            {' '}or report online at{' '}
-            <a href={helpline1930Action.sourceUrl} className="underline">cybercrime.gov.in</a>. The sooner it is reported, the better.
-          </p>
-        </Card>
-      </section>
-
       {heardEntries.length > 0 && (
         <section aria-label="What the caller said">
           <Card title="What the caller said">
@@ -148,7 +144,7 @@ export function RecoveryScreen({ state, onMatch, onEdit, officialContact }: Reco
       )}
 
       <section aria-label="What you paid">
-        <Card title="3. What you paid">
+        <Card title="2. What you paid">
           {paidPayment ? (
             <>
               <p>Saved as you told us.</p>
@@ -223,9 +219,33 @@ export function RecoveryScreen({ state, onMatch, onEdit, officialContact }: Reco
         </Card>
       </section>
 
-      <section aria-label="Recovery scam warning">
-        <Card title="One more thing">
-          <p>Be careful of anyone who offers to get your money back for a fee. Genuine banks and the police never ask for payment to recover funds.</p>
+      <section aria-label="Report it">
+        <Card title="3. Report it to the cyber helpline">
+          <p>
+            You can call{' '}
+            <a href="tel:1930" className="font-semibold underline">1930</a>
+            , or open the official portal. We&apos;ve pre-filled what we know; you check it and submit it yourself.
+          </p>
+          {callerKnown && <p className="text-sm text-text-muted">Reporting also adds the caller&apos;s number to your private warning list, so you are warned if they call again.</p>}
+          {reportHandedOff && (
+            <p role="status" className="font-medium">
+              Portal opened. We can&apos;t see or confirm your report, so please finish and submit it there.
+            </p>
+          )}
+          <ActionBar>
+            <Button size="lg" onClick={() => onOpenReport?.()}>
+              Open the cyber-crime portal
+            </Button>
+            <Button variant="secondary" onClick={() => onDownloadReport?.()}>
+              Download the pre-filled form
+            </Button>
+            <Button variant="secondary" onClick={() => onDownloadEvidence?.()}>
+              Save my evidence
+            </Button>
+          </ActionBar>
+          <p className="text-sm text-text-muted">
+            Be careful of anyone offering to get your money back for a fee. Genuine banks and the police never ask for payment to recover funds.
+          </p>
         </Card>
       </section>
     </main>

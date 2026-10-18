@@ -20,9 +20,8 @@ import { ApiError, createApiClient, newIdempotencyKey, withKey, type GetIdToken 
 import { AppShell, type AppView } from './AppShell';
 import { CasesScreen } from './CasesScreen';
 import { DecisionMap, FactCorrectionPanel } from './DecisionMap';
-import { EvidenceScreen, type ReportDraftView } from './EvidenceScreen';
 import { HomeScreen } from './HomeScreen';
-import { ConfirmFraudPanel, IncomingCallScreen } from './ScreeningScreen';
+import { IncomingCallScreen } from './ScreeningScreen';
 import type { ScreeningVerdict } from '../../../packages/contracts/src/screening';
 import { initialStep, journeySteps, type JourneyState, type Step } from './journey';
 import { PlanScreen, type AllyStatus } from './PlanScreen';
@@ -107,7 +106,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   const [allySharer, setAllySharer] = useState<AllySharer | undefined>();
   const [allyAccess, setAllyAccess] = useState<'active' | 'stale' | 'revoked'>('active');
   // DSN-028: pre-filled 1930/NCRP report draft + the user-opens-it-themselves handoff.
-  const [reportDraft, setReportDraft] = useState<ReportDraftView | undefined>();
   const [reportChannelUrl, setReportChannelUrl] = useState('');
   const [reportHandedOff, setReportHandedOff] = useState(false);
   const [recovery, setRecovery] = useState<RecoveryState | null>(null);
@@ -367,7 +365,6 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     phase: caseView?.phase,
     factsExtracted: facts.length > 0,
     recoveryEntered: !!recovery || caseView?.phase === 'Recover',
-    hasConfirmedFacts: facts.some((f) => !!caseView?.confirmed?.[f.field]),
   };
   // The ally still needs the Plan step to accept an invitation, so keep it reachable for that role.
   const railSteps = journeySteps(journeyState).map((s) => (role === 'ally' && s.step === 'Plan' ? { step: s.step, available: true } : s));
@@ -523,26 +520,14 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     });
   }, [owner, caseId, step, claimedIdentity, run]);
 
-  // DSN-028: load the pre-filled report draft when the owner is on the Evidence step (and when the case changes there).
+  // DSN-028: learn the official reporting channel once the owner is in Recovery (the draft itself is downloaded on demand).
   useEffect(() => {
-    if (!(owner && caseId && step === 'Evidence')) return;
+    if (!(owner && caseId && step === 'Recovery' && recovery)) return;
     void run(async () => {
       const draft = await api.get<ReportDraft>(`cases/${caseId}/report-draft`);
       setReportChannelUrl(draft.handoff.channelUrl);
-      setReportDraft({
-        label: draft.label,
-        sourceDate: draft.sourceDate,
-        fields: draft.fields.map((f) => ({
-          ncrpField: f.ncrpField,
-          value: f.value,
-          blank: f.blank,
-          provenanceLabel: f.provenance?.provenanceLabel ?? '',
-        })),
-        recoveryScamWarning: draft.recoveryScamWarning,
-        channelLabel: draft.handoff.channelLabel,
-      });
     });
-  }, [owner, caseId, step, version, api, run]);
+  }, [owner, caseId, step, recovery, version, api, run]);
 
   // Pick the starting step once, after the case (if any) has loaded. Pure client state; no API call.
   useEffect(() => {
@@ -1004,73 +989,25 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
                   )
                 }
                 officialContact={officialContact}
+                reportHandedOff={reportHandedOff}
+                callerKnown={!!screenedNumber}
+                onOpenReport={() =>
+                  run(async () => {
+                    const body: { idempotencyKey: string; callerNumber?: string } = { idempotencyKey: newIdempotencyKey() };
+                    if (screenedNumber) body.callerNumber = screenedNumber;
+                    // Records the handoff (and the caller on the private list) server-side, THEN the human opens the portal.
+                    await api.command<ReportHandoffResult>('POST', `cases/${caseId}/report-handoff`, body);
+                    setReportHandedOff(true);
+                    window.open(reportChannelUrl, '_blank', 'noopener');
+                  })
+                }
+                onDownloadReport={() => run(() => saveDownload('GET', `cases/${caseId}/report-draft/download`))}
+                onDownloadEvidence={() => run(() => saveDownload('POST', `cases/${caseId}/export`))}
               />
-            )}
-            {/* Marking the caller as fraud belongs here, in the incident phase, not on the facts-review
-                step: it's an after-the-fact conclusion that records the number to the private warn-list
-                (founder vision step 6). Shown once the user has entered recovery. */}
-            {recovery && (
-              <section aria-label="Record this caller as fraud" className="flex flex-col gap-space-2">
-                <p className="text-sm text-text-muted">
-                  Now that you&apos;re handling this as fraud, record the caller&apos;s number so future recipients of a
-                  matching call are warned before they pick up.
-                </p>
-                <ConfirmFraudPanel
-                  initialNumber={screenedNumber}
-                  onConfirm={async (callerNumber) => {
-                    const res = await api.command<{ maskedNumber: string }>('POST', `cases/${caseId}/fraud-confirmation`, {
-                      callerNumber,
-                      basis: 'user-confirmed',
-                    });
-                    return res.maskedNumber;
-                  }}
-                />
-              </section>
             )}
           </>
         )}
 
-        {owner && caseId && step === 'Evidence' && (
-          <EvidenceScreen
-            timeline={facts.map((f) => ({ kind: 'confirmed-fact' as const, label: f.field, value: f.value }))}
-            exportAllowed
-            retentionMode="facts-24h"
-            onExport={() =>
-              run(async () => {
-                const { blob, filename } = await api.download('POST', `cases/${caseId}/export`);
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = filename;
-                link.click();
-                URL.revokeObjectURL(link.href);
-              })
-            }
-            // DSN-028: pre-filled report draft; the user downloads/opens the official channel themselves.
-            reportDraft={reportDraft}
-            handoffAllowed={!!recovery || caseView?.phase === 'Recover'}
-            handedOff={reportHandedOff}
-            onDownloadReportDraft={() =>
-              run(async () => {
-                const { blob, filename } = await api.download('GET', `cases/${caseId}/report-draft/download`);
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = filename;
-                link.click();
-                URL.revokeObjectURL(link.href);
-              })
-            }
-            onOpenOfficialChannel={(callerNumber) =>
-              run(async () => {
-                const body: { idempotencyKey: string; callerNumber?: string } = { idempotencyKey: newIdempotencyKey() };
-                if (callerNumber) body.callerNumber = callerNumber;
-                // Records the handoff + authority-report list entry server-side, THEN the human opens the channel.
-                await api.command<ReportHandoffResult>('POST', `cases/${caseId}/report-handoff`, body);
-                setReportHandedOff(true);
-                window.open(reportChannelUrl, '_blank', 'noopener');
-              })
-            }
-          />
-        )}
 
           {/* Sequential Back / Next across the journey, shown wherever the StepRail is: the rail
               is the overview, this is the one-step-at-a-time path. */}
@@ -1096,6 +1033,15 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
     setRole('owner');
     setStep('Plan');
     setView('home');
+  }
+
+  async function saveDownload(method: 'GET' | 'POST', path: string): Promise<void> {
+    const { blob, filename } = await api.download(method, path);
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   async function act(kind: 'pause' | 'cancel' | 'continue'): Promise<void> {

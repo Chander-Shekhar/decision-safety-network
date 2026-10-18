@@ -46,11 +46,21 @@ describe('RecoveryScreen', () => {
     expect(within(bank).getByText(/back of your card/i)).toBeVisible();
   });
 
-  it('offers 1930 with the official source', () => {
-    render(<RecoveryScreen state={baseState} />);
-    const r = screen.getByRole('region', { name: /report to 1930/i });
+  it('offers one reporting step with 1930, the portal, and downloads', async () => {
+    const onOpenReport = vi.fn();
+    render(<RecoveryScreen state={baseState} callerKnown onOpenReport={onOpenReport} />);
+    const r = screen.getByRole('region', { name: /report it/i });
     expect(within(r).getByRole('link', { name: '1930' })).toHaveAttribute('href', 'tel:1930');
-    expect(within(r).getByRole('link', { name: /cybercrime\.gov\.in/i })).toHaveAttribute('href', 'https://cybercrime.gov.in/');
+    expect(within(r).getByText(/private warning list/i)).toBeVisible();
+    await userEvent.click(within(r).getByRole('button', { name: /open the cyber-crime portal/i }));
+    expect(onOpenReport).toHaveBeenCalled();
+    expect(within(r).getByRole('button', { name: /pre-filled form/i })).toBeVisible();
+    expect(within(r).getByRole('button', { name: /save my evidence/i })).toBeVisible();
+  });
+
+  it('never claims the report was filed once the portal is opened', () => {
+    render(<RecoveryScreen state={baseState} reportHandedOff />);
+    expect(screen.getByText(/can't see or confirm your report/i)).toBeVisible();
   });
 
   it('labels what the caller said in plain words, never raw field names', () => {
@@ -94,7 +104,7 @@ describe('RecoveryScreen', () => {
 
   it('warns about recovery scams without blame', () => {
     render(<RecoveryScreen state={baseState} />);
-    expect(screen.getByText(/get your money back for a fee/i)).toBeVisible();
+    expect(screen.getByText(/offering to get your money back for a fee/i)).toBeVisible();
     expect(screen.queryByText(/your fault|you should have|careless/i)).toBeNull();
   });
 });

@@ -203,13 +203,13 @@ describe('App · live transcript bridge (DSN-025)', () => {
   it('provides sequential Back/Next navigation through the journey steps', async () => {
     await openSession();
     // The footer shows where you are and offers a forward path.
-    expect(screen.getByText('Step 2 of 7')).toBeVisible();
+    expect(screen.getByText('Step 2 of 6')).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: /next: review/i }));
     expect(await screen.findByRole('region', { name: 'What we heard' })).toBeVisible();
-    expect(screen.getByText('Step 3 of 7')).toBeVisible();
+    expect(screen.getByText('Step 3 of 6')).toBeVisible();
     // ...and a way back to the previous step.
     await userEvent.click(screen.getByRole('button', { name: /back to session/i }));
-    expect(screen.getByText('Step 2 of 7')).toBeVisible();
+    expect(screen.getByText('Step 2 of 6')).toBeVisible();
   });
 });
 
