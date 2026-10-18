@@ -39,7 +39,7 @@ Sign-in is automatic and anonymous. Use made-up names and numbers; everything in
 
 ## Part 2: a scam call (5 minutes)
 
-**6. Add the call.** On Home, click **Start a protected session**, then **Start controlled session**. In **Paste the call**, paste one of the [sample transcripts](#sample-scam-transcripts) below and click **Add transcript**. Then click **Next: Review**.
+**6. Add the call.** On Home, click **Start a protected session**, then **Start controlled session**. Optionally enter the number the call came from in **Caller's number**. In **Paste the call**, paste one of the [sample transcripts](#sample-scam-transcripts) below and click **Add transcript**. Then click **Next: Review**.
 
 <img src="images/07-paste-transcript.png" width="360" alt="Pasting a transcript">
 
