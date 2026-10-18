@@ -24,7 +24,7 @@ const formatAmount = (amountMinor: number): string => (amountMinor / 100).toLoca
 /** Plain-text summary from the allowlisted packet fields only. */
 export function summarizePacket(packet: AllyPacket): string {
   const lines = [
-    'Safety Ally request (Decision Safety Network demo - simulated data)',
+    'Safety Ally request (Second Voice demo - simulated data)',
     `Caller claimed: ${packet.claim}`,
     `Proposed action: ${packet.proposedAction}`,
     `Amount: ${packet.amountMinor === null ? 'No amount proposed' : `Rs ${formatAmount(packet.amountMinor)}`}`,

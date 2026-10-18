@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deployed smoke for the Decision Safety Network API. Not run in this pass.
+# Deployed smoke for the Second Voice API. Not run in this pass.
 # Usage: BASE_URL=https://<service-host> ID_TOKEN=<synthetic-user-id-token> scripts/smoke.sh
 set -euo pipefail
 : "${BASE_URL:?BASE_URL is required}"

@@ -32,7 +32,7 @@ describe('App', () => {
     expect(screen.queryByText(/all data is synthetic/i)).toBeNull();
     expect(screen.queryByText(/\bprototype\b/i)).toBeNull();
     // The mobile shell wordmark is present.
-    expect(screen.getByRole('banner')).toHaveTextContent('Decision Safety Network');
+    expect(screen.getByRole('banner')).toHaveTextContent('Second Voice');
   });
 
   it('exposes burger-menu navigation to Settings, Cases, and About', async () => {

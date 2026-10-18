@@ -1,6 +1,6 @@
-# Decision Safety Network
+# Second Voice
 
-AI Builder Cup repository for the Decision Safety Network product.
+AI Builder Cup repository for the Second Voice product (formerly the internal working name "Decision Safety Network").
 
 **State as of 15 October 2026:** The Core MVP requirements, technical plan, and UI wireframes are approved, and implementation is underway — the Core case journey and web UI exist (through DSN-033). Deployment is not yet live. Consult code, tests, and canonical task records for the current state.
 

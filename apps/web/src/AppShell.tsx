@@ -68,12 +68,12 @@ export function AppShell({ view, onNavigate, allyMode = false, onExitAllyView, b
           )}
           {allyMode ? (
             <>
-              <span className="truncate font-semibold tracking-tight">Decision Safety Network</span>
+              <span className="truncate font-semibold tracking-tight">Second Voice</span>
               <span className="ml-auto whitespace-nowrap text-sm text-text-muted">Safety Ally</span>
             </>
           ) : view === 'home' ? (
             // Home is the root: no "up" to show, so keep the wordmark here.
-            <span className="truncate font-semibold tracking-tight">Decision Safety Network</span>
+            <span className="truncate font-semibold tracking-tight">Second Voice</span>
           ) : (
             // Secondary views (Settings/Cases/About) get a trail back to Home.
             // Small, single-line, and truncating so it never overlaps the burger.

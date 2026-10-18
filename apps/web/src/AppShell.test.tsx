@@ -41,7 +41,7 @@ describe('AppShell · breadcrumb navigation', () => {
         <p />
       </AppShell>,
     );
-    expect(screen.getByRole('banner')).toHaveTextContent('Decision Safety Network');
+    expect(screen.getByRole('banner')).toHaveTextContent('Second Voice');
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
   });
 

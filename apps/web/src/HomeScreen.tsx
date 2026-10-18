@@ -33,7 +33,7 @@ export function HomeScreen({ firstRun, plan, allyStatus, onStartSession, onOpenS
     return (
       <section aria-label="Home">
         <Card
-          title="Welcome to Decision Safety Network"
+          title="Welcome to Second Voice"
           footer={
             <Button size="lg" onClick={onOpenSettings}>
               Go to Settings to set up

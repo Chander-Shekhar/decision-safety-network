@@ -11,7 +11,7 @@ export function AboutScreen(): React.JSX.Element {
     <section aria-label="About this demo">
       <Card title="About this demo">
         <p>
-          Decision Safety Network helps someone under pressure on a call slow down and make one safer decision — and,
+          Second Voice helps someone under pressure on a call slow down and make one safer decision — and,
           if money has already moved, build the case to recover it.
         </p>
         <p className="font-semibold">What is real, and what is illustrative</p>

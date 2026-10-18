@@ -69,7 +69,7 @@ export function renderReportDraftHtml(draft: ReportDraft): string {
     .join('');
   return `<!doctype html>
 <html>
-<head><meta charset="utf-8"><title>1930/NCRP report draft - Decision Safety Network (Simulated)</title></head>
+<head><meta charset="utf-8"><title>1930/NCRP report draft - Second Voice (Simulated)</title></head>
 <body>
   <p><strong>${escapeHtml(draft.label)}</strong> &middot; SIMULATED</p>
   <p>This is a pre-filled draft built only from facts you confirmed. Blank fields are unknown and were not guessed. You review it and submit it yourself through the official channel; this app does not submit it and cannot confirm any report was received.</p>
