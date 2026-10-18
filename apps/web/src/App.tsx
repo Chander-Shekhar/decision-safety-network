@@ -1022,6 +1022,9 @@ export function App({ auth }: { auth: AuthProvider }): React.JSX.Element {
   function navigate(next: AppView): void {
     setView(next);
     setIncomingCall(false);
+    // Home is the landing screen, which renders only on the Plan step; without this, "Home" from
+    // mid-case just re-showed the current step. The case stays loaded and reachable via Cases or the rail.
+    if (next === 'home') setStep('Plan');
     if (next !== 'settings') setSettingsSaved(false);
   }
 

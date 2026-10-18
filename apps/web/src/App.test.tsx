@@ -109,6 +109,27 @@ describe('App', () => {
   });
 });
 
+describe('App · menu navigation', () => {
+  it('Home from mid-case returns to the Home screen, and Cases reopens the case', async () => {
+    window.history.pushState({}, '', '/cases/c1');
+    get.mockImplementation(async (path: string) =>
+      path === 'cases/c1'
+        ? { id: 'c1', version: 2, phase: 'Observe', facts: { payee: { field: 'payee', value: 'x', sourceSegmentIds: ['seg-1'] } }, confirmed: {} }
+        : path === 'plan'
+          ? { callListening: 'per-call', processingConsent: false, allySharingConsent: true, allyShareFields: ['claim'], bankAccounts: [], thresholdMinor: 500000, retentionMode: 'facts-24h', exportConsent: false, setupCompletedAt: '2026-10-11T00:00:00.000Z' }
+          : undefined,
+    );
+    render(<App auth={auth} />);
+    await userEvent.click(await screen.findByRole('button', { name: /^Decide/ }));
+    expect(screen.getByRole('heading', { name: /decide what to do/i })).toBeVisible();
+
+    await userEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    await userEvent.click(within(await screen.findByRole('navigation', { name: 'Main' })).getByRole('button', { name: 'Home' }));
+    expect(await screen.findByRole('region', { name: 'Home' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: /decide what to do/i })).toBeNull();
+  });
+});
+
 describe('App · live transcript bridge (DSN-025)', () => {
   const seg = (text: string, at: string) => JSON.stringify({ type: 'dsn:transcript-segment', text, at });
 
