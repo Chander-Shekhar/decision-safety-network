@@ -1,3 +1,5 @@
+<p align="center"><img src="apps/web/public/brand/second-voice-logo.png" alt="Second Voice: when panic calls, reason answers." width="220"></p>
+
 # Second Voice
 
 AI Builder Cup repository for the Second Voice product (formerly the internal working name "Decision Safety Network").

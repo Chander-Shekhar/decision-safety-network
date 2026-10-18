@@ -68,12 +68,18 @@ export function AppShell({ view, onNavigate, allyMode = false, onExitAllyView, b
           )}
           {allyMode ? (
             <>
+              <span className="flex min-w-0 items-center gap-space-2">
+                <img src="/brand/second-voice-mark.png" alt="" aria-hidden="true" className="h-6 w-6 shrink-0" />
               <span className="truncate font-semibold tracking-tight">Second Voice</span>
+              </span>
               <span className="ml-auto whitespace-nowrap text-sm text-text-muted">Safety Ally</span>
             </>
           ) : view === 'home' ? (
             // Home is the root: no "up" to show, so keep the wordmark here.
-            <span className="truncate font-semibold tracking-tight">Second Voice</span>
+            <span className="flex min-w-0 items-center gap-space-2">
+              <img src="/brand/second-voice-mark.png" alt="" aria-hidden="true" className="h-6 w-6 shrink-0" />
+              <span className="truncate font-semibold tracking-tight">Second Voice</span>
+            </span>
           ) : (
             // Secondary views (Settings/Cases/About) get a trail back to Home.
             // Small, single-line, and truncating so it never overlaps the burger.

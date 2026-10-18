@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Second Voice">
+  <rect x="0" y="0" width="1200" height="630" fill="#ffffff"/>
+  <g transform="translate(110 150) scale(1.0)">  <g transform="translate(-43.4 -9.4) scale(0.2)"><path d="M 1196 325 A 520 520 0 1 0 1423 1021" fill="none" stroke="#0f172a" stroke-width="44" stroke-linecap="round"/>
+    <path d="M 637 619 A 371 371 0 1 1 800 1116" fill="none" stroke="#2563eb" stroke-width="33" stroke-linecap="round"/>
+    <rect x="848" y="617" width="90" height="340" rx="22" fill="#0f172a"/>
+    <rect x="982" y="617" width="90" height="340" rx="22" fill="#10b981"/></g>
+  <text x="300" y="150" font-size="112" font-family="DejaVu Sans, Verdana, Arial, sans-serif" font-weight="700" fill="#0f172a" textLength="640" lengthAdjust="spacing">Second Voice</text>
+  <text x="304" y="206" font-size="28" font-family="DejaVu Sans, Verdana, Arial, sans-serif" font-weight="700" fill="#546075" textLength="636" lengthAdjust="spacing">WHEN PANIC CALLS, REASON ANSWERS.</text>
+</g>
+</svg>

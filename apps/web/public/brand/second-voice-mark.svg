@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="380 220 1100 1150" role="img" aria-label="Second Voice">
+  <path d="M 1196 325 A 520 520 0 1 0 1423 1021" fill="none" stroke="#0f172a" stroke-width="44" stroke-linecap="round"/>
+    <path d="M 637 619 A 371 371 0 1 1 800 1116" fill="none" stroke="#2563eb" stroke-width="33" stroke-linecap="round"/>
+    <rect x="848" y="617" width="90" height="340" rx="22" fill="#0f172a"/>
+    <rect x="982" y="617" width="90" height="340" rx="22" fill="#10b981"/>
+</svg>
